@@ -5,14 +5,28 @@ import(
     "log"
     "io/ioutil"
     "html/template"
+    "strings"
+    "regexp"
     "db"
-	"strings"
+    "datatypes"
 )
+
+const client_id string = "4049f0af2d782f297291"
+const GitHubResponseURL string = "/github/"
+const AppPrefix string = "http://analysis-bots.ddns.org:8080"
+const GitHubAuthentification string = "https://github.com/login/oauth/authorize?client_id="+client_id+"&redirect_uri="+AppPrefix+GitHubResponseURL
 
 const CookieName string = "analysis_bot_cookie"
 
 const UserPagePath string = "../../web-interface_copy/index.html"
 const ProjectsPagePath string = "../../web-interface_copy/repositories.html"
+const OneBotsPagePath string = "../../web-interface_copy/bots.html"
+const BotsPagePath string = "../../web-interface_copy/bots.html" 
+const TasksPagePath string = "../../web-interface_copy/bots-actions.html" 
+const OneTaskPagePath string = "../../web-interface_copy/bots-actions.html" 
+const TaskResultPagePath string = "../../web-interface_copy/bots-actions.html"
+
+const WebInterfacePath string = "../../web-interface_copy/"
 
 //TODO implement
 func HandleError(w http.ResponseWriter, req *http.Request, err error){
@@ -25,30 +39,45 @@ func HandleLoginRequest(w http.ResponseWriter, req *http.Request){
     c.Name = CookieName
     c.Value = "13"
     http.SetCookie(w, c)
+    
+    http.Redirect(w, req, GithubAuthentification, 13)
+}
+
+func HandleGitHubResponse(w http.ResponseWriter, req * http.Request){
+    log.Println("Received Github response", req.URL.String())
 }
 
 
 // Project related handlers
 func HandleProjects(w http.ResponseWriter, req *http.Request){
     url := req.URL.String()
+    url = strings.TrimPrefix(url, "/")
+    url = strings.TrimSuffix(url, "/")
+    
+    log.Println("handle projects: ",url)
     
     userCookie, err := retrieveCookie(w, req)
     if(err != nil){
         return
     }
     
-    splittedURL := strings.Split(url, "/")
-    numURLSubPaths := len(splittedURL)
-    switch (numURLSubPaths){
-        case 1:
-        handleProjects(userCookie, w, req)
-        return
-        case 2:
-        handleProject(userCookie, splittedURL[1], w, req)
-        return
-        case 3:
-        handleProjectBotAttach(userCookie, splittedURL[1], splittedURL[2], w, req)
-        return
+    if(! (strings.HasSuffix(url, ".css") || strings.HasSuffix(url, ".js"))){
+        splittedURL := strings.Split(url, "/")
+        numURLSubPaths := len(splittedURL)
+        log.Println("num: ", numURLSubPaths)
+        switch (numURLSubPaths){
+            case 1:
+            handleProjects(userCookie, w, req)
+            return
+            case 2:
+            handleProject(userCookie, splittedURL[1], w, req)
+            return
+            case 3:
+            handleProjectBotAttach(userCookie, splittedURL[1], splittedURL[2], w, req)
+            return
+        }    
+    }else{
+        handleCSSJSRequests(w, req)
     }
 }
 
@@ -67,7 +96,7 @@ func handleProjects(userCookie string, w http.ResponseWriter, req *http.Request)
 }
 
 func handleProject(userCookie string, pId string, w http.ResponseWriter, req *http.Request){
-    
+    log.Println("handle single Project")
     project, err := db.GetProjectByUidPid(userCookie, pId);
     if(err != nil){
         log.Println("handleUserRequest: ", err)
@@ -97,24 +126,191 @@ func handleProjectBotAttach(userCookie string, pId string, bId string, w http.Re
 }
 
 
-
+// User related handlers
 func HandleUserRequest(w http.ResponseWriter, req *http.Request){
     userCookie, err := retrieveCookie(w, req)
     if(err != nil){
         return
     }
+    url := req.URL.String()
+    
+    
+    if(! (strings.HasSuffix(url, ".css") || strings.HasSuffix(url, ".js"))){
 
+        // retrieve user from DB
+        user, err := db.GetUserById(userCookie)
+        if err != nil{
+            log.Println("handleUserRequest: ", err)
+            HandleError(w, req, err)
+            return
+        }
+
+        // fill html Template
+        fillTemplate(w, req, UserPagePath, user)
+        
+    }else{
+        handleCSSJSRequests(w, req)
+    }
+    
+}
+
+
+
+// Bot related handlers
+func HandleBotsRequest(w http.ResponseWriter, req *http.Request){
+    
+    userCookie, err := retrieveCookie(w, req)
+    if(err != nil){
+        return
+    }
+    
+    sanityCheckCookie(userCookie)
+    
+    url := req.URL.String()
+    url = strings.TrimPrefix(url, "/")
+    url = strings.TrimSuffix(url, "/")
+    
+    if(! (strings.HasSuffix(url, ".css") || strings.HasSuffix(url, ".js"))){
+        splitURL := strings.Split(url , "/")
+        lenghtSplitURL := len(splitURL)
+
+        switch lenghtSplitURL{
+        case 1:
+            handleBotsRequest(w, req)
+            return
+        case 2:
+            handleBotsIdRequest(w, req , splitURL[1])
+            return
+        }
+    }else{
+        handleCSSJSRequests(w, req)
+    }
+    
+}
+
+func handleBotsRequest(w http.ResponseWriter, req *http.Request){
+    
     // retrieve user from DB
-    user, err := db.GetUserById(userCookie)
+    bots, err := db.GetAllBots()
     if err != nil{
-        log.Println("handleUserRequest: ", err)
+        log.Println("handleUTasksRequest: ", err)
         HandleError(w, req, err)
         return
     }
     
     // fill html Template
-    fillTemplate(w, req, UserPagePath, user)
+    fillTemplate(w, req, BotsPagePath, bots)
+}
+
+func handleBotsIdRequest(w http.ResponseWriter, req *http.Request, bid string){
     
+    // retrieve user from DB
+    bot , err := db.GetBotById(bid)
+    if err != nil{
+        log.Println("handleUTasksRequest: ", err)
+        HandleError(w, req, err)
+        return
+    }
+    
+    // fill html Template
+    fillTemplate(w, req, OneBotsPagePath, bot)
+}
+
+
+// Task related handlersPath
+func HandleTasksRequest(w http.ResponseWriter, req *http.Request){
+    
+    userCookie, err := retrieveCookie(w, req)
+    if(err != nil){
+        return
+    }
+    
+    url := req.URL.String()
+    url = strings.TrimPrefix(url, "/")
+    url = strings.TrimSuffix(url, "/")
+    
+    if(! (strings.HasSuffix(url, ".css") || strings.HasSuffix(url, ".js"))){
+
+        splitURL := strings.Split(url, "/")
+        lenghtSplitURL := len(splitURL)
+
+        switch lenghtSplitURL{
+
+        case 1:
+            handleTasksRequest(w, req, userCookie)
+            return
+        case 2:
+            handleTasksIdRequest(w, req , splitURL[1])
+            return
+        case 3:
+            handleTasksResultRequest(w, req , splitURL[1])
+            return
+        }
+    }else{
+        handleCSSJSRequests(w, req)
+    }
+    
+}
+
+func sanityCheckCookie(userCookie string){
+    return
+}
+
+func handleTasksRequest(w http.ResponseWriter, req *http.Request, uid string){
+    
+    // retrieve user from DB
+    tasks, err := db.GetTasksByUid(uid)
+    if err != nil{
+        log.Println("handleUTasksRequest: ", err)
+        HandleError(w, req, err)
+        return
+    }
+    
+    // fill html Template
+    fillTemplate(w, req, TasksPagePath, tasks)
+}
+
+func handleTasksIdRequest(w http.ResponseWriter, req *http.Request, taskId string){
+    
+    task , err := db.GetTaskById(taskId)
+    if err != nil{
+        log.Println("handleUTasksRequest: ", err)
+        HandleError(w, req, err)
+        return
+    }
+    
+    // fill html Template
+    fillTemplate(w, req, OneTaskPagePath, task)
+}
+
+
+
+func handleTasksResultRequest(w http.ResponseWriter, req *http.Request, taskId string){
+    
+    task , err := db.GetTaskById(taskId)
+    if err != nil{
+        log.Println("handleUTasksRequest: ", err)
+        HandleError(w, req, err)
+        return
+    }
+    
+    // fill html Template
+    fillTemplate(w, req, TaskResultPagePath, task)
+}
+
+
+func handleCSSJSRequests(w http.ResponseWriter, req *http.Request){
+    url := req.URL.String()
+    var newURL string
+    if(strings.Contains(url, "bower_components")){
+        re := regexp.MustCompile(".*bower_components")    
+        newURL = WebInterfacePath + re.ReplaceAllString(url, "bower_components")
+    }else{
+        re := regexp.MustCompile(".*dist")    
+        newURL = WebInterfacePath + re.ReplaceAllString(url, "dist")
+    }
+    
+    http.ServeFile(w, req, newURL)
 }
 
 
@@ -161,16 +357,3 @@ func fillTemplate(w http.ResponseWriter, req *http.Request, templateFileName str
     }
     
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
