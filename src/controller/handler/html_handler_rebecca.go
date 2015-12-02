@@ -6,11 +6,12 @@ func MatchTasksRequest(w http.ResponseWriter, req *http.Request){
     }
     
     splitURL = strings.Split(req.URL.String(), "/")
-    if splitURL.len == 1 {
+    lenghtSplitURL := len(splitURL)
+    if lenghtSplitURL {
         HandleTasksRequest(w, req, userCookie)
     }
     else{
-        if splitURL.len == 2 {
+        if lenghtSplitURL {
             HandleTasksIdRequest(w, req , splitURL[1])
         }
         else{
@@ -80,7 +81,8 @@ func MatchBotsRequest(w http.ResponseWriter, req *http.Request){
     }
     
     splitURL = strings.Split(req.URL.String(), "/")
-    if splitURL.len == 1 {
+    lenghtSplitURL := len(splitURL)
+    if lenghtSplitURL {
         HandleTasksRequest(w, req, userCookie)
     }
     else{
