@@ -6,11 +6,13 @@ import(
     "io/ioutil"
     "html/template"
     "db"
+	"strings"
 )
 
 const CookieName string = "analysis_bot_cookie"
 
 const UserPagePath string = "../../web-interface_copy/index.html"
+const ProjectsPagePath string = "../../web-interface_copy/repositories.html"
 
 //TODO implement
 func HandleError(w http.ResponseWriter, req *http.Request, err error){
@@ -25,6 +27,77 @@ func HandleLoginRequest(w http.ResponseWriter, req *http.Request){
     http.SetCookie(w, c)
 }
 
+
+// Project related handlers
+func HandleProjects(w http.ResponseWriter, req *http.Request){
+    url := req.URL.String()
+    
+    userCookie, err := retrieveCookie(w, req)
+    if(err != nil){
+        return
+    }
+    
+    splittedURL := strings.Split(url, "/")
+    numURLSubPaths := len(splittedURL)
+    switch (numURLSubPaths){
+        case 1:
+        handleProjects(userCookie, w, req)
+        return
+        case 2:
+        handleProject(userCookie, splittedURL[1], w, req)
+        return
+        case 3:
+        handleProjectBotAttach(userCookie, splittedURL[1], splittedURL[2], w, req)
+        return
+    }
+}
+
+
+func handleProjects(userCookie string, w http.ResponseWriter, req *http.Request){
+    
+    projects, err := db.GetProjectsByUid(userCookie)
+    if(err != nil){
+        log.Println("handleUserRequest: ", err)
+        HandleError(w, req, err)
+        return
+    }
+    
+    fillTemplate(w, req, ProjectsPagePath, projects)
+    
+}
+
+func handleProject(userCookie string, pId string, w http.ResponseWriter, req *http.Request){
+    
+    project, err := db.GetProjectByUidPid(userCookie, pId);
+    if(err != nil){
+        log.Println("handleUserRequest: ", err)
+        HandleError(w, req, err)
+        return
+    }
+    
+    bots, err := db.GetAttachedBotsByUidPid(userCookie, pId)
+    if(err != nil){
+        log.Println("handleUserRequest: ", err)
+        HandleError(w, req, err)
+        return
+    }
+    
+    uiProject := new(datatypes.UIProject)
+    uiProject.Project = project
+    uiProject.Bots = bots
+    
+    fillTemplate(w, req, ProjectsPagePath, uiProject)
+    
+}
+
+func handleProjectBotAttach(userCookie string, pId string, bId string, w http.ResponseWriter, req *http.Request){
+    
+    db.AttachBotToUsersProject(userCookie, pId, bId)
+    handleProject(userCookie, pId, w, req)
+}
+
+
+
 func HandleUserRequest(w http.ResponseWriter, req *http.Request){
     userCookie, err := retrieveCookie(w, req)
     if(err != nil){
@@ -32,10 +105,7 @@ func HandleUserRequest(w http.ResponseWriter, req *http.Request){
     }
 
     // retrieve user from DB
-    user := new(datatypes.User)
-    user.User_name = "Nik"
-    user.Real_name = "Nikolaus"
-    err = db.GetUserById(userCookie, user)
+    user, err := db.GetUserById(userCookie)
     if err != nil{
         log.Println("handleUserRequest: ", err)
         HandleError(w, req, err)
