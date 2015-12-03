@@ -137,24 +137,20 @@ func HandleProjects(w http.ResponseWriter, req *http.Request){
     }
     sanityCheckCookie(userCookie)
     
-    if(! (strings.HasSuffix(url, ".css") || strings.HasSuffix(url, ".js"))){
-        splittedURL := strings.Split(url, "/")
-        numURLSubPaths := len(splittedURL)
-        log.Println("num: ", numURLSubPaths)
-        switch (numURLSubPaths){
-            case 1:
-            handleProjects(userCookie, w, req)
-            return
-            case 2:
-            handleProject(userCookie, splittedURL[1], w, req)
-            return
-            case 3:
-            handleProjectBotAttach(userCookie, splittedURL[1], splittedURL[2], w, req)
-            return
-        }    
-    }else{
-        handleCSSJSRequests(w, req)
-    }
+    splittedURL := strings.Split(url, "/")
+    numURLSubPaths := len(splittedURL)
+    log.Println("num: ", numURLSubPaths)
+    switch (numURLSubPaths){
+        case 1:
+        handleProjects(userCookie, w, req)
+        return
+        case 2:
+        handleProject(userCookie, splittedURL[1], w, req)
+        return
+        case 3:
+        handleProjectBotAttach(userCookie, splittedURL[1], splittedURL[2], w, req)
+        return
+    }    
 }
 
 
@@ -213,23 +209,17 @@ func HandleUserRequest(w http.ResponseWriter, req *http.Request){
     
     url := req.URL.String()
     
-    
-    if(! (strings.HasSuffix(url, ".css") || strings.HasSuffix(url, ".js"))){
 
-        // retrieve user from DB
-        user, err := db.GetUserById(userCookie)
-        if err != nil{
-            log.Println("handleUserRequest: ", err)
-            HandleError(w, req, err)
-            return
-        }
-
-        // fill html Template
-        fillTemplate(w, req, UserPagePath, user)
-        
-    }else{
-        handleCSSJSRequests(w, req)
+    // retrieve user from DB
+    user, err := db.GetUserById(userCookie)
+    if err != nil{
+        log.Println("handleUserRequest: ", err)
+        HandleError(w, req, err)
+        return
     }
+
+     // fill html Template
+    fillTemplate(w, req, UserPagePath, user)
     
 }
 
@@ -249,20 +239,16 @@ func HandleBotsRequest(w http.ResponseWriter, req *http.Request){
     url = strings.TrimPrefix(url, "/")
     url = strings.TrimSuffix(url, "/")
     
-    if(! (strings.HasSuffix(url, ".css") || strings.HasSuffix(url, ".js"))){
-        splitURL := strings.Split(url , "/")
-        lenghtSplitURL := len(splitURL)
+    splitURL := strings.Split(url , "/")
+    lenghtSplitURL := len(splitURL)
 
-        switch lenghtSplitURL{
-        case 1:
-            handleBotsRequest(w, req)
-            return
-        case 2:
-            handleBotsIdRequest(w, req , splitURL[1])
-            return
-        }
-    }else{
-        handleCSSJSRequests(w, req)
+    switch lenghtSplitURL{
+    case 1:
+        handleBotsRequest(w, req)
+        return
+    case 2:
+        handleBotsIdRequest(w, req , splitURL[1])
+        return
     }
     
 }
@@ -310,25 +296,21 @@ func HandleTasksRequest(w http.ResponseWriter, req *http.Request){
     url = strings.TrimPrefix(url, "/")
     url = strings.TrimSuffix(url, "/")
     
-    if(! (strings.HasSuffix(url, ".css") || strings.HasSuffix(url, ".js"))){
 
-        splitURL := strings.Split(url, "/")
-        lenghtSplitURL := len(splitURL)
+    splitURL := strings.Split(url, "/")
+    lenghtSplitURL := len(splitURL)
+    
+    switch lenghtSplitURL{
 
-        switch lenghtSplitURL{
-
-        case 1:
-            handleTasksRequest(w, req, userCookie)
-            return
-        case 2:
-            handleTasksIdRequest(w, req , splitURL[1])
-            return
-        case 3:
-            handleTasksResultRequest(w, req , splitURL[1])
-            return
-        }
-    }else{
-        handleCSSJSRequests(w, req)
+    case 1:
+        handleTasksRequest(w, req, userCookie)
+        return
+    case 2:
+        handleTasksIdRequest(w, req , splitURL[1])
+        return
+    case 3:
+        handleTasksResultRequest(w, req , splitURL[1])
+        return
     }
     
 }
@@ -375,22 +357,6 @@ func handleTasksResultRequest(w http.ResponseWriter, req *http.Request, taskId s
     
     // fill html Template
     fillTemplate(w, req, TaskResultPagePath, task)
-}
-
-
-
-func handleCSSJSRequests(w http.ResponseWriter, req *http.Request){
-    url := req.URL.String()
-    var newURL string
-    if(strings.Contains(url, "bower_components")){
-        re := regexp.MustCompile(".*bower_components")    
-        newURL = WebInterfacePath + re.ReplaceAllString(url, "bower_components")
-    }else{
-        re := regexp.MustCompile(".*dist")    
-        newURL = WebInterfacePath + re.ReplaceAllString(url, "dist")
-    }
-    
-    http.ServeFile(w, req, newURL)
 }
 
 
