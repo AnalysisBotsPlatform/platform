@@ -118,7 +118,10 @@ func HandleGitHubResponse(w http.ResponseWriter, req * http.Request){
     c.Name = CookieName
     c.Value = bodyString
     http.SetCookie(w, c)
+    // TODO set cookie does not work
     
+    
+    // TODO no proper redirect
     HandleUserRequest(w, req)
 }
 
