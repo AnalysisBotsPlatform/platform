@@ -2,6 +2,7 @@ package html_handler
 
 import(
     "net/http"
+    "net/url"
     "log"
     "io/ioutil"
     "html/template"
@@ -9,12 +10,17 @@ import(
     "regexp"
     "db"
     "datatypes"
+//    "encoding/json"
+//    "bytes"
+//    "strconv"
 )
 
 const client_id string = "4049f0af2d782f297291"
+const client_secret = "5d0a06326015f5b50af0b5e57e4934217a21d156"
 const GitHubResponseURL string = "/github/"
 const AppPrefix string = "http://analysis-bots.ddns.org:8080"
-const GitHubAuthentification string = "https://github.com/login/oauth/authorize?client_id="+client_id+"&redirect_uri="+AppPrefix+GitHubResponseURL
+const GitHubAuthentification string = "https://github.com/login/oauth/authorize?client_id="+client_id//+"&redirect_uri="+AppPrefix+GitHubResponseURL+"&state=HalloGithub"
+const GitHubPostAuthentification string = "https://github.com/login/oauth/access_token"
 
 const CookieName string = "analysis_bot_cookie"
 
@@ -28,6 +34,14 @@ const TaskResultPagePath string = "../../web-interface_copy/bots-actions.html"
 
 const WebInterfacePath string = "../../web-interface_copy/"
 
+
+type GitHubResponse struct{
+    token_type string
+    scope string
+    access_token string
+    
+}
+
 //TODO implement
 func HandleError(w http.ResponseWriter, req *http.Request, err error){
 
@@ -35,16 +49,77 @@ func HandleError(w http.ResponseWriter, req *http.Request, err error){
 
 //TODO implement
 func HandleLoginRequest(w http.ResponseWriter, req *http.Request){
-    c := new(http.Cookie)
-    c.Name = CookieName
-    c.Value = "13"
-    http.SetCookie(w, c)
-    
-    http.Redirect(w, req, GithubAuthentification, 13)
+    log.Println("Login Handler")
+    http.Redirect(w, req, GitHubAuthentification, http.StatusFound)
+
+//    resp, err := http.NewRequest("GET", GitHubAuthentification, nil)
+//        
+//    log.Println(resp)
+//    if(err != nil){
+//        log.Println("handleUserRequest: ", err)
+//        HandleError(w, req, err)
+//        return
+//    }
 }
 
 func HandleGitHubResponse(w http.ResponseWriter, req * http.Request){
     log.Println("Received Github response", req.URL.String())
+    
+    
+    
+    responseCode := req.URL.Query().Get("code")
+    data := url.Values{"client_id": {client_id}, "client_secret": {client_secret}, "code":{responseCode}}
+    
+/*    client := &http.Client{}
+    r, _ := http.NewRequest("POST", GitHubPostAuthentification,bytes.NewBufferString(data.Encode()))
+    r.Header.Add("Accept:","application/json")
+    r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+    r.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+    
+    resp, _ := client.Do(r)    
+    
+    decoder := json.NewDecoder(resp.Body)
+    
+    body, _ := ioutil.ReadAll(resp.Body)
+    
+    var responseStruct GitHubResponse
+    log.Println(string(body))
+    decoder.Decode(&responseStruct)
+    
+    log.Println(string(body))
+    log.Println(responseStruct.access_token)*/
+    
+    resp, err := http.PostForm(GitHubPostAuthentification, data)
+    
+    if(err != nil){
+        log.Println("handleUserRequest: ", err)
+        HandleError(w, req, err)
+        return
+    }
+    body, err := ioutil.ReadAll(resp.Body)
+    if(err != nil){
+        log.Println("handleUserRequest: ", err)
+        HandleError(w, req, err)
+        return
+    }
+    
+    bodyString := string(body)
+    log.Println(bodyString)
+    
+    re := regexp.MustCompile("&scope=.*")
+    bodyString = re.ReplaceAllString(bodyString, "")
+    
+    re = regexp.MustCompile("access_token=")
+    bodyString = re.ReplaceAllString(bodyString, "")
+    
+    log.Println(bodyString)
+    
+    c := new(http.Cookie)
+    c.Name = CookieName
+    c.Value = bodyString
+    http.SetCookie(w, c)
+    
+    HandleUserRequest(w, req)
 }
 
 
@@ -60,6 +135,7 @@ func HandleProjects(w http.ResponseWriter, req *http.Request){
     if(err != nil){
         return
     }
+    sanityCheckCookie(userCookie)
     
     if(! (strings.HasSuffix(url, ".css") || strings.HasSuffix(url, ".js"))){
         splittedURL := strings.Split(url, "/")
@@ -132,6 +208,9 @@ func HandleUserRequest(w http.ResponseWriter, req *http.Request){
     if(err != nil){
         return
     }
+    
+    sanityCheckCookie(userCookie)
+    
     url := req.URL.String()
     
     
@@ -225,6 +304,8 @@ func HandleTasksRequest(w http.ResponseWriter, req *http.Request){
         return
     }
     
+    sanityCheckCookie(userCookie)
+    
     url := req.URL.String()
     url = strings.TrimPrefix(url, "/")
     url = strings.TrimSuffix(url, "/")
@@ -252,9 +333,7 @@ func HandleTasksRequest(w http.ResponseWriter, req *http.Request){
     
 }
 
-func sanityCheckCookie(userCookie string){
-    return
-}
+
 
 func handleTasksRequest(w http.ResponseWriter, req *http.Request, uid string){
     
@@ -299,6 +378,7 @@ func handleTasksResultRequest(w http.ResponseWriter, req *http.Request, taskId s
 }
 
 
+
 func handleCSSJSRequests(w http.ResponseWriter, req *http.Request){
     url := req.URL.String()
     var newURL string
@@ -313,6 +393,11 @@ func handleCSSJSRequests(w http.ResponseWriter, req *http.Request){
     http.ServeFile(w, req, newURL)
 }
 
+
+//TODO
+func sanityCheckCookie(userCookie string){
+    return
+}
 
 func retrieveCookie(w http.ResponseWriter, req *http.Request) (cookieValue string, err error){
     cookie, err := req.Cookie(CookieName)

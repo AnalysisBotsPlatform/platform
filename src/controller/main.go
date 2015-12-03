@@ -27,7 +27,7 @@ func main(){
     http.HandleFunc(projectsPagePattern, html_handler.HandleProjects)
     http.HandleFunc(tasksPagePattern, html_handler.HandleTasksRequest)
     
-    
+    http.HandleFunc("/test/", test)
 
     // listen on port 8080 to handle http requests
     err := http.ListenAndServe(":8082", nil)
@@ -36,4 +36,9 @@ func main(){
     }
         
     fmt.Printf("Termiated\n")
+}
+
+func test(w http.ResponseWriter, req *http.Request){
+    fmt.Println(req.URL.Query().Get("hallo"))
+    fmt.Println(req)
 }
