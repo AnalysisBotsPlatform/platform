@@ -194,6 +194,7 @@ func handleProject(userCookie string, pId string, w http.ResponseWriter, req *ht
 func handleProjectBotAttach(userCookie string, pId string, bId string, w http.ResponseWriter, req *http.Request){
     
     db.AttachBotToUsersProject(userCookie, pId, bId)
+    //TODO  proper URL redirection
     handleProject(userCookie, pId, w, req)
 }
 
@@ -377,6 +378,8 @@ func retrieveCookie(w http.ResponseWriter, req *http.Request) (cookieValue strin
         HandleError(w, req, err)
         return
     }
+    
+    // TODO chekc cookie
     
     cookieValue = cookie.Value
     return
