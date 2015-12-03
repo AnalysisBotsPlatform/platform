@@ -73,22 +73,19 @@
                             <!-- /input-group -->
                         </li>
                         <li>
-                            <a href="index.html"><i class="fa fa-dashboard fa-fw"></i> Dashboard</a>
+                            <a href="/index"><i class="fa fa-dashboard fa-fw"></i> Dashboard</a>
                         </li>
                         <li>
-                            <a href="github-connect.html"><i class="fa fa-git fa-fw"></i> GitHub Integration</a>
+                            <a href="/projects"><i class="fa fa-puzzle-piece fa-fw"></i> Projects</a>
                         </li>
                         <li>
-                            <a href="repositories.html"><i class="fa fa-puzzle-piece fa-fw"></i> Repositories</a>
+                            <a href="/bots"><i class="fa fa-gears fa-fw"></i> Available Bots</a>
                         </li>
                         <li>
-                            <a href="bots.html"><i class="fa fa-gears fa-fw"></i> Available Bots</a>
-                        </li>
-                        <li>
-                            <a href="used-bots.html"><i class="fa fa-gear fa-fw"></i> Used Bots</a>
+                            <a href="/used-bots"><i class="fa fa-gear fa-fw"></i> Used Bots</a>
                         </li> 
                         <li>
-                            <a href="bots-actions.html"><i class="fa fa-bars fa-fw"></i> Bots Actions</a>
+                            <a href="/bots-actions"><i class="fa fa-bars fa-fw"></i> Bots Actions</a>
                         </li>
                     </ul>
                 </div>
@@ -118,25 +115,18 @@
                                             <th>#</th>
                                             <th>Bot Name</th>
                                             <th>Description</th>
-                                            <th>Added At</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        {{range .Bots}}
                                         <tr>
-                                            <td>1</td>
-                                            <td>Spell-Checker</td>
-                                            <td>Corrects typos in comments and other things</td>
-                                            <td>2015-11-29 23:55:15</td>
-                                            <td><a href="add-bot.html"><button type="button" class="btn btn-success">Attache</button></a></td>
+                                            <td>{{.Id}}</td>
+                                            <td>{{.Name}}</td>
+                                            <td>{{.Description}}</td>
+                                            <td><a href="/bots/{{.Id}}"><button type="button" class="btn btn-success">Attache</button></a></td>
                                         </tr>
-                                        <tr>
-                                            <td>2</td>
-                                            <td>Bot #2</td>
-                                            <td>Does some fancy jobs</td>
-                                            <td>2015-11-29 23:55:15</td>
-                                            <td><a href="add-bot.html"><button type="button" class="btn btn-success">Attache</button></a></td>
-                                        </tr>                                        
+                                        {{end}}
                                     </tbody>
                                 </table>
                             </div>
