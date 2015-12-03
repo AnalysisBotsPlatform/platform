@@ -1,5 +1,5 @@
 CREATE TABLE users(
-	id serial PRIMARY KEY NOT NULL, 
+	id SERIAL PRIMARY KEY NOT NULL, 
 	username varchar(50) UNIQUE,
 	realname varchar(50),
 	email varchar(50) UNIQUE, CHECK (email <> ''),
@@ -7,14 +7,15 @@ CREATE TABLE users(
 );
 
 CREATE TABLE bots(
-	id serial PRIMARY KEY NOT NULL,
+	id SERIAL PRIMARY KEY NOT NULL,
 	name varchar(50), CHECK (name <> ''),
 	description text,
+	tags varchar[],
 	fs_path varchar(100)
 );
 
 CREATE TABLE projects(
-	id serial PRIMARY KEY NOT NULL,
+	id SERIAL PRIMARY KEY NOT NULL,
 	name varchar(50), CHECK (name <> ''),
 	uid int4 REFERENCES users(id),
 	clone_url varchar(100),
@@ -22,24 +23,25 @@ CREATE TABLE projects(
 );
 
 CREATE TABLE tasks(
-	id serial PRIMARY KEY NOT NULL,
+	id SERIAL PRIMARY KEY NOT NULL,
 	uid int4 REFERENCES users(id),
 	pid int4 REFERENCES projects(id),
 	bid int4 REFERENCES bots(id),
+	rid int4 REFERENCES results(id),
 	start_time date,
 	end_time date,
-	status varchar,
-	exit_status varchar
+	status varchar DEFAULT 0,
+	exit_status varchar DEFAULT 0
 );
 
 CREATE TABLE members(
-	id serial PRIMARY KEY NOT NULL,
+	id SERIAL PRIMARY KEY NOT NULL,
 	uid int4 REFERENCES users(id),
 	pid int4 REFERENCES projects(id)
 );
 
 CREATE TABLE results(
-	id serial PRIMARY KEY NOT NULL,
+	id SERIAL PRIMARY KEY NOT NULL,
 	output text
 );
 

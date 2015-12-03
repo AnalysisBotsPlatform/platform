@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 	//"bytes"
-	//"log"
+	"log"
 	"errors"
 )
 
@@ -12,19 +12,36 @@ import (
 
 // INSERT A NEW MEMBER
 
-func createMember(member *Member) int {
-	var last_id int = 0
-	if member == nil {
-		err := errors.New("The member must be not nil")
-		fmt.Println("ERROR function createMember:", err)
+func CreateMember(token string, pid int) *Member {
+	var last_id int
+	var uid int
+	var user User
+	var project Project
+	if token == "" || pid == 0 {
+		err := errors.New("Atleast one argument is empty, null or zero.")
+		fmt.Println("ERROR function CreateMember:", err)
 	} else {
-		query := "INSERT INTO member (uid, pid) VALUES ($1, $2) RETURNING last_id"
-		db.QueryRow(query, member.User.Id, member.Project.Id)
+		err1 := db.QueryRow("SELECT id FROM users WHERE token = $1", token).Scan(&uid)
+		if err1 != nil {
+			log.Fatal(err) 
+		}
+		err2 := db.QueryRow("INSERT INTO members (uid, pid) VALUES ($1, $2) RETURNING id", uid, pid).Scan(&last_id)
+		if err2 != nil {
+			log.Fatal(err) 
+		}
+		user = db.GetUserById(uid)
+		project = db.GetProjectById(pid)
 	}
-	return last_id
+	return &Member{Id: last_id,User: &user,Project: &project}
 }
 
-// SELECT AN EXISTING MEMBER
+// GET MEMBER BY TOKEN
+
+func GetMemberByToken(token string) *Member {
+	var member Member
+
+	return &member
+}
 
 // UPDATE COLUMN UID
 

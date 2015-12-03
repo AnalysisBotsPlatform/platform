@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 	//"bytes"
-	//"log"
+	"log"
 	"errors"
 )
 
@@ -12,18 +12,26 @@ import (
 
 // INSERT A NEW RESULT
 
-func createResult(result *Result) int {
-	var last_id int = 0
-	if result == nil {
-		err := errors.New("The result must be not nil")
-		fmt.Println("ERROR function createResult:", err)
+func CreateResult(output string) *Result {
+	var last_id int
+	if false {
+		err := errors.New("Atleast one argument is empty, null or zero.")
+		fmt.Println("ERROR function CreateResult:", err)
 	} else {
-		query := "INSERT INTO results (output) VALUES ($1) RETURNING last_id"
-		db.QueryRow(query, result.Output)
+		err := db.QueryRow("INSERT INTO results (output) VALUES ($1) RETURNING id", result.Output).Scan(&last_id)
+		if err != nil {
+			log.Fatal(err) 
+		}
 	}
-	return last_id
+	return &Result{Id: last_id, Output: output}
 }
 
-// SELECT AN EXISTING RESULT
+// GET RESULT BY ID
+
+func GetResultById() *Result {
+	var result Result
+	
+	return &result
+}
 
 // UPDATE COLUMN OUTPUT

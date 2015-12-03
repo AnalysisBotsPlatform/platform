@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"bytes"
+	//"bytes"
 	"log"
 	"errors"
 	"database/sql"
@@ -15,83 +15,88 @@ var db *sql.DB = OpenDB()
 
 // INSERT A NEW BOT
 
-func createBot(bot *Bot) int {
-	var last_id int = 0
-	if bot == nil {
-		err := errors.New("The bot must be not nil")
-		fmt.Println("ERROR function createBot:", err)
+func CreateBot(name string, description string, tags []string, fs_path string) *Bot {
+	var last_id int
+	
+	if name == "" || description == "" || fs_path == "" {
+		err := errors.New("Atleast one argument is empty, null or zero.")
+		fmt.Println("ERROR function CreateBot:", err)
 	} else {
-		query := "INSERT INTO bots (name, description, tags, fs_path) VALUES ($1, $2, $3, $4) RETURNING last_id"
-		db.QueryRow(query, bot.Name, bot.Description, bot.Tags, bot.Fs_path)
-	}
-	return last_id
-}
-
-// SELECT AN EXISTING BOT
-
-func getBot(botId int) Bot {
-	bot := Bot{Id: botId}
-	if botId == 0 {
-		err := errors.New("The bot id must be greater 0")
-		fmt.Println("ERROR function getBot:", err)
-	} else {
-		query := "SELECT * FROM bots WHERE id = $1"
-		rows, err := db.Query(query, botId)
+		query := "INSERT INTO bots (name, description, tags, fs_path) VALUES ($1, $2, $3, $4) RETURNING id"
+		err := db.QueryRow(query, name, description, tags, fs_path).Scan(&last_id)
 		if err != nil {
 			log.Fatal(err) 
 		}
+	}
+	return &Bot{Id: last_id, Name: name, Description: description, Tags: tags, Fs_path: fs_path}
+}
+
+// GET BOT BY ID
+
+func GetBotById(bid int) *Bot {
+	var bot Bot
+	
+	if bid == 0 {
+		err := errors.New("The bot id must be not zero")
+		fmt.Println("ERROR function GetBotById:", err)
+	} else {
+		_, err := db.Query("SELECT * FROM bots WHERE id = $1", bid).Scan(&bot.Id, &bot.Name, &bot.Description, &bot.Tags, &bot.Fs_path)
+		if err != nil {
+			log.Fatal(err) 
+		}
+	}
+	return &bot
+}
+
+// GET ALL BOTS
+
+	func GetAllBots() []Bot {
+		var bots []Bot
+		rows, err := db.Query("SELECT * FROM bots ORDER BY name ASC")
 		for rows.Next(){
+			var bot Bot
 	   		if err := rows.Scan(&bot.Id, &bot.Name, &bot.Description, &bot.Tags, &bot.Fs_path); err != nil {
                 log.Fatal(err)
        		}
+       		bots := append(bots,bot)
 		}
 		if err := rows.Err(); err != nil {
         	log.Fatal(err)
 		}
+		return bots
 	}
-	return bot
-}
 
-// UPDATE COLUMN NAME
+// SET BOT NAME
 
-func setBotName(botId int, name string) {
-	query := "UPDATE bots SET name = $2 WHERE id = $1"
-	_, err := db.Exec(query, botId, name)
+func SetBotName(bid int, name string) {
+	_, err := db.Exec("UPDATE bots SET name = $2 WHERE id = $1", bid, name)
 	if err != nil {
 		log.Fatal(err) 
 	}
 }
 
-// UPDATE COLUMN DESCRIPTION
+// SET BOT DESCRIPTION
 
-func setBotDescription(botId int, description string) {
-	query := "UPDATE bots SET description = $2 WHERE id = $1"
-	_, err := db.Exec(query, botId, description)
+func SetBotDescription(bid int, description string) {
+	_, err := db.Exec("UPDATE bots SET description = $2 WHERE id = $1", bid, description)
 	if err != nil {
 		log.Fatal(err) 
 	}
 }
 
-// UPDATE COLUMN TAGS
+// SET BOT TAGS
 
-func setBotTags(botId int, tags []string) {
-	var buffer bytes.Buffer
-	for _, element := range tags {
-		buffer.WriteString(element)
-	}
-	str := buffer.String()
-	query := "UPDATE bots SET tags = $2 WHERE id = $1"
-	_, err := db.Exec(query, botId, str)
+func SetBotTags(bid int, tags []string) {
+	_, err := db.Exec("UPDATE bots SET tags = $2 WHERE id = $1", bid, tags)
 	if err != nil {
-		log.Fatal(err) 
+		log.Fatal(err)
 	}
 }
 
-// UPDATE COLUMN FS_PATH
+// SET BOT FS_PATH
 
-func setBotFSpath(botId int, fs_path string) {
-	query := "UPDATE bots SET fs_path = $2 WHERE id = $1"
-	_, err := db.Exec(query, botId, fs_path)
+func SetBotFSpath(botId int, fs_path string) {
+	_, err := db.Exec("UPDATE bots SET fs_path = $2 WHERE id = $1", botId, fs_path)
 	if err != nil {
 		log.Fatal(err) 
 	}
