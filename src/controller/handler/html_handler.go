@@ -19,7 +19,7 @@ const client_id string = "4049f0af2d782f297291"
 const client_secret = "5d0a06326015f5b50af0b5e57e4934217a21d156"
 const GitHubResponseURL string = "/github/"
 const AppPrefix string = "http://analysis-bots.ddns.org:8080"
-const GitHubAuthentification string = "https://github.com/login/oauth/authorize?client_id="+client_id//+"&redirect_uri="+AppPrefix+GitHubResponseURL+"&state=HalloGithub"
+const GitHubAuthentification string = "https://github.com/login/oauth/authorize?client_id="+client_id+"&scope=repo"//+"&redirect_uri="+AppPrefix+GitHubResponseURL+"&state=HalloGithub"
 const GitHubPostAuthentification string = "https://github.com/login/oauth/access_token"
 
 const CookieName string = "analysis_bot_cookie"
