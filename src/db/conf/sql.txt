@@ -1,47 +1,43 @@
 CREATE TABLE users(
-	id SERIAL PRIMARY KEY NOT NULL, 
-	username varchar(50) UNIQUE,
+	id SERIAL PRIMARY KEY NOT NULL,
+	gh_id integer UNIQUE NOT NULL,
+	username varchar(50),
 	realname varchar(50),
-	email varchar(50) UNIQUE, CHECK (email <> ''),
+	email varchar(50),
 	token varchar(50) NOT NULL UNIQUE, CHECK (token <> '')
 );
 
 CREATE TABLE bots(
 	id SERIAL PRIMARY KEY NOT NULL,
-	name varchar(50), CHECK (name <> ''),
+	name varchar(50) NOT NULL UNIQUE, CHECK (name <> ''),
 	description text,
-	tags varchar[],
+	tags varchar(20)[],
 	fs_path varchar(100)
 );
 
 CREATE TABLE projects(
 	id SERIAL PRIMARY KEY NOT NULL,
+	gh_id integer UNIQUE NOT NULL,
 	name varchar(50), CHECK (name <> ''),
-	uid int4 REFERENCES users(id),
+	owner integer REFERENCES users(id),
 	clone_url varchar(100),
 	fs_path varchar(100)
 );
 
 CREATE TABLE tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
-	uid int4 REFERENCES users(id),
-	pid int4 REFERENCES projects(id),
-	bid int4 REFERENCES bots(id),
-	rid int4 REFERENCES results(id),
-	start_time date,
-	end_time date,
-	status varchar DEFAULT 0,
-	exit_status varchar DEFAULT 0
-);
-
-CREATE TABLE members(
-	id SERIAL PRIMARY KEY NOT NULL,
-	uid int4 REFERENCES users(id),
-	pid int4 REFERENCES projects(id)
-);
-
-CREATE TABLE results(
-	id SERIAL PRIMARY KEY NOT NULL,
+	uid integer REFERENCES users(id) NOT NULL,
+	pid integer REFERENCES projects(id) NOT NULL,
+	bid integer REFERENCES bots(id) NOT NULL,
+	start_time timestamp,
+	end_time timestamp,
+	status integer NOT NULL,
+	exit_status integer,
 	output text
 );
 
+CREATE TABLE members(
+	uid integer REFERENCES users(id) NOT NULL,
+	pid integer REFERENCES projects(id) NOT NULL,
+	PRIMARY KEY (uid, pid)
+);
