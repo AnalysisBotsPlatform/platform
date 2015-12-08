@@ -1,8 +1,8 @@
 package main
 
 import (
-	"../db"
-	"../utils"
+	"analysis-bots-platform-for-github/src/db"
+	"analysis-bots-platform-for-github/src/utils"
 	"bytes"
 	"encoding/json"
 	"errors"
