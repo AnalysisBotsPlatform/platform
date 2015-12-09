@@ -1,12 +1,12 @@
-package main
+package controller
 
 import (
-	"analysis-bots-platform-for-github/src/db"
-	"analysis-bots-platform-for-github/src/utils"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/AnalysisBotsPlatform/platform/db"
+	"github.com/AnalysisBotsPlatform/platform/utils"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"html/template"
@@ -47,7 +47,7 @@ var db_pass = os.Getenv(db_pass_var)
 const id_regex = "0|[1-9][0-9]*"
 
 // Template caching
-const template_root = "../../tmpl"
+const template_root = "tmpl"
 
 var templates = template.Must(template.ParseGlob(
 	fmt.Sprintf("%s/*.html", template_root),
@@ -61,7 +61,7 @@ const state_size = 32
 //
 
 // TODO document this
-func main() {
+func Start() {
 	// check environment
 	_, id := os.LookupEnv(app_id_var)
 	_, secret := os.LookupEnv(app_secret_var)
