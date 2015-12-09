@@ -12,8 +12,8 @@ git clone DEST TARGET
 
 Now run
 ```shell
-mkdir -p "${GOPATH}/github.com/AnalysisBotsPlatform"
-ln -s TARGET "${GOPATH}/github.com/AnalysisBotsPlatform/platform"
+mkdir -p "${GOPATH}/src/github.com/AnalysisBotsPlatform"
+ln -s TARGET "${GOPATH}/src/github.com/AnalysisBotsPlatform/platform"
 ```
 where you replace `TARGET` by the directory in which you have cloned the
 repository.
