@@ -60,7 +60,27 @@ const state_size = 32
 // entry point
 //
 
-// TODO document this
+//Parameters:
+//--
+//Returns:
+//--
+//
+//The Start() function sets up the environment for the controller and calls the http ListenAndServe() function which actually starts the webservice.
+//
+//In the begining the environment variables listed below and containing process relevant information are beeing retreived from the operating system:
+//- CLIENT_ID: The identifier retrieved from GitHub when registering this application as a GitHub application.
+//- CLIENT_SECRET: The client secret retrieved from GitHub when registering this application as a GitHub application.
+//- SESSION_AUTH: A random string authenticating this session uniquely among others.
+//- SESSION_ENC: A random string used to encrypt the session.
+//- DB_USER: The database user (here a postgresql database is used, hence this is a postgres-user) owning the database "analysisbots".
+//- DB_PASS: The password of the databse user (needed to acces the database).
+//
+//In case some of the variables are missing a corresponding message is beeing prompted to the standard output and the function terminates without any further action.
+//If all environment variables were provided the OpenDB() function of the db package is being calles in order to establish a connection to the database. In case of an error again the function terminates with a corresponding message and without any further actions.
+//Next a channel "sigs" is beeing created in order to listen for signals from the operating system in particular for termination signals.
+//Then a new goroutine listening on that channel is beeing executed concurrently, which whenever it receives something on the "sigs" channel closes the database connection and exits the system with the status code 0.
+//
+//Finally the ListenAndServe() function of the http package is beeing called in order to listen on port 8080 for incomming http requests. The router used to demultiplex paths and calling the respective handlers is created by the initRoutes() call.
 func Start() {
 	// check environment
 	_, id := os.LookupEnv(app_id_var)
@@ -147,7 +167,14 @@ func initRoutes() (rootRouter *mux.Router) {
 	return
 }
 
-// TODO document this
+
+//Parameters:
+//-fn: the function to wrap
+//
+//Returns:
+//A that performs the retrieval of the session and path-variables and then executing the given handler.
+//The makeHandler() function takes a function with signature (http.ResponseWriter, *http.Request, map[string]string, *sessions.Session) and returns a http.HandlerFunc with the signature w http.ResponseWriter, r *http.Request), which is mandatory for being registered as a request handler of the gorilla mux. 
+//Besides a http.ResponseWriter and a *http.Request the actual some of the handlers called for http requests are in need of a map[string]string containing information of the path that triggers that handler and a pointer to a session *sessions.Session. Since the retrieval of the session and the variables containing information about the composition of the url that triggers the execution of a handler is the same for every handler, makeHandler() creates and returns a "wrapper function" that retrieves the session as well as the variables and then executes the given handler with the retrieved information.
 func makeHandler(
 	fn func(http.ResponseWriter, *http.Request, map[string]string,
 		*sessions.Session)) http.HandlerFunc {
@@ -162,7 +189,16 @@ func makeHandler(
 	}
 }
 
-// TODO document this
+
+//Parameters:
+//-fn: The given handler to be wrapped.
+//
+//Returns:
+//A function retrieving the token and then executing the handler.
+//
+//The makeTokenHandler() function takes a function of signature (http.ResponseWriter, *http.Request, map[string]string, *sessions.Session, string) and returns a function of signature (http.ResponseWriter, *http.Request, map[string]string, *sessions.Session), which in turn can be passed to makeHandler() in order to make the given handler usable as a http.HandlerFunc.
+//Most of the handlers beeing triggered by a certain path are in need of the authentification token (stored in a cookie/session) in order to operate in the desired way (retrieving information from the database, from GitHub, etc.).
+//Since the retrieval of the token from the session for all these handlers is the same, makeTokenHandler() "wraps" the given handler in a function that retrieves the token corresponding to the given session (or takes the corresponding action in case there is no such token available) and then executes the given handler.
 func makeTokenHandler(
 	fn func(http.ResponseWriter, *http.Request, map[string]string,
 		*sessions.Session, string)) func(http.ResponseWriter, *http.Request,
