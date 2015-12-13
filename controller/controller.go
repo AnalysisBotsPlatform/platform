@@ -215,7 +215,12 @@ func makeTokenHandler(
 	}
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//tmpl string: The name of the template, 
+//data interface{}: A struct containing the data to be inserted in the template.
+//
+//The function executes the template tmpl with the data. If the execution fails is responses to request with an error message explaining the reason of fail.
 func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
 	err := templates.ExecuteTemplate(w,
 		fmt.Sprintf("%s.html", tmpl), data)
@@ -224,7 +229,16 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
 	}
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//req_url string: URL indicating the desired information to retrieve from GitHub,
+//token string: personal access token
+//
+//Return values
+//interface{}: If the request was successful an struct representing the received and decoded data otherwise nil. 
+//error: If the request was successful nil otherwise an error indicating the reason of fail.
+//
+//The function sends an https GET request with the req_url to GitHub. After receiving an successful repose the body of the https request containing the requested data in json format is decoded and returned.
 func authGitHubRequest(w http.ResponseWriter, req_url string,
 	token string) (interface{}, error) {
 	// set up request parameters
@@ -263,13 +277,27 @@ func authGitHubRequest(w http.ResponseWriter, req_url string,
 	return resp_data, nil
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request, 
+//err error
+//
+//The handler prints the error to the standard output and redirects the user to the root page.
 func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	fmt.Println(err)
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//session *sessions.Session
+//
+//Return values:
+//string If the session is valid the GitHub authentication token otherwise an empty string.
+//error If the session is valid nil otherwise an error indicating that no valid session exists.
+//
+//The function checks, if the session is valid. If this is the case the GitHub authentication token is returned, otherwise the function handleError is called and an error is returned.
 func getTokenOrRedirect(w http.ResponseWriter, r *http.Request,
 	session *sessions.Session) (string, error) {
 	if token, ok := session.Values["token"].(string); ok {
@@ -284,7 +312,13 @@ func getTokenOrRedirect(w http.ResponseWriter, r *http.Request,
 // route handler
 //
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//vars map[string]string, 
+//session *sessions.Session
+//
+//The handler checks if the session "token" is valid. Is this the case the function renderTemplate with the template "index" is called otherwise with the template "login".
 func handleRoot(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
 	if _, ok := session.Values["token"]; ok {
@@ -294,7 +328,33 @@ func handleRoot(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//vars map[string]string: map of route variables containing assignments of regexp variables occurring in the matching path, 
+//session *sessions.Session: , 
+//token string: personal access token
+//
+//The handler requests the personal access token and the user profile from GitHub to create a user in the database and redirects the user to the root page.
+//
+//After the user granted the application access to its data GitHub redirects to the "Authorization callback URL" from the application setting page on GitHub. This request will be handled by this handler. 
+//
+//To ensure that the connection to GitHub is not hijacked the validity of the session is checked by comparing the state variable previously sent to GitHub and the one received by a URL like the one below.
+//
+//	e.g.: http://analysis-bots-platform.com/?code=<code>&state=<s>
+//
+//The callback URL contains a variable code which will be used in the next step.  
+//To get the access token a http POST request is sent to the following URL:
+//
+//	https://github.com/login/oauth/access_token
+//
+//Containing the variables below:
+//client_id: The client_id from the application setting page on GitHub.
+//client_secret: The client_secret from the application setting page on GitHub.
+//code: The code received in the response.
+//state: The random string used in the login handler.
+//
+//Since the response is requested in the json format by specifying the the accept value in the http header accordingly the data of interest is being extracted by unmarshalling the body using a json parser. After retrieving the token it will replace the state as the session identifier. To get the user information the function authGitHubRequest with the req_url "user" is called. If this fails the session is closed to enforce a redirecting to the login page. Otherwise the database is updated and the user is being redirected to the root page.
 func handleAuth(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
 	if state, ok := session.Values["state"].(string); ok {
@@ -351,7 +411,24 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//vars map[string]string, 
+//session *sessions.Session
+//
+//The Handler redirects the user to the GitHub login page to get a personal access token to access the users GitHub data. 
+//Temporarily the random string state is used as session identifier because the access token does not exists yet. This is necessary to ensure that the GitHub connection can not be hijacked.
+//
+//The construction of the URL is as follows:
+//
+//https://github.com/login/oauth/authorize?client_id=<id>&scope="user, repo"&state=<st>
+//
+//client_id: The client_id from the application setting page on GitHub.
+//
+//scope: The scope determines which parts of the users data our application is allowed to access. In this case "user" grants read and write access to the users profile info and "repo" read and write access to code, commit statuses, collaborators, and deployment statuses for public and private repositories and organizations.
+//
+//state: State is a random string to protect against cross-site request forgery attacks.
 func handleLogin(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
 	state := utils.RandString(state_size)
@@ -379,7 +456,14 @@ func handleUser(w http.ResponseWriter, r *http.Request,
 	renderTemplate(w, "user", nil)
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//vars map[string]string: map of route variables containing assignments of regexp variables occurring in the matching path, 
+//session *sessions.Session: , 
+//token string: personal access token
+//
+//The handler requests information about all bots from the database. If an error occurs the handleError function is called otherwise renderTemplate with the template "bots" and the  retrieved data.
 func handleBots(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	if bots, err := db.GetBots(); err != nil {
@@ -389,7 +473,14 @@ func handleBots(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//vars map[string]string: map of route variables containing assignments of regexp variables occurring in the matching path, 
+//session *sessions.Session: , 
+//token string: personal access token
+//
+//The handler requests detailed information about the bot identified by bid in the rout variables from the database. If an error occurs the handleError function is called otherwise renderTemplate with the template "bots-bid" and the  retrieved data.
 func handleBotsBid(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	if bot, err := db.GetBot(vars["bid"]); err != nil {
@@ -399,7 +490,14 @@ func handleBotsBid(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//vars map[string]string: map of route variables containing assignments of regexp variables occurring in the matching path, 
+//session *sessions.Session: , 
+//token string: personal access token
+//
+//The handler calls the function authGitHubRequest with the URL "user/repos" to get the up to date information about the user's projects. If This fails the session is closed and the user redirected to the root page. Otherwise the database is updated and the renderTemplate function with the "projects" template and the data from the database is called.
 func handleProjects(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	response, err := authGitHubRequest(w, "user/repos", token)
@@ -416,7 +514,14 @@ func handleProjects(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//vars map[string]string: map of route variables containing assignments of regexp variables occurring in the matching path, 
+//session *sessions.Session: , 
+//token string: personal access token
+//
+//The handler requests detailed information about the project identified by pid in the rout variables from the database. If an error occurs the handleError function is called otherwise renderTemplate with the template "projects-pid" and the  retrieved data.
 // TODO template incomplete, i.e. selection for bots missing
 // TODO add all available bots to payload
 func handleProjectsPid(w http.ResponseWriter, r *http.Request,
@@ -436,7 +541,14 @@ func handleProjectsPidBid(w http.ResponseWriter, r *http.Request,
 	renderTemplate(w, "projects-pid-bid", nil)
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//vars map[string]string: map of route variables containing assignments of regexp variables occurring in the matching path, 
+//session *sessions.Session: , 
+//token string: personal access token
+//
+//The handler requests information about all tasks of the user identified by his token from the database. If an error occurs the handleError function is called otherwise renderTemplate with the template "tasks" and the  retrieved data.
 func handleTasks(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	if tasks, err := db.GetTasks(token); err != nil {
@@ -446,7 +558,14 @@ func handleTasks(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//vars map[string]string: map of route variables containing assignments of regexp variables occurring in the matching path, 
+//session *sessions.Session: , 
+//token string: personal access token
+//
+//The handler requests detailed information about the task identified, by tid in the rout variables, of the user identified by the token from the database. If an error occurs the handleError function is called otherwise renderTemplate with the template "projects-pid" and the  retrieved data.
 // TODO template missing
 func handleTasksTid(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
@@ -457,7 +576,14 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+//Parameters:
+//w http.ResponseWriter, 
+//r *http.Request,
+//vars map[string]string: map of route variables containing assignments of regexp variables occurring in the matching path, 
+//session *sessions.Session: , 
+//token string: personal access token
+//
+//The handler requests the result of the task identified, by tid in the rout variables, of the user identified by the token from the database. If an error occurs the handleError function is called otherwise renderTemplate with the template "projects-pid" and the  retrieved data.
 // TODO template incomplete
 func handleTasksTidResult(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
