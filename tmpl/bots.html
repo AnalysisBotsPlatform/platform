@@ -115,7 +115,7 @@
                                             <th>#</th>
                                             <th>Bot Name</th>
                                             <th>Description</th>
-                                            <th>Action</th>
+                                            <th width="250">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -124,7 +124,14 @@
                                             <td>{{.Id}}</td>
                                             <td>{{.Name}}</td>
                                             <td>{{.Description}}</td>
-                                            <td><a href="/bots/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a></td>
+                                            <td>
+                                                <a href="/bots/{{.Id}}">
+                                                    <button type="button" class="btn btn-success">Details</button>
+                                                </a>
+                                                <a href="/tasks/newb/{{.Id}}">
+                                                    <button type="button" class="btn btn-success">Attache To Project</button>
+                                                </a>
+                                            </td>
                                         </tr>
                                         {{end}}
                                     </tbody>
