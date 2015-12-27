@@ -9,7 +9,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>GitBot - Attaching Bots</title>
+    <title>GitBot - Adding User Bots</title>
 
     <!-- Bootstrap Core CSS -->
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
@@ -82,10 +82,7 @@
                             <a href="/bots"><i class="fa fa-gears fa-fw"></i> Available Bots</a>
                         </li>
                         <li>
-                            <a href="/used-bots"><i class="fa fa-gear fa-fw"></i> Used Bots</a>
-                        </li> 
-                        <li>
-                            <a href="/bots-actions"><i class="fa fa-bars fa-fw"></i> Bots Actions</a>
+                            <a href="/bots-actions"><i class="fa fa-bars fa-fw"></i> Bot Actions</a>
                         </li>
                     </ul>
                 </div>
@@ -97,7 +94,7 @@
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
-                    <h1 class="page-header">Attaching Bots</h1>
+                    <h1 class="page-header">Adding User Bots</h1>
                 </div>
                 <!-- /.col-lg-12 -->
             </div>
@@ -105,46 +102,25 @@
                 <div class="col-lg-12">
                     <div class="panel panel-default">
                         <div class="panel-heading">
-                            Assign Bot To Project
+                            Adding User Bots
                         </div>
                         <div class="panel-body">
                             <div class="row">
                                 <div class="col-lg-12">
                                     <form role="form">                                        
                                         <div class="form-group">
-                                            <label>Bot Description</label>
-                                            <div class="panel-body">
-                                                <div class="table-responsive">
-                                                    <table class="table table-responsive table-bordered table-hover">
-                                                        <tbody>
-                                                            <tr>
-                                                                <td>Name</td>
-                                                                <td>{{.Name}}</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td>Description</td>
-                                                                <td>{{.Description}}</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td>Tags</td>
-                                                                <td>Not yet implemented...</td>
-                                                            </tr>
-                                                        </tbody>
-                                                        <input type="hidden" value="{{.Id}}" id="project-id">
-                                                    </table>
-                                                </div>
-                                            </div>
+                                            <label>Bot's Path</label>
+                                            <input type="text" class="form-control" placeholder="Example: namespace/project_name or just project_name" name="path" id="path">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Description</label>
+                                            <input type="text" class="form-control" placeholder="Description..." name="description" id="description">
                                         </div>        
                                         <div class="form-group">
-                                            <label>Select Project</label>
-                                            <select class="form-control" id="project">
-                                                <option value="-1">Select...</option>
-                                                {{range .Projects}}
-                                                <option value="{{.Id}}">{{.Name}}</option>    
-                                                {{end}}
-                                            </select>
+                                            <label>Tags</label>
+                                            <input type="text" class="form-control" placeholder="Example: tag1,tag2,tag3,tag4" name="tags" id="tags">
                                         </div>
-                                        <a id="attache-link" href="#"><button id="attache-btn" disabled type="button" class="btn btn-success">Attache</button></a>
+                                        <a id="add-bot" href="/add-bot"><button id="add-btn" disabled type="button" class="btn btn-success">Add</button></a>
                                     </form>
                                 </div>                                
                             </div>
@@ -176,13 +152,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/startbootstrap-sb-admin-2/1.0.8/js/sb-admin-2.js"></script>
 
     <script type="text/javascript">
-        $("#project").change(function() {
-            if($("#project").val() == -1){
-                $("#attache-btn").prop('disabled', true);
-                return;
+        function validate_fields() {
+            if($("#tags").val().trim() != "" && $("#path").val().trim() != "" && $("#description").val().trim() != ""){
+                $("#add-btn").prop('disabled', false);                
+            } else {
+                $("#add-btn").prop('disabled', true);
             }
-            $("#attache-link").attr("href", "/project/" + $("#project-id").val() + "/" + $("#project").val());
-            $("#attache-btn").prop('disabled', false);
+            return;
+        }
+        $("#path").change(function() {
+            validate_fields();
+        });
+        $("#description").change(function() {
+            validate_fields();
+        });
+        $("#tags").change(function() {
+            validate_fields();
+        });
+        $("#add-btn").click(function() {
+            validate_fields();
         });
     </script>
 
