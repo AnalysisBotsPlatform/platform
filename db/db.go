@@ -1,8 +1,11 @@
+// Database controller.
 package db
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/lib/pq"
 	"strconv"
@@ -323,10 +326,39 @@ func createProject(project *Project, uid int64) error {
 //
 
 // TODO document this
+func AddBot(path, description, tags string) error {
+	// check whether bot exists already
+	err := db.QueryRow("SELECT id FROM bots WHERE name=$1", path).Scan(&path)
+	if err == nil {
+		return errors.New("Bot already exists!")
+	}
+
+	// escape tags
+	single_tags := strings.Split(tags, ",")
+	var buffer bytes.Buffer
+	delim := "{"
+	for _, tag := range single_tags {
+		buffer.WriteString(delim + "\"" + strings.TrimSpace(tag) + "\"")
+		delim = ","
+	}
+	buffer.WriteString("}")
+
+	// create bot
+	var result string
+	if err := db.QueryRow("INSERT INTO bots (name, description, tags, fs_path)"+
+		" VALUES ($1, $2, $3)", path, description, buffer.String(), path).
+		Scan(&result); err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	return nil
+}
+
+// TODO document this
 func GetBots() ([]*Bot, error) {
 	//declarations
 	var bots []*Bot
-	rows, err := db.Query("SELECT * FROM bots")
+	rows, err := db.Query("SELECT * FROM bots ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +424,8 @@ func GetTasks(token string) ([]*Task, error) {
 	//declarations
 	var tasks []*Task
 	rows, err := db.Query("SELECT tasks.id, users.token FROM tasks"+
-		" INNER JOIN users ON tasks.uid=users.id WHERE users.token=$1", token)
+		" INNER JOIN users ON tasks.uid=users.id WHERE users.token=$1"+
+		" ORDER BY tasks.id", token)
 	if err != nil {
 		return nil, err
 	}
@@ -466,4 +499,64 @@ func GetTask(tid string, token string) (*Task, error) {
 	}
 
 	return &task, nil
+}
+
+// TODO document this
+func CreateNewTask(token string, pid string, bid string) (*Task, error) {
+	// Check whether the user is allowed to access the project
+	project, err := GetProject(pid, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve user and bot information
+	user, err := GetUser(token)
+	if err != nil {
+		return nil, err
+	}
+	bot, err := GetBot(bid)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create new task
+	task := Task{
+		Project:     project,
+		User:        user,
+		Bot:         bot,
+		Status:      Pending,
+		Exit_status: -1,
+		Output:      "",
+	}
+
+	// Insert into database
+	if err := db.QueryRow("INSERT INTO tasks"+
+		" (uid, pid, bid, status, exit_status, output)"+
+		" VALUES ($1, $2, $3, $4, $5, $6) RETURNING id ", user.Id, project.Id,
+		bot.Id, task.Status, task.Exit_status, task.Output).
+		Scan(&task.Id); err != nil {
+		return nil, err
+	}
+
+	return &task, nil
+}
+
+// TODO document this
+func UpdateTaskStatus(tid int64, new_status int64) {
+	if new_status == Running {
+		db.QueryRow("UPDATE tasks SET status=$1, start_time=now() WHERE id=$2",
+			new_status, tid)
+	} else {
+		db.QueryRow("UPDATE tasks SET status=$1 WHERE id=$2", new_status, tid)
+	}
+}
+
+// TODO document this
+func UpdateTaskResult(tid int64, output string, exit_code int) {
+	new_status := Succeeded
+	if exit_code != 0 {
+		new_status = Failed
+	}
+	db.QueryRow("UPDATE tasks SET status=$1, end_time=now(), output=$2, "+
+		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid)
 }
