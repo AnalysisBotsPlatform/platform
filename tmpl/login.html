@@ -9,7 +9,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>GitBot - Sign In</title>
+    <title>GitBot - Login</title>
 
     <!-- Bootstrap Core CSS -->
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet">
@@ -36,6 +36,13 @@
 
     <div class="container">
         <div class="header clearfix">
+            {{ if . }}
+            <div class="alert alert-danger" role="alert">
+                  <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+                  <span class="sr-only">Error:</span>
+                  {{.}}
+            </div>
+            {{ end }}
             <div class="panel-body">
                 <div class="jumbotron text-center">
                     <h1>Hello!</h1>
@@ -43,7 +50,7 @@
                     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus ut tristique elit. Praesent nulla turpis, volutpat a lacinia non.
                     </p>
                     <p>
-					<a class="btn btn-lg btn-success" href="/login">Login Now</a>
+                        <a class="btn btn-lg btn-success" href="/login">Login Now</a>
                     </p>
                 </div>
             </div>
