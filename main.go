@@ -1,3 +1,4 @@
+// Implementation of the Analysis Bots Platform.
 package main
 
 import (
