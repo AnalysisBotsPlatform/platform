@@ -29,7 +29,6 @@ type Project struct {
 	Id        int64
 	GH_Id     int64
 	Name      string
-	Owner     *User
 	Clone_url string
 	Fs_path   string
 }

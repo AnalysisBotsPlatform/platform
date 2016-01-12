@@ -19,7 +19,6 @@ CREATE TABLE projects(
 	id SERIAL PRIMARY KEY NOT NULL,
 	gh_id integer UNIQUE NOT NULL,
 	name varchar(50), CHECK (name <> ''),
-	owner integer REFERENCES users(id),
 	clone_url varchar(100),
 	fs_path varchar(100)
 );

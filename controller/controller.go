@@ -127,7 +127,7 @@ func Start() {
 	_, id := os.LookupEnv(app_id_var)
 	_, secret := os.LookupEnv(app_secret_var)
 	_, auth := os.LookupEnv(session_auth_var)
-	_, enc := os.LookupEnv(session_enc_var)
+	session_enc, enc := os.LookupEnv(session_enc_var)
 	_, user := os.LookupEnv(db_user_var)
 	_, pass := os.LookupEnv(db_pass_var)
 	_, cache := os.LookupEnv(cache_path_var)
@@ -136,6 +136,12 @@ func Start() {
 			"Please set the %s, %s, %s, %s, %s, %s and %s environment variables.\n",
 			app_id_var, app_secret_var, session_auth_var, session_enc_var,
 			db_user_var, db_pass_var, cache_path_var)
+		return
+	}
+
+	// session encryption string has length of 32?
+	if len(session_enc) != 32 {
+		fmt.Println("The session encryption string has not a length of 32!")
 		return
 	}
 
@@ -638,6 +644,10 @@ func handleBotsNewPost(w http.ResponseWriter, r *http.Request,
 	path := r.FormValue("path")
 	description := r.FormValue("description")
 	tags := r.FormValue("tags")
+	if path == "" || description == "" || tags == "" {
+		handleError(w, r, errors.New("Not all input fields were filled in!"))
+		return
+	}
 	resp, err := http.Get(
 		fmt.Sprintf("https://index.docker.io/v1/repositories/%s/tags", path))
 	if err != nil {

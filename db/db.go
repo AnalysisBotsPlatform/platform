@@ -228,14 +228,13 @@ func GetProject(pid string, token string) (*Project, error) {
 	// declarations
 	project := Project{}
 	var name, clone_url, fs_path sql.NullString
-	var owner sql.NullInt64
 
 	// fetch project and verify token
 	if err := db.QueryRow("SELECT projects.*, users.token FROM projects"+
 		" INNER JOIN members ON projects.id=members.pid"+
 		" INNER JOIN users ON members.uid=users.id"+
 		" WHERE projects.id=$1 AND users.token=$2", pid, token).
-		Scan(&project.Id, &project.GH_Id, &name, &owner, &clone_url, &fs_path,
+		Scan(&project.Id, &project.GH_Id, &name, &clone_url, &fs_path,
 		&token); err != nil {
 		return nil, err
 	}
@@ -250,7 +249,6 @@ func GetProject(pid string, token string) (*Project, error) {
 	if fs_path.Valid {
 		project.Fs_path = fs_path.String
 	}
-	// TODO fetch owner data
 
 	return &project, nil
 }
@@ -266,12 +264,11 @@ func existsProject(gh_id int64) bool {
 func fillProject(project *Project, uid int64) error {
 	// declarations
 	var name, clone_url, fs_path sql.NullString
-	var owner sql.NullInt64
 
 	// fetch project information
 	if err := db.QueryRow("SELECT * FROM projects WHERE gh_id=$1",
-		project.GH_Id).Scan(&project.Id, &project.GH_Id, &name, &owner,
-		&clone_url, &fs_path); err != nil {
+		project.GH_Id).Scan(&project.Id, &project.GH_Id, &name, &clone_url,
+		&fs_path); err != nil {
 		return err
 	}
 
