@@ -13,25 +13,34 @@ import (
 	"syscall"
 )
 
-// TODO document this
+// directory where to find the projects
+//TODO check this!
 const projects_directory = "projects"
 
-// TODO document this
+// 
+// TODO doc this
 var cache_directory string
 
-// TODO document this
+// length of the directory names
+// NOTE: if the project gets many users, this number should be raised
+// TODO check this
 const directory_length = 8
 
-// TODO document this
+// global memory for the channel
+// TODO check this
 var channels map[int64]chan bool
 
-// TODO document this
+// TODO check this
+// Initialization of the worker
+// sets up the channel and the cache directory
 func Init(path_to_cache string) {
 	channels = make(map[int64]chan bool)
 	cache_directory = path_to_cache
 }
 
-// TODO document this
+// TODO check this
+// creats a new task by calling the database with the used information
+// this information is: the authtoken, the projectIdentifier, the botIdentifier
 func CreateNewTask(token string, pid string, bid string) (int64, error) {
 	task, err := db.CreateNewTask(token, pid, bid)
 	if err != nil {
@@ -45,7 +54,9 @@ func CreateNewTask(token string, pid string, bid string) (int64, error) {
 	return task.Id, nil
 }
 
-// TODO document this
+// TODO check this
+// Cancels the running task specified by its id using the channel
+// also updates the database 
 func Cancle(tid string) error {
 	id, err := strconv.ParseInt(tid, 10, 64)
 	if err != nil {
@@ -65,7 +76,8 @@ func Cancle(tid string) error {
 	return nil
 }
 
-// TODO document this
+// checks whether the channel recieved a message
+// TODO: check this
 func tryReceive(chn chan bool) bool {
 	select {
 	case <-chn:
@@ -75,7 +87,8 @@ func tryReceive(chn chan bool) bool {
 	}
 }
 
-// TODO document this
+// TODO: check this
+// checks if the task was canceled and updates the db if applicable
 func checkForCanclation(tid int64, chn chan bool) bool {
 	if tryReceive(chn) {
 		db.UpdateTaskStatus(tid, db.Cancled)
@@ -84,7 +97,9 @@ func checkForCanclation(tid int64, chn chan bool) bool {
 	return false
 }
 
-// TODO document this
+// TODO check this
+// waits for the channel to report to cancel the process cmd
+// kills the cmd if message received
 func waitForCanclation(returnChn, cancleChn, abortWait chan bool,
 	cmd *exec.Cmd) {
 	select {
@@ -96,6 +111,9 @@ func waitForCanclation(returnChn, cancleChn, abortWait chan bool,
 }
 
 // TODO document this
+//
+//
+//
 func execBot(returnChn chan bool, cmd *exec.Cmd, stdout, stderr io.ReadCloser,
 	output *string, exit_code *int) {
 	out, _ := ioutil.ReadAll(stdout)
@@ -114,7 +132,8 @@ func execBot(returnChn chan bool, cmd *exec.Cmd, stdout, stderr io.ReadCloser,
 	returnChn <- true
 }
 
-// TODO document this
+// TODO check this
+//  cleans up the project cache
 func cleanProjectCache(directory string) {
 	rmDirectoryCmd := exec.Command("rm", "-rf", directory)
 	if err := rmDirectoryCmd.Run(); err != nil {
@@ -123,7 +142,13 @@ func cleanProjectCache(directory string) {
 	}
 }
 
-// TODO document this
+// TODO check this
+// creates the project cache directory if nesessary
+// fetches the bot from DockerHub using exec.command
+// generally creates a new clone of the repository and works on its
+// NOTE: this may be changed
+// calls the cleanProjectCache to clean it up
+// runs the bot on project, also updates the database
 func runTask(task *db.Task, chn chan bool) {
 	defer close(chn)
 	// create project cache directory if necessary
