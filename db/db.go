@@ -343,7 +343,8 @@ func createProject(project *Project, uid int64) error {
 // Bots
 //
 
-// TODO document this
+// This function inserts a new Bot to the database unless
+// it does not already exist
 func AddBot(path, description, tags string) error {
 	// check whether bot exists already
 	err := db.QueryRow("SELECT id FROM bots WHERE name=$1", path).Scan(&path)
@@ -521,7 +522,8 @@ func GetTask(tid string, token string) (*Task, error) {
 	return &task, nil
 }
 
-// TODO document this
+// This function returns a new task from the given information
+// and inserts it into the database
 func CreateNewTask(token string, pid string, bid string) (*Task, error) {
 	// Check whether the user is allowed to access the project
 	project, err := GetProject(pid, token)
@@ -561,7 +563,7 @@ func CreateNewTask(token string, pid string, bid string) (*Task, error) {
 	return &task, nil
 }
 
-// TODO document this
+// This function updates the tasks' status with the provided value
 func UpdateTaskStatus(tid int64, new_status int64) {
 	if new_status == Running {
 		db.QueryRow("UPDATE tasks SET status=$1, start_time=now() WHERE id=$2",
@@ -571,7 +573,7 @@ func UpdateTaskStatus(tid int64, new_status int64) {
 	}
 }
 
-// TODO document this
+// This function updates the tasks' result with the given output
 func UpdateTaskResult(tid int64, output string, exit_code int) {
 	new_status := Succeeded
 	if exit_code != 0 {
