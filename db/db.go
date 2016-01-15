@@ -1,28 +1,28 @@
+// Database controller.
 package db
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/lib/pq"
 	"strconv"
 	"strings"
 )
 
-/*
-The import "pq" is a pure Go postgres driver for Go's database/sql package
-See also: https://github.com/lib/pq
-*/
+// The import "pq" is a pure Go postgres driver for Go's database/sql package
+// See also: https://github.com/lib/pq
 var db *sql.DB //pq.Conn
 
-/*
-This function connects with the database through the pq driver - otherwise it returns an error
-Parameters like username and password must be provided by the db owner
-Further parameters shall be adapted:
-dbname - the name of the database
-sslmode - possible values see in the Postgres' sslmode documentation
-*/
-func OpenDB(user string, password string) error {
+// This function connects with the database through the pq driver - otherwise it
+// returns an error
+// Parameters like username and password must be provided by the db owner
+// Further parameters shall be adapted:
+// dbname - the name of the database
+// sslmode - possible values see in the Postgres' sslmode documentation
+func OpenDB(user, password string) error {
 	var err error
 	db, err = sql.Open("postgres",
 		fmt.Sprintf("user=%s password=%s dbname=analysisbots sslmode=disable",
@@ -30,38 +30,28 @@ func OpenDB(user string, password string) error {
 	return err
 }
 
-/*
-This function is closing the open database connection 
-*/
+// This function is closing the open database connection
 func CloseDB() {
 	defer db.Close()
 }
 
-/*
-This function returns an interface slice from an interface
-*/
+// This function returns an interface slice from an interface
 func makeSlice(in interface{}) []interface{} {
 	return in.([]interface{})
 }
 
-/*
-This function returns a string map from an interface
-*/
+// This function returns a string map from an interface
 func makeStringMap(in interface{}) map[string]interface{} {
 	return in.(map[string]interface{})
 }
 
-/*
-This function return an int64 from an interface
-*/
+// This function return an int64 from an interface
 func makeInt64(in interface{}) int64 {
 	val, _ := in.(json.Number).Int64()
 	return val
 }
 
-/*
-This function return a string from an interface
-*/
+// This function return a string from an interface
 func makeString(in interface{}) string {
 	if in != nil {
 		return in.(string)
@@ -74,11 +64,9 @@ func makeString(in interface{}) string {
 // Users
 //
 
-/*
-This function updates/creates an User:
-If the User already exists the user will be updated
-If the User does not exist the user will be created
-*/
+// This function updates/creates an User:
+// If the User already exists the user will be updated
+// If the User does not exist the user will be created
 func UpdateUser(data interface{}, token string) error {
 	// declarations
 	values := makeStringMap(data)
@@ -100,10 +88,8 @@ func UpdateUser(data interface{}, token string) error {
 	return nil
 }
 
-/*
-This function returns an User from the information provided in 
-the database and the users' token
-*/
+// This function returns an User from the information provided in
+// the database and the users' token
 func GetUser(token string) (*User, error) {
 	// declarations
 	user := User{}
@@ -130,10 +116,8 @@ func GetUser(token string) (*User, error) {
 	return &user, nil
 }
 
-/*
-This function returns an User from the information provided in
-the database and specified by the users' token as well as his id
-*/
+// This function returns an User from the information provided in
+// the database and specified by the users' token as well as his id
 func getUser(uid string, token string) (*User, error) {
 	// declarations
 	user := User{}
@@ -160,19 +144,15 @@ func getUser(uid string, token string) (*User, error) {
 	return &user, nil
 }
 
-/*
-This function checks whether an user exists specified by his github id
-*/
+// This function checks whether an user exists specified by his github id
 func existsUser(gh_id int64) bool {
 	err := db.QueryRow("SELECT gh_id FROM users WHERE gh_id = $1", gh_id).
 		Scan(&gh_id)
 	return err != sql.ErrNoRows
 }
 
-/*
-This function updates the user information 
-provided by the User struct in the database
-*/
+// This function updates the user information
+// provided by the User struct in the database
 func updateUser(user *User) {
 	// update user information
 	db.QueryRow("UPDATE users SET username=$1, realname=$2, email=$3, token=$4"+
@@ -180,10 +160,8 @@ func updateUser(user *User) {
 		user.Token, user.GH_Id)
 }
 
-/*
-This function creates an user by storing the information
-provided by the User struct in the database
-*/
+// This function creates an user by storing the information
+// provided by the User struct in the database
 func createUser(user *User) {
 	// create user
 	db.QueryRow("INSERT INTO users (gh_id, username, realname, email, token)"+
@@ -195,11 +173,9 @@ func createUser(user *User) {
 // Projects
 //
 
-/*
-This function updates an existing Project
-If the Project does not exist a new Project will be created 
-If a Project has no related member it will be deleted
-*/
+// This function updates an existing Project
+// If the Project does not exist a new Project will be created
+// If a Project has no related member it will be deleted
 func UpdateProjects(values interface{}, token string) ([]*Project, error) {
 	// declarations
 	projects := make([]*Project, len(makeSlice(values)))
@@ -261,22 +237,21 @@ func UpdateProjects(values interface{}, token string) ([]*Project, error) {
 	return projects, nil
 }
 
-/*
-This function returns a Project specified by the project id and the user token
-The Project struct will be filled with the project's information stored in the database
-*/
+// This function returns a Project specified by the project id and the user
+// token
+// The Project struct will be filled with the project's information stored in
+// the database
 func GetProject(pid string, token string) (*Project, error) {
 	// declarations
 	project := Project{}
 	var name, clone_url, fs_path sql.NullString
-	var owner sql.NullInt64
 
 	// fetch project and verify token
 	if err := db.QueryRow("SELECT projects.*, users.token FROM projects"+
 		" INNER JOIN members ON projects.id=members.pid"+
 		" INNER JOIN users ON members.uid=users.id"+
 		" WHERE projects.id=$1 AND users.token=$2", pid, token).
-		Scan(&project.Id, &project.GH_Id, &name, &owner, &clone_url, &fs_path,
+		Scan(&project.Id, &project.GH_Id, &name, &clone_url, &fs_path,
 		&token); err != nil {
 		return nil, err
 	}
@@ -291,33 +266,27 @@ func GetProject(pid string, token string) (*Project, error) {
 	if fs_path.Valid {
 		project.Fs_path = fs_path.String
 	}
-	// TODO fetch owner data
 
 	return &project, nil
 }
 
-/*
-This function checks whether a Project exists for the given Github ID
-*/
+// This function checks whether a Project exists for the given Github ID
 func existsProject(gh_id int64) bool {
 	err := db.QueryRow("SELECT gh_id FROM projects WHERE gh_id = $1", gh_id).
 		Scan(&gh_id)
 	return err != sql.ErrNoRows
 }
 
-/*
-This function fetches the project's information from the database and stores it
-in the provided Project - Related members will be updated
-*/
+// This function fetches the project's information from the database and stores
+// it in the provided Project - Related members will be updated
 func fillProject(project *Project, uid int64) error {
 	// declarations
 	var name, clone_url, fs_path sql.NullString
-	var owner sql.NullInt64
 
 	// fetch project information
 	if err := db.QueryRow("SELECT * FROM projects WHERE gh_id=$1",
-		project.GH_Id).Scan(&project.Id, &project.GH_Id, &name, &owner,
-		&clone_url, &fs_path); err != nil {
+		project.GH_Id).Scan(&project.Id, &project.GH_Id, &name, &clone_url,
+		&fs_path); err != nil {
 		return err
 	}
 
@@ -341,10 +310,8 @@ func fillProject(project *Project, uid int64) error {
 	return nil
 }
 
-/*
-This function updates the Project referenced by the users' id in the database 
-with the information given by the Project structure
-*/
+// This function updates the Project referenced by the users' id in the database
+// with the information given by the Project structure
 func updateProject(project *Project, uid int64) error {
 	// update project information
 	db.QueryRow("UPDATE projects SET name=$1, clone_url=$2 WHERE gh_id=$4",
@@ -357,10 +324,9 @@ func updateProject(project *Project, uid int64) error {
 	return nil
 }
 
-/*
-This function inserts a new Project into the database with the information given by 
-the Project structure and sets a reference to the user specified by his id
-*/
+// This function inserts a new Project into the database with the information
+// given by the Project structure and sets a reference to the user specified by
+// his id
 func createProject(project *Project, uid int64) error {
 	// create project
 	db.QueryRow("INSERT INTO projects (gh_id, name, clone_url)"+
@@ -377,13 +343,40 @@ func createProject(project *Project, uid int64) error {
 // Bots
 //
 
-/*
-This function returns all bots from the database
-*/
+// TODO document this
+func AddBot(path, description, tags string) error {
+	// check whether bot exists already
+	err := db.QueryRow("SELECT id FROM bots WHERE name=$1", path).Scan(&path)
+	if err == nil {
+		return errors.New("Bot already exists!")
+	}
+
+	// escape tags
+	single_tags := strings.Split(tags, ",")
+	var buffer bytes.Buffer
+	delim := "{"
+	for _, tag := range single_tags {
+		buffer.WriteString(delim + "\"" + strings.TrimSpace(tag) + "\"")
+		delim = ","
+	}
+	buffer.WriteString("}")
+
+	// create bot
+	var result string
+	if err := db.QueryRow("INSERT INTO bots (name, description, tags, fs_path)"+
+		" VALUES ($1, $2, $3)", path, description, buffer.String(), path).
+		Scan(&result); err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	return nil
+}
+
+// This function returns all bots from the database
 func GetBots() ([]*Bot, error) {
 	//declarations
 	var bots []*Bot
-	rows, err := db.Query("SELECT * FROM bots")
+	rows, err := db.Query("SELECT * FROM bots ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -415,9 +408,7 @@ func GetBots() ([]*Bot, error) {
 	return bots, nil
 }
 
-/*
-This function returns the bot specified by the bot's id
-*/
+// This function returns the bot specified by the bot's id
 func GetBot(bid string) (*Bot, error) {
 	// declarations
 	bot := Bot{}
@@ -446,14 +437,14 @@ func GetBot(bid string) (*Bot, error) {
 // Tasks
 //
 
-/*
-This function returns all tasks from the database specified by the users' token
-*/
+// This function returns all tasks from the database specified by the users'
+// token
 func GetTasks(token string) ([]*Task, error) {
 	//declarations
 	var tasks []*Task
 	rows, err := db.Query("SELECT tasks.id, users.token FROM tasks"+
-		" INNER JOIN users ON tasks.uid=users.id WHERE users.token=$1", token)
+		" INNER JOIN users ON tasks.uid=users.id WHERE users.token=$1"+
+		" ORDER BY tasks.id", token)
 	if err != nil {
 		return nil, err
 	}
@@ -475,9 +466,8 @@ func GetTasks(token string) ([]*Task, error) {
 	return tasks, nil
 }
 
-/*
-This function returns the task specified by the tasks' id and the users' token
-*/
+// This function returns the task specified by the tasks' id and the users'
+// token
 func GetTask(tid string, token string) (*Task, error) {
 	// declarations
 	task := Task{}
@@ -529,4 +519,64 @@ func GetTask(tid string, token string) (*Task, error) {
 	}
 
 	return &task, nil
+}
+
+// TODO document this
+func CreateNewTask(token string, pid string, bid string) (*Task, error) {
+	// Check whether the user is allowed to access the project
+	project, err := GetProject(pid, token)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve user and bot information
+	user, err := GetUser(token)
+	if err != nil {
+		return nil, err
+	}
+	bot, err := GetBot(bid)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create new task
+	task := Task{
+		Project:     project,
+		User:        user,
+		Bot:         bot,
+		Status:      Pending,
+		Exit_status: -1,
+		Output:      "",
+	}
+
+	// Insert into database
+	if err := db.QueryRow("INSERT INTO tasks"+
+		" (uid, pid, bid, status, exit_status, output)"+
+		" VALUES ($1, $2, $3, $4, $5, $6) RETURNING id ", user.Id, project.Id,
+		bot.Id, task.Status, task.Exit_status, task.Output).
+		Scan(&task.Id); err != nil {
+		return nil, err
+	}
+
+	return &task, nil
+}
+
+// TODO document this
+func UpdateTaskStatus(tid int64, new_status int64) {
+	if new_status == Running {
+		db.QueryRow("UPDATE tasks SET status=$1, start_time=now() WHERE id=$2",
+			new_status, tid)
+	} else {
+		db.QueryRow("UPDATE tasks SET status=$1 WHERE id=$2", new_status, tid)
+	}
+}
+
+// TODO document this
+func UpdateTaskResult(tid int64, output string, exit_code int) {
+	new_status := Succeeded
+	if exit_code != 0 {
+		new_status = Failed
+	}
+	db.QueryRow("UPDATE tasks SET status=$1, end_time=now(), output=$2, "+
+		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid)
 }
