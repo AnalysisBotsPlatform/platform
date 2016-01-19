@@ -6,13 +6,13 @@ function validate_fields() {
     }
     return;
 }
-$("#path").change(function() {
+$("#path").on('input', function() {
     validate_fields();
 });
-$("#description").change(function() {
+$("#description").on('input', function() {
     validate_fields();
 });
-$("#tags").change(function() {
+$("#tags").on('input', function() {
     validate_fields();
 });
 $("#add-btn").click(function() {

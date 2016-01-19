@@ -37,30 +37,30 @@
                                                         </tr>
                                                         <tr>
                                                             <td>Start time</td>
-                                                            <td>{{if .Task.Start_time}}{{.Task.Start_time}}{{else}}--{{end}}</td>
+                                                            <td>{{ if .Task.Start_time }}{{.Task.Start_time}}{{ else }}--{{ end }}</td>
                                                         </tr>
                                                         <tr>
                                                             <td>End time</td>
-                                                            <td>{{if .Task.End_time}}{{.Task.End_time}}{{else}}--{{end}}</td>
+                                                            <td>{{ if .Task.End_time }}{{.Task.End_time}}{{ else }}--{{ end }}</td>
                                                         </tr>
-                                                        {{if or (eq .Task.Status 3) (eq .Task.Status 4)}}
+                                                        {{ if or (eq .Task.Status 3) (eq .Task.Status 4) }}
                                                         <tr>
                                                             <td>Exit code</td>
                                                             <td>{{.Task.Exit_status}}</td>
                                                         </tr>
-                                                        {{end}}
+                                                        {{ end }}
                                                     </tbody>
                                                 </table>
                                             </div>
                                         </div>
                                     </div>
-                                    {{if or (eq .Task.Status 3) (eq .Task.Status 4)}}
+                                    {{ if or (eq .Task.Status 3) (eq .Task.Status 4) }}
                                     <div class="jumbotron">
                                         <p class="lead" style="padding-left: 10px">
                                         {{.Output}}
                                         </p>
                                     </div>
-                                    {{end}}
+                                    {{ end }}
                                 </div>
                             </div>
                             <!-- /.table-responsive -->

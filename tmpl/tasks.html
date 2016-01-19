@@ -1,9 +1,9 @@
-{{ template "header.html" "Bot Actions" }}
+{{ template "header.html" "Bot Status" }}
 {{ template "nav.html" }}
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
-                    <h1 class="page-header">Bot Actions</h1>
+                    <h1 class="page-header">Bot Status</h1>
                 </div>
                 <!-- /.col-lg-12 -->
             </div>
@@ -29,7 +29,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {{range .}}
+                                                {{ range . }}
                                                 <tr>
                                                     <td>{{.Id}}</td>
                                                     <td>{{.Project.Name}}</td>
@@ -42,9 +42,13 @@
                                                         <a href="/tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button>
                                                         </a>
                                                         {{ end }}
+                                                        {{ if or (eq .Status 3) (eq .Status 4) }}
+                                                        <a href="/bots/{{.Bot.Id}}/{{.Project.Id}}"><button type="button" class="btn btn-success">Rerun</button>
+                                                        </a>
+                                                        {{ end }}
                                                     </td>
                                                 </tr>
-                                                {{end}}
+                                                {{ end }}
                                             </tbody>
                                         </table>
                                     </div>

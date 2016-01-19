@@ -27,7 +27,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {{range .}}
+                                                {{ range . }}
                                                 <tr>
                                                     <td>{{.Id}}</td>
                                                     <td>{{.Name}}</td>
@@ -36,11 +36,11 @@
                                                             <button type="button" class="btn btn-success">Details</button>
                                                         </a>
                                                         <a href="/projects/{{.Id}}/newtask">
-                                                            <button type="button" class="btn btn-success">Attach Bot</button>
+                                                            <button type="button" class="btn btn-success">Select Bot</button>
                                                         </a>
                                                     </td>
                                                 </tr>
-                                                {{end}}
+                                                {{ end }}
                                             </tbody>
                                         </table>
                                     </div>
