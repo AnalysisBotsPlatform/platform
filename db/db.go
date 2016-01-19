@@ -10,6 +10,7 @@ import (
 	"github.com/lib/pq"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // The import "pq" is a pure Go postgres driver for Go's database/sql package
@@ -581,4 +582,37 @@ func UpdateTaskResult(tid int64, output string, exit_code int) {
 	}
 	db.QueryRow("UPDATE tasks SET status=$1, end_time=now(), output=$2, "+
 		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid)
+}
+
+// This function cancels all tasks which succeeded the 'maxseconds' duration
+// The tasks' status will be set to Cancled
+func CancelTasksBySeconds(maxseconds int64) {	
+	var starttime 	pq.NullTime
+	var id			int64		
+	
+	// get all running tasks
+	rows, err := db.Query("SELECT tasks.id , tasks.start_time FROM tasks"+
+		" WHERE tasks.status=$1"+
+		" ORDER BY tasks.start_time", Running)
+	if err != nil {
+		return nil, err
+	}
+	
+	defer rows.Close()
+	
+	// get starting time of running bots
+	for rows.Next() {
+		if err := rows.Scan(&id, &starttime); err != nil {
+			return nil, err
+		}
+		
+		// check if running time succeeded maximal time
+		if starttime.Valid {
+			runtime := int64(time.Since(starttime.Time))
+			if(runtime >= maxseconds){
+				// time is over - cancel task
+				UpdateTaskStatus(id, Cancled)
+			}
+		}
+	}
 }
