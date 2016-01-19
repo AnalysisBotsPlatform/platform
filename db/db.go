@@ -365,7 +365,7 @@ func AddBot(path, description, tags string) error {
 	// create bot
 	var result string
 	if err := db.QueryRow("INSERT INTO bots (name, description, tags, fs_path)"+
-		" VALUES ($1, $2, $3)", path, description, buffer.String(), path).
+		" VALUES ($1, $2, $3, $4)", path, description, buffer.String(), path).
 		Scan(&result); err != nil && err != sql.ErrNoRows {
 		return err
 	}
