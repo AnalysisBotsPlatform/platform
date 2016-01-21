@@ -13,11 +13,13 @@ import (
 	"syscall"
 )
 
+// maximal duration in seconds for each task
+const max_task_time int64 = 60
+
 // directory where to find the projects
 //TODO check this!
 const projects_directory = "projects"
 
-// 
 // TODO doc this
 var cache_directory string
 
@@ -56,7 +58,7 @@ func CreateNewTask(token string, pid string, bid string) (int64, error) {
 
 // TODO check this
 // Cancels the running task specified by its id using the channel
-// also updates the database 
+// also updates the database
 func Cancle(tid string) error {
 	id, err := strconv.ParseInt(tid, 10, 64)
 	if err != nil {
@@ -74,6 +76,14 @@ func Cancle(tid string) error {
 	db.UpdateTaskStatus(id, db.Cancled)
 
 	return nil
+}
+
+// This function cancles all tasks which succeeded the 'max_task_time'
+func CancleTimedOverTasks() {
+	tasks := db.GetTimedOverTasks(max_task_time)
+	for _,e := range tasks {
+		Cancle(strconv.ItoA(e))
+	}
 }
 
 // checks whether the channel recieved a message

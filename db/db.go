@@ -588,11 +588,11 @@ func UpdateTaskResult(tid int64, output string, exit_code int) {
 		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid)
 }
 
-// This function cancels all tasks which succeeded the 'maxseconds' duration
-// The tasks' status will be set to Cancled
-func CancelTasksBySeconds(maxseconds int64) {
+// This function returns all tasks which succeeded the 'maxseconds' duration
+func GetTimedOverTasks(maxseconds int64) []int64 {
 	var starttime pq.NullTime
-	var id int64
+	var tid int64
+	var ctasks []int64
 
 	// get all running tasks
 	rows, err := db.Query("SELECT tasks.id , tasks.start_time FROM tasks"+
@@ -604,16 +604,17 @@ func CancelTasksBySeconds(maxseconds int64) {
 	defer rows.Close()
 	// get starting time of running bots
 	for rows.Next() {
-		if err := rows.Scan(&id, &starttime); err != nil {
+		if err := rows.Scan(&tid, &starttime); err != nil {
 			return nil, err
 		}
 		// check if running time succeeded maximal time
 		if starttime.Valid {
 			runtime := int64(time.Since(starttime.Time))
 			if(runtime >= maxseconds){
-				// time is over - cancel task
-				UpdateTaskStatus(id, Cancled)
+				// time is over - add to canceled tasks
+				tasks = append(ctasks, tid)
 			}
 		}
 	}
+	return tasks
 }
