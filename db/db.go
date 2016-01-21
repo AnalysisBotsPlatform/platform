@@ -569,6 +569,10 @@ func UpdateTaskStatus(tid int64, new_status int64) {
 	if new_status == Running {
 		db.QueryRow("UPDATE tasks SET status=$1, start_time=now() WHERE id=$2",
 			new_status, tid)
+	} else
+	if new_status == Cancled {
+		db.QueryRow("UPDATE tasks SET status=$1, end_time=now() WHERE id=$2",
+			new_status, tid)
 	} else {
 		db.QueryRow("UPDATE tasks SET status=$1 WHERE id=$2", new_status, tid)
 	}
@@ -586,10 +590,10 @@ func UpdateTaskResult(tid int64, output string, exit_code int) {
 
 // This function cancels all tasks which succeeded the 'maxseconds' duration
 // The tasks' status will be set to Cancled
-func CancelTasksBySeconds(maxseconds int64) {	
-	var starttime 	pq.NullTime
-	var id			int64		
-	
+func CancelTasksBySeconds(maxseconds int64) {
+	var starttime pq.NullTime
+	var id int64
+
 	// get all running tasks
 	rows, err := db.Query("SELECT tasks.id , tasks.start_time FROM tasks"+
 		" WHERE tasks.status=$1"+
@@ -597,15 +601,12 @@ func CancelTasksBySeconds(maxseconds int64) {
 	if err != nil {
 		return nil, err
 	}
-	
 	defer rows.Close()
-	
 	// get starting time of running bots
 	for rows.Next() {
 		if err := rows.Scan(&id, &starttime); err != nil {
 			return nil, err
 		}
-		
 		// check if running time succeeded maximal time
 		if starttime.Valid {
 			runtime := int64(time.Since(starttime.Time))
