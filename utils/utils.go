@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// TODO document this
+// List of characters used to generate random character sequence.
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 	"0123456789"
 const (
@@ -14,10 +14,10 @@ const (
 	letterIdxMax  = 63 / letterIdxBits
 )
 
-// TODO document this
+// Random number generator.
 var src = rand.NewSource(time.Now().UnixNano())
 
-// TODO document this
+// Generates a sequence of random characters (`letterBytes`) of length `n`.
 func RandString(n int) string {
 	b := make([]byte, n)
 

@@ -24,10 +24,10 @@ import (
 )
 
 //
-// global state
+// Global state
 //
 
-// Application identification
+// Application identification (used for GitHub)
 const app_id_var = "CLIENT_ID"
 const app_secret_var = "CLIENT_SECRET"
 
@@ -41,14 +41,14 @@ const session_enc_var = "SESSION_ENC"
 var session_store = sessions.NewCookieStore(
 	[]byte(os.Getenv(session_auth_var)), []byte(os.Getenv(session_enc_var)))
 
-// Database authentification
+// Database authentication
 const db_user_var = "DB_USER"
 const db_pass_var = "DB_PASS"
 
 var db_user = os.Getenv(db_user_var)
 var db_pass = os.Getenv(db_pass_var)
 
-// Filesystem cache
+// File system cache
 const cache_path_var = "CACHE_PATH"
 
 var cache_path = os.Getenv(cache_path_var)
@@ -63,7 +63,11 @@ var templates = template.Must(template.ParseGlob(
 	fmt.Sprintf("%s/[^.]*", template_root),
 ))
 
-// App constants
+//
+// Application constants
+//
+
+// Number of character used to communicate with GitHub (secret message).
 const state_size = 32
 
 // Context settings
@@ -71,57 +75,55 @@ var error_counter = 0
 var error_map = make(map[string]interface{})
 
 //
-// entry point
+// Entry point
 //
 
-// Parameters:
-// --
+// The `Start` function sets up the environment for the controller and calls the
+// http ListenAndServe() function which actually starts the web service.
 //
-// Returns:
-// --
-//
-// The Start() function sets up the environment for the controller and calls the
-// http ListenAndServe() function which actually starts the webservice.
-//
-// In the begining the environment variables listed below and containing process
-// relevant information are beeing retreived from the operating system:
+// In the beginning environment variables containing process relevant
+// information are retrieved from the operating system. These variables are:
 //
 // - CLIENT_ID: The identifier retrieved from GitHub when registering this
 // application as a GitHub application.
 //
-// - CLIENT_SECRET: The client secret retrieved from GitHub when registering
-// this application as a GitHub application.
+// - CLIENT_SECRET: The client/application secret retrieved from GitHub when
+// registering this application as a GitHub application.
 //
 // - SESSION_AUTH: A random string authenticating this session uniquely among
 // others.
 //
-// - SESSION_ENC: A random string used to encrypt the session.
+// - SESSION_ENC: A random string used to encrypt the sessions.
 //
 // - DB_USER: The database user (here a postgresql database is used, hence this
 // is a postgres-user) owning the database "analysisbots".
 //
-// - DB_PASS: The password of the databse user (needed to acces the database).
+// - DB_PASS: The password of the database user (needed to access the database).
 //
-// - CACHE_PATH: The filesystem path where the different components can store
+// - CACHE_PATH: The file system path where the different components can store
 // their data.
 //
-// In case some of the variables are missing a corresponding message is beeing
-// prompted to the standard output and the function terminates without any
-// further action.
-// If all environment variables were provided the OpenDB() function of the db
-// package is being calles in order to establish a connection to the database.
-// In case of an error again the function terminates with a corresponding
-// message and without any further actions.
-// Next a channel "sigs" is beeing created in order to listen for signals from
-// the operating system in particular for termination signals.
-// Then a new goroutine listening on that channel is beeing executed
-// concurrently, which whenever it receives something on the "sigs" channel
-// closes the database connection and exits the system with the status code 0.
+// In case some of the variables are missing a corresponding message is prompted
+// to the standard output and the function terminates without any further
+// action.
 //
-// Finally the ListenAndServe() function of the http package is beeing called in
-// order to listen on port 8080 for incomming http requests. The router used to
+// If all environment variables were provided, the `OpenDB` function of the `db`
+// package is called in order to establish a connection to the database.
+//
+// In case of another error the function terminates with a corresponding message
+// and without any further actions.
+//
+// Next a channel `sigs` is created in order to listen for signals from the
+// operating system, in particular for termination signals.
+//
+// Then a new goroutine listening on that channel is executed concurrently.
+// Whenever something is received on the `sigs` channel the database connection
+// is closed and the system exits with the status code 0.
+//
+// Finally, the `ListenAndServe` function of the http package is called in order
+// to listen on port 8080 for incoming http requests. The router used to
 // demultiplex paths and calling the respective handlers is created by the
-// initRoutes() call.
+// `initRoutes` call.
 func Start() {
 	// check environment
 	_, id := os.LookupEnv(app_id_var)
@@ -173,7 +175,7 @@ func Start() {
 	go func() {
 		<-sigs
 		db.CloseDB()
-		fmt.Println("... controller termiated")
+		fmt.Println("... controller terminated")
 		os.Exit(0)
 	}()
 
@@ -185,10 +187,10 @@ func Start() {
 }
 
 //
-// helper functions
+// Helper functions
 //
 
-// TODO document this
+// Register all routes and their handlers.
 func initRoutes() (rootRouter *mux.Router) {
 	// declare routers
 	rootRouter = mux.NewRouter()
@@ -204,6 +206,7 @@ func initRoutes() (rootRouter *mux.Router) {
 	rootRouter.HandleFunc("/{file:.*\\.js}", makeHandler(handleJavaScripts))
 	rootRouter.HandleFunc("/login", makeHandler(handleLogin))
 	rootRouter.HandleFunc("/logout", makeHandler(handleLogout))
+	// NOTE: Not implemented yet.
 	rootRouter.HandleFunc("/user", makeHandler(makeTokenHandler(handleUser)))
 
 	// bots
@@ -240,26 +243,9 @@ func initRoutes() (rootRouter *mux.Router) {
 	return
 }
 
-// Parameters:
-// - fn: the function to wrap
-//
-// Returns:
-// A that performs the retrieval of the session and path-variables and then
-// executing the given handler.
-// The makeHandler() function takes a function with signature
-// (http.ResponseWriter, *http.Request, map[string]string, *sessions.Session)
-// and returns a http.HandlerFunc with the signature w http.ResponseWriter, r
-// *http.Request), which is mandatory for being registered as a request handler
-// of the gorilla mux.
-// Besides a http.ResponseWriter and a *http.Request the actual some of the
-// handlers called for http requests are in need of a map[string]string
-// containing information of the path that triggers that handler and a pointer
-// to a session *sessions.Session. Since the retrieval of the session and the
-// variables containing information about the composition of the url that
-// triggers the execution of a handler is the same for every handler,
-// makeHandler() creates and returns a "wrapper function" that retrieves the
-// session as well as the variables and then executes the given handler with the
-// retrieved information.
+// Function closure for `http.HandlerFunc`. Retrieves the session and path
+// variables and then executes the given handler with this additional
+// information.
 func makeHandler(
 	fn func(http.ResponseWriter, *http.Request, map[string]string,
 		*sessions.Session)) http.HandlerFunc {
@@ -274,27 +260,8 @@ func makeHandler(
 	}
 }
 
-// Parameters:
-// - fn: The given handler to be wrapped.
-//
-// Returns:
-// A function retrieving the token and then executing the handler.
-//
-// The makeTokenHandler() function takes a function of signature
-// (http.ResponseWriter, *http.Request, map[string]string, *sessions.Session,
-// string) and returns a function of signature (http.ResponseWriter,
-// *http.Request, map[string]string, *sessions.Session), which in turn can be
-// passed to makeHandler() in order to make the given handler usable as a
-// http.HandlerFunc.
-// Most of the handlers beeing triggered by a certain path are in need of the
-// authentification token (stored in a cookie/session) in order to operate in
-// the desired way (retrieving information from the database, from GitHub,
-// etc.).
-// Since the retrieval of the token from the session for all these handlers is
-// the same, makeTokenHandler() "wraps" the given handler in a function that
-// retrieves the token corresponding to the given session (or takes the
-// corresponding action in case there is no such token available) and then
-// executes the given handler.
+// Function closure for `makeHandler`. In addition to `makeHandler` the token is
+// read from the cookie.
 func makeTokenHandler(
 	fn func(http.ResponseWriter, *http.Request, map[string]string,
 		*sessions.Session, string)) func(http.ResponseWriter, *http.Request,
@@ -311,14 +278,9 @@ func makeTokenHandler(
 	}
 }
 
-// Parameters:
-// w http.ResponseWriter,
-// tmpl string: The name of the template,
-// data interface{}: A struct containing the data to be inserted in the
-// template.
-//
-// The function executes the template tmpl with the data. If the execution fails
-// is responses to request with an error message explaining the reason of fail.
+// The function renders the given template `tmpl`. This is done by injecting
+// `data` into the cached template. In case `tmpl` does not exist, an internal
+// server error is triggered.
 func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
 	err := templates.ExecuteTemplate(w,
 		fmt.Sprintf("%s.html", tmpl), data)
@@ -327,21 +289,9 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
 	}
 }
 
-// Parameters:
-// w http.ResponseWriter,
-// req_url string: URL indicating the desired information to retrieve from
-// GitHub,
-// token string: personal access token
-//
-// Return values
-// interface{}: If the request was successful an struct representing the
-// received and decoded data otherwise nil.
-// error: If the request was successful nil otherwise an error indicating the
-// reason of fail.
-//
-// The function sends an https GET request with the req_url to GitHub. After
-// receiving an successful repose the body of the https request containing the
-// requested data in json format is decoded and returned.
+// The function sends a request `req_url` to GitHub. After receiving a
+// successful response the result data in JSON format is decoded and returned.
+// In case of an unexpected error, the error is returned.
 func authGitHubRequest(w http.ResponseWriter, req_url string,
 	token string) (interface{}, error) {
 	// set up request parameters
@@ -380,13 +330,8 @@ func authGitHubRequest(w http.ResponseWriter, req_url string,
 	return resp_data, nil
 }
 
-// Parameters:
-// w http.ResponseWriter,
-// r *http.Request,
-// err error
-//
-// The handler prints the error to the standard output and redirects the user to
-// the root page.
+// Error handling routine. The user is redirected to the index page and an error
+// message (stored in `error_map`) is displayed.
 func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	error_counter++
 	error_map[strconv.Itoa(error_counter)] = err
@@ -394,20 +339,10 @@ func handleError(w http.ResponseWriter, r *http.Request, err error) {
 		http.StatusFound)
 }
 
-// Parameters:
-// w http.ResponseWriter,
-// r *http.Request,
-// session *sessions.Session
-//
-// Return values:
-// string If the session is valid the GitHub authentication token otherwise an
-// empty string.
-// error If the session is valid nil otherwise an error indicating that no valid
-// session exists.
-//
-// The function checks, if the session is valid. If this is the case the GitHub
-// authentication token is returned, otherwise the function handleError is
-// called and an error is returned.
+// The function checks whether the session is valid. If this is the case the
+// GitHub authentication token is returned. The token is stored in a cookie on
+// the user's machine. Otherwise the function `handleError` is called and an
+// error is returned.
 func getTokenOrRedirect(w http.ResponseWriter, r *http.Request,
 	session *sessions.Session) (string, error) {
 	if token, ok := session.Values["token"].(string); ok {
@@ -419,18 +354,14 @@ func getTokenOrRedirect(w http.ResponseWriter, r *http.Request,
 }
 
 //
-// route handler
+// Route handler
 //
 
-// Parameters:
-// w http.ResponseWriter,
-// r *http.Request,
-// vars map[string]string,
-// session *sessions.Session
-//
-// The handler checks if the session "token" is valid. Is this the case the
-// function renderTemplate with the template "index" is called otherwise with
-// the template "login".
+// The handler checks whether the session `token` is valid. If this is the case
+// the function `renderTemplate` with the template `index` is called else with
+// the template `login`. It might be that this page is requested with an error
+// parameter. Then the corresponding error message is forwarded and thus
+// displayed.
 func handleRoot(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
 	if _, ok := session.Values["token"]; ok {
@@ -450,26 +381,18 @@ func handleRoot(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// Parameters:
-// w http.ResponseWriter,
-// r *http.Request,
-// vars map[string]string: map of route variables containing assignments of
-// regexp variables occurring in the matching path,
-// session *sessions.Session: ,
-// token string: personal access token
-//
 // The handler requests the personal access token and the user profile from
-// GitHub to create a user in the database and redirects the user to the root
-// page.
+// GitHub to create a user in the database.
 //
-// After the user granted the application access to its data GitHub redirects to
-// the "Authorization callback URL" from the application setting page on GitHub.
-// This request will be handled by this handler.
+// After the user grants access to its personal data on GitHub, the application
+// redirects to the "Authorization callback URL" from the application settings
+// page on GitHub. This request will be handled by this handler.
 //
-// To ensure that the connection to GitHub is not hijacked the validity of the
+// To ensure that the connection to GitHub is not hijacked, the validity of the
 // session is checked by comparing the state variable previously sent to GitHub
-// and the one received by a URL like the one below.
+// and the one received by an URL like the one below.
 //
+// NOTE: Fill in correct URL
 // 	e.g.: http://analysis-bots-platform.com/?code=<code>&state=<s>
 //
 // The callback URL contains a variable code which will be used in the next
@@ -478,20 +401,21 @@ func handleRoot(w http.ResponseWriter, r *http.Request,
 //
 // 	https://github.com/login/oauth/access_token
 //
-// Containing the variables below:
-// client_id: The client_id from the application setting page on GitHub.
-// client_secret: The client_secret from the application setting page on GitHub.
-// code: The code received in the response.
-// state: The random string used in the login handler.
+// The POST request contains the variables below:
+// - client_id: The client_id from the application setting page on GitHub.
+// - client_secret: The client_secret from the application setting page on
+// GitHub.
+// - code: The code received in the response.
+// - state: The random string used in the login handler.
 //
-// Since the response is requested in the json format by specifying the the
-// accept value in the http header accordingly the data of interest is being
-// extracted by unmarshalling the body using a json parser. After retrieving the
-// token it will replace the state as the session identifier. To get the user
-// information the function authGitHubRequest with the req_url "user" is called.
-// If this fails the session is closed to enforce a redirecting to the login
-// page. Otherwise the database is updated and the user is being redirected to
-// the root page.
+// Since the response is requested in the JSON format, by specifying the
+// "Accept" value in the http header accordingly the data of interest is
+// extracted by unmarshalling the body using a JSON parser. After retrieving the
+// token it will be stored in the user's cookie. To get the user information,
+// the function `authGitHubRequest` with the `req_url` "user" is called. If this
+// fails the session is closed to enforce a redirection to the login page.
+// Otherwise the database is updated and the user is redirected to the index
+// page.
 func handleAuth(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
 	if state, ok := session.Values["state"].(string); ok {
@@ -550,7 +474,7 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+// Delivers JavaScript files.
 func handleJavaScripts(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
 	err := templates.ExecuteTemplate(w, vars["file"], nil)
@@ -559,32 +483,24 @@ func handleJavaScripts(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-//Parameters:
-//w http.ResponseWriter,
-//r *http.Request,
-//vars map[string]string,
-//session *sessions.Session
+// The handler redirects the user to the GitHub login page to get a personal
+// access token to access the user's GitHub data.
+// Temporarily, the random string state is used as session identifier because
+// the access token does not exist yet. This is necessary to ensure that the
+// GitHub connection is not hijacked.
 //
-//The Handler redirects the user to the GitHub login page to get a personal
-//access token to access the users GitHub data.
-//Temporarily the random string state is used as session identifier because the
-//access token does not exists yet. This is necessary to ensure that the GitHub
-//connection can not be hijacked.
+// The construction of the URL is as follows:
 //
-//The construction of the URL is as follows:
+// https://github.com/login/oauth/authorize?client_id=<id>&scope="user, repo"&state=<st>
 //
-//https://github.com/login/oauth/authorize?client_id=<id>&scope="user, repo"&state=<st>
-//
-//client_id: The client_id from the application setting page on GitHub.
-//
-//scope: The scope determines which parts of the users data our application is
-//allowed to access. In this case "user" grants read and write access to the
-//users profile info and "repo" read and write access to code, commit statuses,
-//collaborators, and deployment statuses for public and private repositories and
-//organizations.
-//
-//state: State is a random string to protect against cross-site request forgery
-//attacks.
+// - client_id: The client_id from the application settings page on GitHub.
+// - scope: The scope determines which parts of the user's data the application
+// is allowed to access. In this case "user" grants read and write access to the
+// user's profile info and "repo" read and write access to code, commit
+// statuses, collaborators, and deployment statuses for public and private
+// repositories and organizations.
+// - state: State is a random string to protect against cross-site request
+// forgery attacks.
 func handleLogin(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
 	state := utils.RandString(state_size)
@@ -597,7 +513,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request,
 		http.StatusFound)
 }
 
-// TODO document this
+// The handler invalidates the user's cookie and redirects to the login page.
 func handleLogout(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
 	session.Options.MaxAge = -1
@@ -605,23 +521,15 @@ func handleLogout(w http.ResponseWriter, r *http.Request,
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-// TODO document this
+// NOTE: Not implemented yet.
 func handleUser(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	renderTemplate(w, "user", nil)
 }
 
-//Parameters:
-//w http.ResponseWriter,
-//r *http.Request,
-//vars map[string]string: map of route variables containing assignments of
-//regexp variables occurring in the matching path,
-//session *sessions.Session: ,
-//token string: personal access token
-//
-//The handler requests information about all bots from the database. If an error
-//occurs the handleError function is called otherwise renderTemplate with the
-//template "bots" and the  retrieved data.
+// The handler requests information about all Bots from the database. If an
+// error occurs the `handleError` function is called else `renderTemplate` with
+// the template "bots" and the retrieved data.
 func handleBots(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	bots, err := db.GetBots()
@@ -632,13 +540,18 @@ func handleBots(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+// The handler displays the form for adding new Bots.
 func handleBotsNewForm(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	renderTemplate(w, "bots-new", nil)
 }
 
-// TODO document this
+// The handler gets called after the user successfully submitted a new Bot via
+// the corresponding form. It verifies that all fields are submitted and
+// non-empty. Then a request to the Docker API is sent to check whether the
+// Bot's image exists. If all requirements are met the Bot is added to the
+// database and the user is redirected to the Bot overview page. Else an error
+// message is displayed.
 func handleBotsNewPost(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	path := r.FormValue("path")
@@ -666,18 +579,9 @@ func handleBotsNewPost(w http.ResponseWriter, r *http.Request,
 	http.Redirect(w, r, "/bots/", http.StatusFound)
 }
 
-//Parameters:
-//w http.ResponseWriter,
-//r *http.Request,
-//vars map[string]string: map of route variables containing assignments of
-//regexp variables occurring in the matching path,
-//session *sessions.Session: ,
-//token string: personal access token
-//
-//The handler requests detailed information about the bot identified by bid in
-//the rout variables from the database. If an error occurs the handleError
-//function is called otherwise renderTemplate with the template "bots-bid" and
-//the  retrieved data.
+// The handler requests detailed information about the Bot identified by its id.
+// If an error occurs the `handleError` function is called else `renderTemplate`
+// with the template "bots-bid" and the retrieved data.
 func handleBotsBid(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	bot, err := db.GetBot(vars["bid"])
@@ -688,7 +592,11 @@ func handleBotsBid(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+// The handler requests detailed information about the Bot identified by its id.
+// In addition it requests information about all available projects. In order to
+// get up to date information, GitHub is contacted and the newest project data
+// is fetched. If an error occurs the `handleError` function is called else
+// `renderTemplate` with the template "bots-bid-newtask" and the retrieved data.
 func handleBotsBidNewtask(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	bot, errBot := db.GetBot(vars["bid"])
@@ -716,19 +624,11 @@ func handleBotsBidNewtask(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-//Parameters:
-//w http.ResponseWriter,
-//r *http.Request,
-//vars map[string]string: map of route variables containing assignments of
-//regexp variables occurring in the matching path,
-//session *sessions.Session: ,
-//token string: personal access token
-//
-//The handler calls the function authGitHubRequest with the URL "user/repos" to
-//get the up to date information about the user's projects. If This fails the
-//session is closed and the user redirected to the root page. Otherwise the
-//database is updated and the renderTemplate function with the "projects"
-//template and the data from the database is called.
+// The handler calls the function `authGitHubRequest` with the URL "user/repos"
+// to get the up to date information about the user's projects from GitHub. If
+// this fails the session is closed and the user is redirected to the index
+// page. Otherwise the database is updated and the `renderTemplate` function
+// with the "projects" template and the data from the database is called.
 func handleProjects(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	response, err := authGitHubRequest(w, "user/repos", token)
@@ -746,18 +646,9 @@ func handleProjects(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-//Parameters:
-//w http.ResponseWriter,
-//r *http.Request,
-//vars map[string]string: map of route variables containing assignments of
-//regexp variables occurring in the matching path,
-//session *sessions.Session: ,
-//token string: personal access token
-//
-//The handler requests detailed information about the project identified by pid
-//in the rout variables from the database. If an error occurs the handleError
-//function is called otherwise renderTemplate with the template "projects-pid"
-//and the  retrieved data.
+// The handler requests detailed information about the project identified by its
+// id. If an error occurs the `handleError` function is called else
+// `renderTemplate` with the template "projects-pid" and the retrieved data.
 func handleProjectsPid(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	project, err := db.GetProject(vars["pid"], token)
@@ -768,7 +659,10 @@ func handleProjectsPid(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+// The handler requests detailed information about the project identified by its
+// id. In addition it requests information about all available Bots. If an error
+// occurs the `handleError` function is called else `renderTemplate` with the
+// template "projects-pid-newtask" and the retrieved data.
 func handleProjectsPidNewtask(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	project, errProject := db.GetProject(vars["pid"], token)
@@ -789,17 +683,9 @@ func handleProjectsPidNewtask(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-//Parameters:
-//w http.ResponseWriter,
-//r *http.Request,
-//vars map[string]string: map of route variables containing assignments of
-//regexp variables occurring in the matching path,
-//session *sessions.Session: ,
-//token string: personal access token
-//
-//The handler requests information about all tasks of the user identified by his
-//token from the database. If an error occurs the handleError function is called
-//otherwise renderTemplate with the template "tasks" and the  retrieved data.
+// The handler requests information about all tasks ran by the user. If an error
+// occurs the `handleError` function is called else `renderTemplate` with the
+// template "tasks" and the retrieved data.
 func handleTasks(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	tasks, err := db.GetTasks(token)
@@ -810,18 +696,9 @@ func handleTasks(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-//Parameters:
-//w http.ResponseWriter,
-//r *http.Request,
-//vars map[string]string: map of route variables containing assignments of
-//regexp variables occurring in the matching path,
-//session *sessions.Session: ,
-//token string: personal access token
-//
-//The handler requests detailed information about the task identified, by tid in
-//the rout variables, of the user identified by the token from the database. If
-//an error occurs the handleError function is called otherwise renderTemplate
-//with the template "projects-pid" and the  retrieved data.
+// The handler requests detailed information about the task identified by its
+// id. If an error occurs the `handleError` function is called else
+// `renderTemplate` with the template "projects-pid" and the retrieved data.
 func handleTasksTid(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	task, err := db.GetTask(vars["tid"], token)
@@ -838,7 +715,9 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+// The handler creates a new task with the help of the background worker. If
+// this fails the `handleError` function is called else the user is redirected
+// to the details page of the newly created task.
 func handleTasksNew(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	tid, err := worker.CreateNewTask(token, vars["pid"], vars["bid"])
@@ -849,7 +728,9 @@ func handleTasksNew(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+// The handler attempts to cancel the specified task. If this fails the
+// `handleError` function is called else the user is redirected to the Bot
+// status overview page.
 func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	err := worker.Cancle(vars["tid"])

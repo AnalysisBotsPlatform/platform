@@ -13,36 +13,35 @@ import (
 	"syscall"
 )
 
-// maximal duration in seconds for each task
+// Maximal duration in seconds for each task.
 const max_task_time int64 = 60
 
-// directory where to find the projects
-//TODO check this!
+// Directory (within the cache directory) where projects are found.
 const projects_directory = "projects"
 
-// TODO doc this
+// Directory where the application can store temporary data on the file system.
 var cache_directory string
 
-// length of the directory names
-// NOTE: if the project gets many users, this number should be raised
-// TODO check this
+// Length of the directory names for the cloned GitHub projects.
+// NOTE: If the project gets many users, this number should be raised.
 const directory_length = 8
 
-// global memory for the channel
-// TODO check this
+// Channel store for the task channels. These channels are used to interact with
+// the running tasks (right now only cancelation signal are sent).
 var channels map[int64]chan bool
 
-// TODO check this
-// Initialization of the worker
-// sets up the channel and the cache directory
+// Initialization of the worker. Sets up the channel store and the cache
+// directory is set.
 func Init(path_to_cache string) {
 	channels = make(map[int64]chan bool)
 	cache_directory = path_to_cache
 }
 
-// TODO check this
-// creats a new task by calling the database with the used information
-// this information is: the authtoken, the projectIdentifier, the botIdentifier
+// Creates a new task. This includes the following steps:
+// - Creating a database entry.
+// - Creating a new communication channel.
+// - Starting an asynchronous task.
+// The task id of the newly created task is returned.
 func CreateNewTask(token string, pid string, bid string) (int64, error) {
 	task, err := db.CreateNewTask(token, pid, bid)
 	if err != nil {
@@ -56,9 +55,8 @@ func CreateNewTask(token string, pid string, bid string) (int64, error) {
 	return task.Id, nil
 }
 
-// TODO check this
-// Cancels the running task specified by its id using the channel
-// also updates the database
+// Cancels the running task specified by the given task id using the channel.
+// Also updates the database entry accordingly.
 func Cancle(tid string) error {
 	id, err := strconv.ParseInt(tid, 10, 64)
 	if err != nil {
@@ -80,14 +78,13 @@ func Cancle(tid string) error {
 
 // This function cancles all tasks which succeeded the 'max_task_time'
 func CancleTimedOverTasks() {
-	tasks := db.GetTimedOverTasks(max_task_time)
-	for _,e := range tasks {
-		Cancle(strconv.ItoA(e))
+	tasks, _ := db.GetTimedOverTasks(max_task_time)
+	for _, e := range tasks {
+		Cancle(strconv.FormatInt(e, 10))
 	}
 }
 
-// checks whether the channel recieved a message
-// TODO: check this
+// Checks whether a cancelation signal was sent on the channel.
 func tryReceive(chn chan bool) bool {
 	select {
 	case <-chn:
@@ -97,8 +94,7 @@ func tryReceive(chn chan bool) bool {
 	}
 }
 
-// TODO: check this
-// checks if the task was canceled and updates the db if applicable
+// Checks if the task was canceled and updates the database if applicable.
 func checkForCanclation(tid int64, chn chan bool) bool {
 	if tryReceive(chn) {
 		db.UpdateTaskStatus(tid, db.Cancled)
@@ -107,9 +103,9 @@ func checkForCanclation(tid int64, chn chan bool) bool {
 	return false
 }
 
-// TODO check this
-// waits for the channel to report to cancel the process cmd
-// kills the cmd if message received
+// Waits on the channel for a cancelation action. If such an action is received,
+// the corresponding process is terminated (Docker container) and the `execBot`
+// function is able to continue its execution.
 func waitForCanclation(returnChn, cancleChn, abortWait chan bool,
 	cmd *exec.Cmd) {
 	select {
@@ -120,10 +116,10 @@ func waitForCanclation(returnChn, cancleChn, abortWait chan bool,
 	}
 }
 
-// TODO document this
-//
-//
-//
+// Executes the task, i.e. runs the Bot as a Docker container and waits for its
+// completion. After the tasks execution terminated, the output and exit_code
+// output arguments are set appropriatly. In addition a signal is sent on the
+// cancelation channel which allows `waitForCancelation` to continue.
 func execBot(returnChn chan bool, cmd *exec.Cmd, stdout, stderr io.ReadCloser,
 	output *string, exit_code *int) {
 	out, _ := ioutil.ReadAll(stdout)
@@ -142,8 +138,8 @@ func execBot(returnChn chan bool, cmd *exec.Cmd, stdout, stderr io.ReadCloser,
 	returnChn <- true
 }
 
-// TODO check this
-//  cleans up the project cache
+// Cleans up the project cache, i.e. the cloned project is removed from file
+// system.
 func cleanProjectCache(directory string) {
 	rmDirectoryCmd := exec.Command("rm", "-rf", directory)
 	if err := rmDirectoryCmd.Run(); err != nil {
@@ -152,18 +148,30 @@ func cleanProjectCache(directory string) {
 	}
 }
 
-// TODO check this
-// creates the project cache directory if nesessary
-// fetches the bot from DockerHub using exec.command
-// generally creates a new clone of the repository and works on its
-// NOTE: this may be changed
-// calls the cleanProjectCache to clean it up
-// runs the bot on project, also updates the database
+// Preperation steps:
+// - Creates the project cache directory if nesessary.
+// - Fetches the bot from DockerHub.
+// General:
+// - Creates a new clone of the repository.
+// NOTE: Later this may be changed to a pull instead of clone, i.e. a cloned
+// repository is reused.
+// - The Bot is executed on the cloned project. This includes the creation of a
+// new Docker container from the Bot's Docker image.
+// - Waits for completion of the Bot's execution.
+// - Cleans up project cache directory (removes clone).
+// - Updates database entry accordingly (sets exit status and output)
 func runTask(task *db.Task, chn chan bool) {
 	defer close(chn)
 	// create project cache directory if necessary
 	dir := fmt.Sprintf("%s/%s", cache_directory, projects_directory)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if _, err := os.Stat(cache_directory); os.IsNotExist(err) {
+			if err := os.Mkdir(cache_directory, 0755); err != nil {
+				db.UpdateTaskResult(task.Id, "Cannot create cache directory!",
+					-1)
+				return
+			}
+		}
 		if err := os.Mkdir(dir, 0755); err != nil {
 			db.UpdateTaskResult(task.Id, "Cannot create project cache!", -1)
 			return
@@ -194,7 +202,8 @@ func runTask(task *db.Task, chn chan bool) {
 		directory = fmt.Sprintf("%s/%s", cache_directory, path)
 		if _, err := os.Stat(directory); os.IsNotExist(err) {
 			if err := os.Mkdir(directory, 0755); err != nil {
-				db.UpdateTaskResult(task.Id, "Cannot create project cache!", -1)
+				db.UpdateTaskResult(task.Id,
+					"Cannot create project target directory!", -1)
 				return
 			}
 			exists = false
@@ -232,7 +241,7 @@ func runTask(task *db.Task, chn chan bool) {
 	go execBot(execChn, botCmd, stdout, stderr, &output, &exit_code)
 	select {
 	case <-cancleChn:
-		// TODO clean up container
+		// nop
 	case <-execChn:
 		abortChn <- true
 		db.UpdateTaskResult(task.Id, output, exit_code)

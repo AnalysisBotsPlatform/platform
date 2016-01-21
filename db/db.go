@@ -569,8 +569,7 @@ func UpdateTaskStatus(tid int64, new_status int64) {
 	if new_status == Running {
 		db.QueryRow("UPDATE tasks SET status=$1, start_time=now() WHERE id=$2",
 			new_status, tid)
-	} else
-	if new_status == Cancled {
+	} else if new_status == Cancled {
 		db.QueryRow("UPDATE tasks SET status=$1, end_time=now() WHERE id=$2",
 			new_status, tid)
 	} else {
@@ -589,10 +588,10 @@ func UpdateTaskResult(tid int64, output string, exit_code int) {
 }
 
 // This function returns all tasks which succeeded the 'maxseconds' duration
-func GetTimedOverTasks(maxseconds int64) []int64 {
+func GetTimedOverTasks(maxseconds int64) ([]int64, error) {
 	var starttime pq.NullTime
 	var tid int64
-	var ctasks []int64
+	var tasks []int64
 
 	// get all running tasks
 	rows, err := db.Query("SELECT tasks.id , tasks.start_time FROM tasks"+
@@ -610,11 +609,11 @@ func GetTimedOverTasks(maxseconds int64) []int64 {
 		// check if running time succeeded maximal time
 		if starttime.Valid {
 			runtime := int64(time.Since(starttime.Time))
-			if(runtime >= maxseconds){
+			if runtime >= maxseconds {
 				// time is over - add to canceled tasks
-				tasks = append(ctasks, tid)
+				tasks = append(tasks, tid)
 			}
 		}
 	}
-	return tasks
+	return tasks, nil
 }
