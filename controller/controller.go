@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 //
@@ -66,6 +67,9 @@ var templates = template.Must(template.ParseGlob(
 //
 // Application constants
 //
+
+// Interval in seconds for canceling timed over tasks
+const time_check_interval = 10
 
 // Number of character used to communicate with GitHub (secret message).
 const state_size = 32
@@ -169,11 +173,20 @@ func Start() {
 		}
 	}
 
+	// goroutine for cancelation of tasks
+	ticker := time.NewTicker(time.Second * time_check_interval)
+	go func() {
+			for range ticker.C {
+					worker.CancleTimedOverTasks()
+			}
+	}()
+
 	// make sure database connection gets closed
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigs
+		ticker.Stop()
 		db.CloseDB()
 		fmt.Println("... controller terminated")
 		os.Exit(0)

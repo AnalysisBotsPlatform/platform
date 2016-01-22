@@ -567,10 +567,10 @@ func CreateNewTask(token string, pid string, bid string) (*Task, error) {
 // This function updates the tasks' status with the provided value
 func UpdateTaskStatus(tid int64, new_status int64) {
 	if new_status == Running {
-		db.QueryRow("UPDATE tasks SET status=$1, start_time=now() WHERE id=$2",
+		db.QueryRow("UPDATE tasks SET status=$1, start_time=now()::timestamp(0) WHERE id=$2",
 			new_status, tid)
 	} else if new_status == Cancled {
-		db.QueryRow("UPDATE tasks SET status=$1, end_time=now() WHERE id=$2",
+		db.QueryRow("UPDATE tasks SET status=$1, end_time=now()::timestamp(0) WHERE id=$2",
 			new_status, tid)
 	} else {
 		db.QueryRow("UPDATE tasks SET status=$1 WHERE id=$2", new_status, tid)
@@ -608,7 +608,7 @@ func GetTimedOverTasks(maxseconds int64) ([]int64, error) {
 		}
 		// check if running time succeeded maximal time
 		if starttime.Valid {
-			runtime := int64(time.Since(starttime.Time))
+			runtime := int64(time.Since(starttime.Time).Seconds())
 			if runtime >= maxseconds {
 				// time is over - add to canceled tasks
 				tasks = append(tasks, tid)
