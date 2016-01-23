@@ -43,11 +43,15 @@ var session_store = sessions.NewCookieStore(
 	[]byte(os.Getenv(session_auth_var)), []byte(os.Getenv(session_enc_var)))
 
 // Database authentication
+const db_host_var = "DB_HOST"
 const db_user_var = "DB_USER"
 const db_pass_var = "DB_PASS"
+const db_name_var = "DB_NAME"
 
+var db_host = os.Getenv(db_host_var)
 var db_user = os.Getenv(db_user_var)
 var db_pass = os.Getenv(db_pass_var)
+var db_name = os.Getenv(db_name_var)
 
 // File system cache
 const cache_path_var = "CACHE_PATH"
@@ -134,14 +138,18 @@ func Start() {
 	_, secret := os.LookupEnv(app_secret_var)
 	_, auth := os.LookupEnv(session_auth_var)
 	session_enc, enc := os.LookupEnv(session_enc_var)
+	_, host := os.LookupEnv(db_host_var)
 	_, user := os.LookupEnv(db_user_var)
 	_, pass := os.LookupEnv(db_pass_var)
+	_, name := os.LookupEnv(db_name_var)
 	_, cache := os.LookupEnv(cache_path_var)
-	if !id || !secret || !auth || !enc || !user || !pass || !cache {
+	if !id || !secret || !auth || !enc || !host || !user || !pass || !name ||
+		!cache {
 		fmt.Printf("Application settings missing!\n"+
-			"Please set the %s, %s, %s, %s, %s, %s and %s environment variables.\n",
-			app_id_var, app_secret_var, session_auth_var, session_enc_var,
-			db_user_var, db_pass_var, cache_path_var)
+			"Please set the %s, %s, %s, %s, %s, %s, %s, %s and %s environment "+
+			"variables.\n", app_id_var, app_secret_var, session_auth_var,
+			session_enc_var, db_host_var, db_user_var, db_pass_var, db_name_var,
+			cache_path_var)
 		return
 	}
 
@@ -153,7 +161,7 @@ func Start() {
 
 	// initialize database connection
 	fmt.Println("Controller start ...")
-	if err := db.OpenDB(db_user, db_pass); err != nil {
+	if err := db.OpenDB(db_host, db_user, db_pass, db_name); err != nil {
 		fmt.Println("Cannot connect to database.")
 		fmt.Println(err)
 		return
@@ -176,9 +184,9 @@ func Start() {
 	// goroutine for cancelation of tasks
 	ticker := time.NewTicker(time.Second * time_check_interval)
 	go func() {
-			for range ticker.C {
-					worker.CancleTimedOverTasks()
-			}
+		for range ticker.C {
+			worker.CancleTimedOverTasks()
+		}
 	}()
 
 	// make sure database connection gets closed

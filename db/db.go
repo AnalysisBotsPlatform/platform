@@ -23,11 +23,11 @@ var db *sql.DB //pq.Conn
 // Further parameters shall be adapted:
 // dbname - the name of the database
 // sslmode - possible values see in the Postgres' sslmode documentation
-func OpenDB(user, password string) error {
+func OpenDB(host, user, password, name string) error {
 	var err error
 	db, err = sql.Open("postgres",
-		fmt.Sprintf("user=%s password=%s dbname=analysisbots sslmode=disable",
-			user, password))
+		fmt.Sprintf("host=%s user=%s password=%s dbname=%s "+
+			"sslmode=disable", host, user, password, name))
 	return err
 }
 
@@ -315,7 +315,7 @@ func fillProject(project *Project, uid int64) error {
 // with the information given by the Project structure
 func updateProject(project *Project, uid int64) error {
 	// update project information
-	db.QueryRow("UPDATE projects SET name=$1, clone_url=$2 WHERE gh_id=$4",
+	db.QueryRow("UPDATE projects SET name=$1, clone_url=$2 WHERE gh_id=$3",
 		project.Name, project.Clone_url, project.GH_Id)
 
 	if err := fillProject(project, uid); err != nil {
