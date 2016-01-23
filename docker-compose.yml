@@ -1,0 +1,11 @@
+app:
+    image: analysisbots/platform:latest
+    env_file:
+        - production.env
+        - db/conf/production.env
+    container_name: app
+
+database:
+    image: analysisbots/postgres:latest
+    env_file: db/conf/production.env
+    container_name: database

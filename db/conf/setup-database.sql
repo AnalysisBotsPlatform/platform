@@ -1,3 +1,17 @@
+-- Get shell environment variables.
+\set db_user `echo "${DB_USER}"`
+\set db_pass `echo "'${DB_PASS}'"`
+\set db_name `echo "${DB_NAME}"`
+
+-- Create new user and database.
+CREATE ROLE :db_user WITH LOGIN ENCRYPTED PASSWORD :db_pass CREATEDB;
+CREATE DATABASE :db_name WITH OWNER :db_user TEMPLATE template0 ENCODING 'UTF8';
+GRANT ALL PRIVILEGES ON DATABASE :db_name TO :db_user;
+
+-- Connect to the new database.
+\connect :db_name
+
+-- Create all necessary tables.
 CREATE TABLE users(
 	id SERIAL PRIMARY KEY NOT NULL,
 	gh_id integer UNIQUE NOT NULL,
@@ -52,3 +66,11 @@ CREATE TABLE members(
 	pid integer REFERENCES projects(id) NOT NULL,
 	PRIMARY KEY (uid, pid)
 );
+
+-- Transfer ownership to the newly created user.
+ALTER TABLE users OWNER TO :db_user;
+ALTER TABLE bots OWNER TO :db_user;
+ALTER TABLE projects OWNER TO :db_user;
+ALTER TABLE workers OWNER TO :db_user;
+ALTER TABLE tasks OWNER TO :db_user;
+ALTER TABLE members OWNER TO :db_user;

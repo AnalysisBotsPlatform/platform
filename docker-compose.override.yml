@@ -1,0 +1,11 @@
+app:
+    build: .
+    ports:
+        - 4242:4242
+        - 8080:8080
+    volumes:
+        - .:/go/src/github.com/AnalysisBotsPlatform/platform/
+    command: bash -c "rm -rf /go/{bin,pkg} && go install && app"
+
+database:
+    build: db/conf
