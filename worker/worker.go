@@ -184,7 +184,8 @@ func runTask(task *db.Task, chn chan bool) {
 		// NOTE This should not happen. Either docker is not available or the
 		// Bot was removed from the DockerHub. One might want to invalidate the
 		// Bot in case err is an ExitError.
-		fmt.Println(err)
+		db.UpdateTaskResult(task.Id, fmt.Sprint(err), -1)
+		return
 	}
 	if checkForCanclation(task.Id, chn) {
 		return
