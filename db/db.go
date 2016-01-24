@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/AnalysisBotsPlatform/platform/utils"
 	"github.com/lib/pq"
 	"strconv"
 	"strings"
@@ -36,6 +37,10 @@ func CloseDB() {
 	defer db.Close()
 }
 
+//
+// Helper functions
+//
+
 // This function returns an interface slice from an interface
 func makeSlice(in interface{}) []interface{} {
 	return in.([]interface{})
@@ -61,6 +66,21 @@ func makeString(in interface{}) string {
 	}
 }
 
+// Generates a sequence of random characters (`letterBytes`) of length `n` such
+// that it is unique within a particular data set. Thus `db_query` must be
+// passed where the sequence can be substituted in terms of `sql.QueryRow`. The
+// result of the query must be empty if and only if the sequence does not appear
+// in the data set. The result may only yield a single column containing an
+// integer.
+func nonExistingRandString(n int, db_query string) string {
+	sequence := utils.RandString(n)
+	var result int
+	for err := db.QueryRow(db_query, sequence).Scan(&result); err !=
+		sql.ErrNoRows; sequence = utils.RandString(n) {
+	}
+	return sequence
+}
+
 //
 // Users
 //
@@ -77,6 +97,9 @@ func UpdateUser(data interface{}, token string) error {
 		Real_name: makeString(values["name"]),
 		Email:     makeString(values["email"]),
 		Token:     token,
+		Worker_token: nonExistingRandString(Token_length,
+			"SELECT 42 FROM users WHERE worker_token = $1"),
+		Admin: false,
 	}
 
 	// update user information
@@ -99,7 +122,7 @@ func GetUser(token string) (*User, error) {
 	// fetch user
 	if err := db.QueryRow("SELECT * FROM users WHERE token=$1", token).
 		Scan(&user.Id, &user.GH_Id, &user_name, &real_name, &email,
-		&user.Token); err != nil {
+		&user.Token, &user.Worker_token, &user.Admin); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +150,7 @@ func getUser(uid string, token string) (*User, error) {
 	// fetch user and verify token
 	if err := db.QueryRow("SELECT * FROM users WHERE id=$1 AND token=$2", uid,
 		token).Scan(&user.Id, &user.GH_Id, &user_name, &real_name, &email,
-		&user.Token); err != nil {
+		&user.Token, &user.Worker_token, &user.Admin); err != nil {
 		return nil, err
 	}
 
@@ -165,9 +188,10 @@ func updateUser(user *User) {
 // provided by the User struct in the database
 func createUser(user *User) {
 	// create user
-	db.QueryRow("INSERT INTO users (gh_id, username, realname, email, token)"+
-		" VALUES ($1, $2, $3, $4, $5)", user.GH_Id, user.User_name,
-		user.Real_name, user.Email, user.Token)
+	db.QueryRow("INSERT INTO users (gh_id, username, realname, email, token, "+
+		"worker_token, admin) VALUES ($1, $2, $3, $4, $5, $6, $7)", user.GH_Id,
+		user.User_name, user.Real_name, user.Email, user.Token,
+		user.Worker_token, user.Admin)
 }
 
 //
@@ -451,7 +475,7 @@ func GetTasks(token string) ([]*Task, error) {
 		return nil, err
 	}
 
-	// fetch bots
+	// fetch tasks
 	defer rows.Close()
 	for rows.Next() {
 		var tid string
@@ -616,4 +640,127 @@ func GetTimedOverTasks(maxseconds int64) ([]int64, error) {
 		}
 	}
 	return tasks, nil
+}
+
+// Returns a pending task for the given user. If the user does not exist an
+// error is returned and `(nil, nil)` if there is no pending task.
+func GetPendingTask(uid int64, shared bool) (*Task, error) {
+	//declarations
+	rows, err := db.Query("SELECT tasks.id, tasks.uid, tasks.status, "+
+		"users.token FROM tasks INNER JOIN users ON tasks.uid = users.id "+
+		"WHERE tasks.uid = $1 AND tasks.status = 0", uid)
+	if err != nil {
+		return nil, err
+	}
+
+	// fetch task
+	defer rows.Close()
+	for rows.Next() {
+		var tid, uid, status, token string
+		if err := rows.Scan(&tid, &uid, &status, &token); err != nil {
+			return nil, err
+		}
+		task, err := GetTask(tid, token)
+		if err != nil {
+			return nil, err
+		}
+		return task, nil
+	}
+
+	if shared {
+		//declarations
+		rows, err := db.Query("SELECT tasks.id, tasks.status, users.token " +
+			"FROM tasks INNER JOIN users ON tasks.uid = users.id " +
+			"WHERE tasks.status = 0")
+		if err != nil {
+			return nil, err
+		}
+
+		// fetch task
+		defer rows.Close()
+		for rows.Next() {
+			var tid, status, token string
+			if err := rows.Scan(&tid, &status, &token); err != nil {
+				return nil, err
+			}
+			task, err := GetTask(tid, token)
+			if err != nil {
+				return nil, err
+			}
+			return task, nil
+		}
+	}
+
+	return nil, nil
+}
+
+//
+// Workers
+//
+
+// Creates a new worker for the given user (identified by the provided
+// `user_token`). Returns the identification token for the new worker or an
+// error if the user is not privileged to created shared workers.
+func CreateWorker(user_token, name string, shared bool) (string, error) {
+	// declarations
+	var uid int64
+	var admin bool
+
+	// get user
+	if err := db.QueryRow("SELECT id, worker_token, admin FROM users "+
+		"WHERE worker_token = $1", user_token).
+		Scan(&uid, &user_token, &admin); err != nil {
+		return "", err
+	}
+
+	// check permissions
+	if !admin && shared {
+		return "",
+			errors.New("Only admins are allowed to create shared workers!")
+	}
+
+	// create worker
+	token := nonExistingRandString(Token_length,
+		"SELECT 42 FROM workers WHERE token = $1")
+	db.QueryRow("INSERT INTO workers (uid, token, name, last_contact, active, "+
+		"shared) VALUES ($1, $2, $3, now(), $4, $5)", uid, token, name, false,
+		shared)
+
+	return token, nil
+}
+
+// Sets the given worker active, i.e. the `active` flag is set and the
+// `last_contact` time is updated. If the worker does not exist an error is
+// returned.
+func SetWorkerActive(token string) error {
+	db.QueryRow("UPDATE workers SET active=true, last_contact=now() "+
+		"WHERE token=$1", token)
+
+	return nil
+}
+
+// Sets the given worker inactive, i.e. the `active` flag is unset and the
+// `last_contact` time is updated. If the worker does not exist an error is
+// returned.
+func SetWorkerInactive(token string) error {
+	db.QueryRow("UPDATE workers SET active=false, last_contact=now() "+
+		"WHERE token=$1", token)
+
+	return nil
+}
+
+// Returns the worker that corresponds to the given token. In case the token is
+// invalid an error is returned.
+func GetWorker(token string) (*Worker, error) {
+	// declarations
+	worker := Worker{}
+
+	// get worker
+	if err := db.QueryRow("SELECT * FROM workers WHERE token = $1", token).
+		Scan(&worker.Id, &worker.Uid, &worker.Token, &worker.Name,
+		&worker.Last_contact, &worker.Active, &worker.Shared); err != nil {
+		return nil, err
+	}
+
+	return &worker, nil
 }

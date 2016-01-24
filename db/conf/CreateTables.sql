@@ -4,7 +4,9 @@ CREATE TABLE users(
 	username varchar(50),
 	realname varchar(50),
 	email varchar(50),
-	token varchar(50) NOT NULL UNIQUE, CHECK (token <> '')
+	token varchar(50) NOT NULL UNIQUE, CHECK (token <> ''),
+	worker_token varchar(50) NOT NULL UNIQUE, CHECK (worker_token <> ''),
+	admin boolean
 );
 
 CREATE TABLE bots(
@@ -21,6 +23,16 @@ CREATE TABLE projects(
 	name varchar(50), CHECK (name <> ''),
 	clone_url varchar(100),
 	fs_path varchar(100)
+);
+
+CREATE TABLE workers(
+	id SERIAL PRIMARY KEY NOT NULL,
+	uid integer REFERENCES users(id) NOT NULL,
+	token varchar(50) NOT NULL UNIQUE, CHECK (token <> ''),
+	name varchar(50) NOT NULL,
+	last_contact timestamp NOT NULL,
+	active boolean NOT NULL,
+	shared boolean NOT NULL
 );
 
 CREATE TABLE tasks(

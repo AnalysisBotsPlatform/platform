@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// Token length
+const Token_length = 32
+
 // Statuses of a task
 const (
 	Pending   = iota
@@ -16,12 +19,14 @@ const (
 
 // User
 type User struct {
-	Id        int64
-	GH_Id     int64
-	User_name string
-	Real_name string
-	Email     string
-	Token     string
+	Id           int64
+	GH_Id        int64
+	User_name    string
+	Real_name    string
+	Email        string
+	Token        string
+	Worker_token string
+	Admin        bool
 }
 
 // GitHub project
@@ -54,11 +59,23 @@ type Task struct {
 	Project     *Project
 	User        *User
 	Bot         *Bot
+	Worker      *Worker
 	Start_time  *time.Time
 	End_time    *time.Time
 	Status      int64
 	Exit_status int64
 	Output      string
+}
+
+// A worker executes tasks
+type Worker struct {
+	Id           int64
+	Uid          int64
+	Token        string
+	Name         string
+	Last_contact time.Time
+	Active       bool
+	Shared       bool
 }
 
 func (t *Task) StatusString() string {

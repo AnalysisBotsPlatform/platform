@@ -58,6 +58,16 @@ const cache_path_var = "CACHE_PATH"
 
 var cache_path = os.Getenv(cache_path_var)
 
+// Administrator
+const admin_user_var = "ADMIN_USER"
+
+var admin_user = os.Getenv(admin_user_var)
+
+// Worker service
+const worker_port_var = "WORKER_PORT"
+
+var worker_port = os.Getenv(worker_port_var)
+
 // Id regex
 const id_regex = "0|[1-9][0-9]*"
 
@@ -103,13 +113,23 @@ var error_map = make(map[string]interface{})
 //
 // - SESSION_ENC: A random string used to encrypt the sessions.
 //
+// - DB_HOST: The host address where the postgresql database instance is
+// running.
+//
 // - DB_USER: The database user (here a postgresql database is used, hence this
-// is a postgres-user) owning the database "analysisbots".
+// is a postgres-user) owning the database specified by DB_NAME.
 //
 // - DB_PASS: The password of the database user (needed to access the database).
 //
+// - DB_NAME: Name of the database where all necessary tables are accessible.
+//
 // - CACHE_PATH: The file system path where the different components can store
 // their data.
+//
+// - ADMIN_USER: GitHub user name of the system administrator. TODO: apply this
+// to the database
+//
+// - WORKER_PORT: Port where all worker related communication takes place.
 //
 // In case some of the variables are missing a corresponding message is prompted
 // to the standard output and the function terminates without any further
@@ -143,13 +163,16 @@ func Start() {
 	_, pass := os.LookupEnv(db_pass_var)
 	_, name := os.LookupEnv(db_name_var)
 	_, cache := os.LookupEnv(cache_path_var)
+	_, admin := os.LookupEnv(admin_user_var)
+	_, wport := os.LookupEnv(worker_port_var)
 	if !id || !secret || !auth || !enc || !host || !user || !pass || !name ||
-		!cache {
+		!cache || !admin || !wport {
 		fmt.Printf("Application settings missing!\n"+
-			"Please set the %s, %s, %s, %s, %s, %s, %s, %s and %s environment "+
-			"variables.\n", app_id_var, app_secret_var, session_auth_var,
-			session_enc_var, db_host_var, db_user_var, db_pass_var, db_name_var,
-			cache_path_var)
+			"Please set the %s, %s, %s, %s, %s, %s, %s, %s, %s, %s and %s "+
+			"environment variables.\n", app_id_var, app_secret_var,
+			session_auth_var, session_enc_var, db_host_var, db_user_var,
+			db_pass_var, db_name_var, cache_path_var, admin_user_var,
+			worker_port_var)
 		return
 	}
 
@@ -177,7 +200,10 @@ func Start() {
 			fmt.Println(err)
 			return
 		} else {
-			worker.Init(dir)
+			if err := worker.Init(worker_port); err != nil {
+				fmt.Println(err)
+				return
+			}
 		}
 	}
 
