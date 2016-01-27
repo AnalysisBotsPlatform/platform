@@ -1,0 +1,7 @@
+.dockerignore
+.git*
+Dockerfile
+db/conf
+*.env
+*.md
+*.yml
