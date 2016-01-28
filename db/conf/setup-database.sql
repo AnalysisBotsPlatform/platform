@@ -18,14 +18,14 @@ CREATE TABLE users(
 	username varchar(50),
 	realname varchar(50),
 	email varchar(50),
-	token varchar(50) NOT NULL UNIQUE, CHECK (token <> ''),
-	worker_token varchar(50) NOT NULL UNIQUE, CHECK (worker_token <> ''),
+	token varchar(50) NOT NULL UNIQUE CHECK (token <> ''),
+	worker_token varchar(50) NOT NULL UNIQUE CHECK (worker_token <> ''),
 	admin boolean
 );
 
 CREATE TABLE bots(
 	id SERIAL PRIMARY KEY NOT NULL,
-	name varchar(50) NOT NULL UNIQUE, CHECK (name <> ''),
+	name varchar(50) NOT NULL UNIQUE CHECK (name <> ''),
 	description text,
 	tags varchar(20)[],
 	fs_path varchar(100)
@@ -34,7 +34,7 @@ CREATE TABLE bots(
 CREATE TABLE projects(
 	id SERIAL PRIMARY KEY NOT NULL,
 	gh_id integer UNIQUE NOT NULL,
-	name varchar(50), CHECK (name <> ''),
+	name varchar(50) CHECK (name <> ''),
 	clone_url varchar(100),
 	fs_path varchar(100)
 );
@@ -42,9 +42,9 @@ CREATE TABLE projects(
 CREATE TABLE workers(
 	id SERIAL PRIMARY KEY NOT NULL,
 	uid integer REFERENCES users(id) NOT NULL,
-	token varchar(50) NOT NULL UNIQUE, CHECK (token <> ''),
+	token varchar(50) NOT NULL UNIQUE CHECK (token <> ''),
 	name varchar(50) NOT NULL,
-	last_contact timestamp NOT NULL,
+	last_contact timestamp(0) NOT NULL,
 	active boolean NOT NULL,
 	shared boolean NOT NULL
 );
@@ -54,8 +54,35 @@ CREATE TABLE tasks(
 	uid integer REFERENCES users(id) NOT NULL,
 	pid integer REFERENCES projects(id) NOT NULL,
 	bid integer REFERENCES bots(id) NOT NULL,
-	start_time timestamp,
-	end_time timestamp,
+	start_time timestamp(0),
+	end_time timestamp(0),
+	status integer NOT NULL,
+	exit_status integer,
+	output text
+);
+
+CREATE TABLE periods(
+	id SERIAL PRIMARY KEY NOT NULL,
+	start_time timestamp(0),
+	end_time timestamp(0),
+	repetition_type integer NOT NULL,
+	repetition_size integer NOT NULL,
+	repetition_amount integer NOT NULL
+);
+
+CREATE TABLE events(
+	id SERIAL PRIMARY KEY NOT NULL,
+	event_type integer NOT NULL,
+	token varchar(50) NOT NULL CHECK (token <> '')
+);
+
+CREATE TABLE scheduled_tasks(
+	id SERIAL PRIMARY KEY NOT NULL,
+	uid integer REFERENCES users(id) NOT NULL,
+	pid integer REFERENCES projects(id) NOT NULL,
+	bid integer REFERENCES bots(id) NOT NULL,
+	stype varchar(50) NOT NULL CHECK (stype <> ''),
+	sid integer NOT NULL,																													#referencing either periods.id or events.id
 	status integer NOT NULL,
 	exit_status integer,
 	output text

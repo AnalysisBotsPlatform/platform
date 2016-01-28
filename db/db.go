@@ -607,7 +607,7 @@ func UpdateTaskResult(tid int64, output string, exit_code int) {
 	if exit_code != 0 {
 		new_status = Failed
 	}
-	db.QueryRow("UPDATE tasks SET status=$1, end_time=now(), output=$2, "+
+	db.QueryRow("UPDATE tasks SET status=$1, end_time=now()::timestamp(0), output=$2, "+
 		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid)
 }
 
@@ -723,7 +723,7 @@ func CreateWorker(user_token, name string, shared bool) (string, error) {
 	token := nonExistingRandString(Token_length,
 		"SELECT 42 FROM workers WHERE token = $1")
 	db.QueryRow("INSERT INTO workers (uid, token, name, last_contact, active, "+
-		"shared) VALUES ($1, $2, $3, now(), $4, $5)", uid, token, name, false,
+		"shared) VALUES ($1, $2, $3, now()::timestamp(0), $4, $5)", uid, token, name, false,
 		shared)
 
 	return token, nil
@@ -733,7 +733,7 @@ func CreateWorker(user_token, name string, shared bool) (string, error) {
 // `last_contact` time is updated. If the worker does not exist an error is
 // returned.
 func SetWorkerActive(token string) error {
-	db.QueryRow("UPDATE workers SET active=true, last_contact=now() "+
+	db.QueryRow("UPDATE workers SET active=true, last_contact=now()::timestamp(0) "+
 		"WHERE token=$1", token)
 
 	return nil
@@ -743,7 +743,7 @@ func SetWorkerActive(token string) error {
 // `last_contact` time is updated. If the worker does not exist an error is
 // returned.
 func SetWorkerInactive(token string) error {
-	db.QueryRow("UPDATE workers SET active=false, last_contact=now() "+
+	db.QueryRow("UPDATE workers SET active=false, last_contact=now()::timestamp(0) "+
 		"WHERE token=$1", token)
 
 	return nil
