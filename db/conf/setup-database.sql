@@ -49,43 +49,54 @@ CREATE TABLE workers(
 	shared boolean NOT NULL
 );
 
-CREATE TABLE tasks(
-	id SERIAL PRIMARY KEY NOT NULL,
-	uid integer REFERENCES users(id) NOT NULL,
-	pid integer REFERENCES projects(id) NOT NULL,
-	bid integer REFERENCES bots(id) NOT NULL,
-	start_time timestamp(0),
-	end_time timestamp(0),
-	status integer NOT NULL,
-	exit_status integer,
-	output text
-);
-
-CREATE TABLE periods(
-	id SERIAL PRIMARY KEY NOT NULL,
-	start_time timestamp(0),
-	end_time timestamp(0),
-	repetition_type integer NOT NULL,
-	repetition_size integer NOT NULL,
-	repetition_amount integer NOT NULL
-);
-
-CREATE TABLE events(
-	id SERIAL PRIMARY KEY NOT NULL,
-	event_type integer NOT NULL,
-	token varchar(50) NOT NULL CHECK (token <> '')
-);
-
 CREATE TABLE scheduled_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
+	name varchar(50) NOT NULL CHECK (name <> ''),
 	uid integer REFERENCES users(id) NOT NULL,
 	pid integer REFERENCES projects(id) NOT NULL,
 	bid integer REFERENCES bots(id) NOT NULL,
-	stype varchar(50) NOT NULL CHECK (stype <> ''),
-	sid integer NOT NULL,																													#referencing either periods.id or events.id
+	status integer NOT NULL,
+	schedule_type integer NOT NULL,
+	eid integer NOT NULL,
+	next_run timestamp(0)
+);
+
+CREATE TABLE tasks(
+	id SERIAL PRIMARY KEY NOT NULL,
+	stid integer REFERENCES scheduled_tasks(id) NOT NULL,
+	worker_token varchar(50) NOT NULL UNIQUE CHECK (worker_token <> ''),
+	start_time timestamp(0),
+	end_time timestamp(0),
 	status integer NOT NULL,
 	exit_status integer,
 	output text
+);
+
+CREATE TABLE hourly_tasks(
+	id SERIAL PRIMARY KEY NOT NULL,
+	scale integer NOT NULL,
+	start_time timestamp(0)
+);
+
+CREATE TABLE daily_tasks(
+	id SERIAL PRIMARY KEY NOT NULL,
+	start_time timestamp(0)
+);
+
+CREATE TABLE weekly_tasks(
+	id SERIAL PRIMARY KEY NOT NULL,
+	weekday integer NOT NULL,
+	start_time timestamp(0)
+);
+
+CREATE TABLE single_tasks(
+	id SERIAL PRIMARY KEY NOT NULL,
+	start_time timestamp(0)
+);
+
+CREATE TABLE event_tasks(
+	id SERIAL PRIMARY KEY NOT NULL,
+	event_type integer NOT NULL
 );
 
 CREATE TABLE members(

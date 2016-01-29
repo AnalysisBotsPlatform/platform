@@ -12,9 +12,62 @@ const Token_length = 32
 const (
 	Pending   = iota
 	Running   = iota
-	Cancled   = iota
+	Cancelled   = iota
 	Succeeded = iota
 	Failed    = iota
+)
+
+// Days of the week
+const (
+	Monday   	= iota
+	Tuesday   = iota
+	Wednesday = iota
+	Thursday 	= iota
+	Friday   	= iota
+	Saturday  = iota
+	Sunday		= iota
+)
+
+// Github Events
+const (
+	wildcard										= iota//0
+	commit_comment							= iota
+	create											= iota
+	delete											= iota
+	deployment									= iota
+	deployment_status						= iota//5
+	fork												= iota
+	gollum											= iota
+	issue_comment								= iota
+	issues											= iota
+	member											= iota//10
+	membership									= iota
+	page_build									= iota
+	public											= iota
+	pull_request_review_comment	= iota
+	pull_request								= iota//15
+	push												= iota
+	repository									= iota
+	release											= iota
+	status											= iota
+	team_add										= iota//20
+	watch												= iota
+)
+
+// Schedule Status
+const (
+	Active 		= iota
+	Cancelled = iota
+	Complete 	= iota
+)
+
+// Schedule Types
+const (
+	Hourly	= iota
+	Daily 	= iota
+	Weekly 	= iota
+	Single 	= iota
+	Event 	= iota
 )
 
 // User
@@ -54,17 +107,29 @@ type Member struct {
 }
 
 // A task is a bot's execution on a project
-type Task struct {
+type ScheduledTask struct {
 	Id          int64
-	Project     *Project
+	Name				string
+	Tasks				[]*Task
 	User        *User
+	Project     *Project
 	Bot         *Bot
-	Worker      *Worker
-	Start_time  *time.Time
-	End_time    *time.Time
 	Status      int64
-	Exit_status int64
-	Output      string
+	Type				int64
+	Event 			int64
+	Next      	*time.Time
+}
+
+// A task is a bot's execution on a project
+type Task struct {
+	Id          	int64
+	ScheduledTask *ScheduledTask
+	Worker      	*Worker
+	Start_time  	*time.Time
+	End_time    	*time.Time
+	Status      	int64
+	Exit_status 	int64
+	Output      	string
 }
 
 // A worker executes tasks
@@ -84,8 +149,8 @@ func (t *Task) StatusString() string {
 		return "Pending"
 	case t.Status == Running:
 		return "Running"
-	case t.Status == Cancled:
-		return "Cancled"
+	case t.Status == :
+		return "Cancelled"
 	case t.Status == Succeeded:
 		return "Succeeded"
 	case t.Status == Failed:
