@@ -469,6 +469,7 @@ func GetBot(bid string) (*Bot, error) {
 func GetScheduledTasks(token string) ([]*ScheduledTask, error) {
 	//declarations
 	var scheduled_tasks []*ScheduledTask
+	var stid 						int64
 
 	rows, err := db.Query("SELECT scheduled_tasks.id FROM scheduled_tasks"+
 		" INNER JOIN users ON scheduled_tasks.uid=users.id WHERE users.token=$1"+
@@ -480,15 +481,14 @@ func GetScheduledTasks(token string) ([]*ScheduledTask, error) {
 	// fetch tasks
 	defer rows.Close()
 	for rows.Next() {
-		var stid string
 		if err := rows.Scan(&stid); err != nil {
 			return nil, err
 		}
-		task, err := GetScheduledTask(stid, token, false)
+		scheduled_task, err := GetScheduledTask(strconv.FormatInt(stid, 10), token, false)
 		if err != nil {
 			return nil, err
 		}
-		tasks = append(tasks, task)
+		scheduled_tasks = append(scheduled_tasks, scheduled_task)
 	}
 	return scheduled_tasks, nil
 }
@@ -500,22 +500,22 @@ func GetScheduledTask(stid string, token string, subtasks bool) (*ScheduledTask,
 	// declarations
 	scheduled_task := ScheduledTask{}
 	var name 					sql.NullString
-	var pid, uid, bid sql.NullInt64
+	var pid, uid, bid int64
 	var status 				sql.NullInt64
 	var stype 				sql.NullInt64
 	var event 				sql.NullInt64
-	var next 					*time.Time
+	var next 					pq.NullTime
 
-	// fetch task entry for tid
+	// fetch scheduled task entry for stid
 	if err := db.QueryRow("SELECT * FROM scheduled_tasks WHERE id=$1", stid).
 		Scan(&scheduled_task.Id, &name, &uid, &pid, &bid, &status,
 		&stype, &event, &next); err != nil {
 		return nil, err
 	}
 
-	// fetch Tasks
+	// fetch subtasks
 	if subtasks {
-		tasks, err := GetTasks(stid, token)
+		tasks, err := GetSubTasks(stid, token)
 		if err != nil {
 			return nil, err
 		}
@@ -558,7 +558,7 @@ func GetScheduledTask(stid string, token string, subtasks bool) (*ScheduledTask,
 		scheduled_task.Event = event.Int64
 	}
 	if next.Valid {
-		scheduled_task.Next = next.Time
+		scheduled_task.Next = &next.Time
 	}
 
 	return &scheduled_task, nil
@@ -571,8 +571,9 @@ func GetScheduledTask(stid string, token string, subtasks bool) (*ScheduledTask,
 //
 // TODO document this
 //
-func GetTasks(stid int64, token string) ([]*Task, error) {
+func GetSubTasks(stid string, token string) ([]*Task, error) {
 	var tasks []*Task
+	var tid		int64
 
 	rows, err := db.Query("SELECT tasks.id FROM tasks"+
 		" INNER JOIN users ON tasks.uid=users.id WHERE users.token=$1 AND tasks.stid=$2"+
@@ -584,11 +585,10 @@ func GetTasks(stid int64, token string) ([]*Task, error) {
 	// fetch tasks
 	defer rows.Close()
 	for rows.Next() {
-		var tid string
 		if err := rows.Scan(&tid); err != nil {
 			return nil, err
 		}
-		task, err := GetTask(tid, token)
+		task, err := GetTask(strconv.FormatInt(tid, 10), token)
 		if err != nil {
 			return nil, err
 		}
@@ -602,8 +602,9 @@ func GetTasks(stid int64, token string) ([]*Task, error) {
 //
 func GetAllTasks(token string) ([]*Task, error) {
 	var tasks []*Task
+	var tid 	int64
 
-	rows, err := db.Query("SELECT tasks.id, users.token FROM tasks"+
+	rows, err := db.Query("SELECT tasks.id FROM tasks"+
 		" INNER JOIN users ON tasks.uid=users.id WHERE users.token=$1"+
 		" ORDER BY tasks.id", token)
 	if err != nil {
@@ -613,11 +614,11 @@ func GetAllTasks(token string) ([]*Task, error) {
 	// fetch tasks
 	defer rows.Close()
 	for rows.Next() {
-		var tid string
-		if err := rows.Scan(&tid, &token); err != nil {
+
+		if err := rows.Scan(&tid); err != nil {
 			return nil, err
 		}
-		task, err := GetTask(tid, token)
+		task, err := GetTask(strconv.FormatInt(tid, 10), token)
 		if err != nil {
 			return nil, err
 		}
@@ -630,23 +631,23 @@ func GetAllTasks(token string) ([]*Task, error) {
 // TODO document this
 //
 func GetTask(tid string, token string) (*Task, error) {
-	var task *Task
-	var stid sql.NullInt64
-	var worker_token sql.NullString
-	var start_time, end_time pq.NullTime
-	var status sql.NullInt64
-	var exit_status sql.NullInt64
-	var output sql.NullString
+	var task 									*Task
+	var stid 									sql.NullInt64
+	var worker_token 					sql.NullString
+	var start_time, end_time 	pq.NullTime
+	var status 								sql.NullInt64
+	var exit_status 					sql.NullInt64
+	var output 								sql.NullString
 
 	if err := db.QueryRow("SELECT * FROM tasks WHERE id=$1", tid).
-		Scan(&scheduled_task.Id, &stid, &worker_token, &start_time, &end_time,
+		Scan(&task.Id, &stid, &worker_token, &start_time, &end_time,
 			&status, &exit_status, &output); err != nil {
 			return nil, err
 	}
 
 	// set ScheduledTask
 	if stid.Valid {
-		scheduled_task, err := GetScheduledTask(stidInt64, token, false)
+		scheduled_task, err := GetScheduledTask(strconv.FormatInt(stid.Int64,10), token, false)
 		if err != nil {
 			return nil, err
 		}
@@ -710,14 +711,17 @@ func CreateNewScheduledTask(styp int64, name string, token string,
 		Bot:        	bot,
 		Status:     	Active,
 		Type:      		styp,
-		Next					next
+		Next:					next,
 	}
+
+	// TODO get event id from schedule tables
+	eid := 1
 
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO scheduled_tasks"+
 		" (name, uid, pid, bid, status, schedule_type, eid, next_run)"+
 		" VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id ", name ,user.Id,
-		project.Id, bot.Id, Active, schedule_type, eid, start_time).
+		project.Id, bot.Id, Active, styp, eid, next).
 		Scan(&scheduled_task.Id); err != nil {
 		return nil, err
 	}
@@ -732,17 +736,6 @@ func CreateNewScheduledTask(styp int64, name string, token string,
 	return &scheduled_task, nil
 }
 
-type Task struct {
-	Id          	int64
-	ScheduledTask *ScheduledTask
-	Worker      	*Worker
-	Start_time  	*time.Time
-	End_time    	*time.Time
-	Status      	int64
-	Exit_status 	int64
-	Output      	string
-}
-
 //
 // TODO document this
 //
@@ -755,8 +748,8 @@ func CreateNewTask(stid string, token string, start_time *time.Time) (*Task, err
 	}
 
 	//get Worker Token
-	err := db.QueryRow("SELECT users.worker_token FROM users WHERE token=$1", token).Scan(&worker_token)
-	if err != nil {
+	if err := db.QueryRow("SELECT users.worker_token FROM users WHERE token=$1", token).
+	Scan(&worker_token); err != nil {
 		return nil, err
 	}
 
@@ -770,11 +763,11 @@ func CreateNewTask(stid string, token string, start_time *time.Time) (*Task, err
 	task := Task{
 		ScheduledTask:	scheduled_task,
 		Worker:    			worker,
-		Start_time:     next,
-		End_time:       time.NullTime,
+		Start_time:     start_time,
+		End_time:       nil,
 		Status:     		Pending,
 		Exit_status:		-1,
-		Output:      		""
+		Output:      		"",
 	}
 
 	// Insert into database
@@ -815,8 +808,8 @@ func UpdateTaskResult(tid int64, output string, exit_code int) {
 // This function returns all tasks which succeeded the 'maxseconds' duration
 func GetTimedOverTasks(maxseconds int64) ([]int64, error) {
 	var starttime pq.NullTime
-	var tid int64
-	var tasks []int64
+	var tid 			int64
+	var tasks 		[]int64
 
 	// get all running tasks
 	rows, err := db.Query("SELECT tasks.id , tasks.start_time FROM tasks"+
