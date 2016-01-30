@@ -51,6 +51,11 @@ func CreateNewTask(token string, pid string, bid string) (int64, error) {
 	return dummy, nil
 }
 
+
+func CreateNewEventTask(tid string){
+    // TODO implement this
+}
+
 // Cancels the running task specified by the given task id using the channel.
 // Also updates the database entry accordingly.
 func Cancle(tid string) error {

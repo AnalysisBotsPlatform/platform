@@ -80,6 +80,18 @@ const webhook_subpath = "webhook"
 // Id regex
 const id_regex = "0|[1-9][0-9]*"
 
+// Type regex
+const type_regex = "[0-5]"
+
+// Time regex
+const time_regex = "[0-9]+"
+
+// Event regex
+const event_regex = time_regex
+
+// Day regex
+const day_regex = "[0-6]"
+
 // Template caching
 const template_root = "tmpl"
 
@@ -278,6 +290,7 @@ func initRoutes() (rootRouter *mux.Router) {
 	rootRouter.HandleFunc("/logout", makeHandler(handleLogout))
 	// NOTE: Not implemented yet.
 	rootRouter.HandleFunc("/user", makeHandler(makeTokenHandler(handleUser)))
+    rootRouter.HandleFunc(fmt.Sprintf("/%s", webhook_subpath), handleWebhook)
 
 	// bots
 	botsRouter.HandleFunc("/", makeHandler(makeTokenHandler(handleBots)))
@@ -289,8 +302,19 @@ func initRoutes() (rootRouter *mux.Router) {
 		makeHandler(makeTokenHandler(handleBotsBid)))
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/newtask", id_regex),
 		makeHandler(makeTokenHandler(handleBotsBidNewtask)))
-	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
-		makeHandler(makeTokenHandler(handleTasksNew)))
+    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/0/{hours:%s}", id_regex, id_regex, time_regex),
+		makeHandler(makeTokenHandler(handleTasksNewHourly)))
+    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/1/{hour:%s}", id_regex, id_regex, time_regex),
+		makeHandler(makeTokenHandler(handleTasksNewDaily)))
+    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/2/{weekday:%s}/{hour:%s}", id_regex, id_regex, day_regex, time_regex),
+		makeHandler(makeTokenHandler(handleTasksNewWeekly)))
+    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/3/{hour:%s}", id_regex, id_regex, time_regex),
+		makeHandler(makeTokenHandler(handleTasksNewOneTime)))
+    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/4", id_regex, id_regex),
+		makeHandler(makeTokenHandler(handleTasksNewInstant)))
+    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/5/{event:%s}", id_regex, id_regex, event_regex),
+		makeHandler(makeTokenHandler(handleTasksNewEventDriven)))
+
 
 	// projects
 	projectsRouter.HandleFunc("/",
@@ -299,9 +323,18 @@ func initRoutes() (rootRouter *mux.Router) {
 		makeHandler(makeTokenHandler(handleProjectsPid)))
 	projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/newtask", id_regex),
 		makeHandler(makeTokenHandler(handleProjectsPidNewtask)))
-	projectsRouter.HandleFunc(
-		fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
-		makeHandler(makeTokenHandler(handleTasksNew)))
+    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/0/{hours:%s}", id_regex, id_regex, time_regex),
+		makeHandler(makeTokenHandler(handleTasksNewHourly)))
+    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/1/{hour:%s}", id_regex, id_regex, time_regex),
+		makeHandler(makeTokenHandler(handleTasksNewDaily)))
+    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/2/{weekday:%s}/{hour:%s}", id_regex, id_regex, day_regex, time_regex),
+		makeHandler(makeTokenHandler(handleTasksNewWeekly)))
+    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/3/{hour:%s}", id_regex, id_regex, time_regex),
+		makeHandler(makeTokenHandler(handleTasksNewOneTime)))
+    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/4", id_regex, id_regex),
+		makeHandler(makeTokenHandler(handleTasksNewInstant)))
+    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/5/{event:%s}", id_regex, id_regex, event_regex),
+		makeHandler(makeTokenHandler(handleTasksNewEventDriven)))
 
 	// tasks
 	tasksRouter.HandleFunc("/", makeHandler(makeTokenHandler(handleTasks)))
@@ -906,11 +939,13 @@ func handleTasksNewHourly(w http.ResponseWriter, r *http.Request,
 func handleTasksNewDaily(w http.ResponseWriter, r *http.Request,
     vars map[string]string, session *sessions.Session, token string){
      
-    seconds, err := strconv.ParseInt(vars["period"], 10, 64)
+    seconds, err := strconv.ParseInt(vars["hour"], 10, 64)
     if(err != nil){
         handleError(w, r, err)
     }else{
+        currentTime := time.Now()
         scheduleTime := time.Unix(seconds, 0)
+        scheduleTime = time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), scheduleTime.Hour(), scheduleTime.Minute(), scheduleTime.Second(), scheduleTime.Nanosecond(), currentTime.Location())
     
         // TODO updated version
         schedTask, err := db.CreateNewScheduledTask(db.Daily, vars["name"], token,
@@ -937,7 +972,7 @@ func handleTasksNewWeekly(w http.ResponseWriter, r *http.Request,
     if(dayErr != nil){
         handleError(w, r, dayErr)
     }else{
-       seconds, err := strconv.ParseInt(vars["period"], 10, 64)
+       seconds, err := strconv.ParseInt(vars["hour"], 10, 64)
         if(err != nil){
             handleError(w, r, err)
         }else{
@@ -972,7 +1007,7 @@ func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
                           vars map[string]string, session *sessions.Session, token string){
     
     
-    seconds, err := strconv.ParseInt(vars["period"], 10, 64)
+    seconds, err := strconv.ParseInt(vars["hour"], 10, 64)
     if(err != nil){
         handleError(w, r, err)
     }else{
@@ -1014,6 +1049,14 @@ func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
     worker.UpdatePeriodTimer()
 
     
+}
+
+// TODO document this
+func handleWebhook(w http.ResponseWriter, r *http.Request){
+    vars := mux.Vars(r)
+    taskId := vars["tid"]
+    
+    worker.CreateNewEventTask(taskId)
 }
 
 
