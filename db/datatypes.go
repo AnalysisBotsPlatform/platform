@@ -66,9 +66,11 @@ const (
 	Hourly	= iota
 	Daily 	= iota
 	Weekly 	= iota
-	Single 	= iota
+    OneTime = iota
+	Instant = iota
 	Event 	= iota
 )
+
 
 // User
 type User struct {

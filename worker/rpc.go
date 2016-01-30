@@ -64,22 +64,22 @@ func NewWorkerAPI() *WorkerAPI {
 
 // TODO document this
 func (api *WorkerAPI) assignTask(task *db.Task) {
-	api.guard.Lock()
-	defer api.guard.Unlock()
-
-	waiting, ok := api.available_workers[task.User.Id]
-	if ok {
-		if len(waiting) > 0 {
-			waiting[0].task_assignment <- task
-			waiting = waiting[1:]
-			api.available_workers[task.User.Id] = waiting
-		}
-	} else {
-		if len(api.shared_workers) > 0 {
-			api.shared_workers[0].task_assignment <- task
-			api.shared_workers = api.shared_workers[1:]
-		}
-	}
+//	api.guard.Lock()
+//	defer api.guard.Unlock()
+//
+//	waiting, ok := api.available_workers[task.User.Id]
+//	if ok {
+//		if len(waiting) > 0 {
+//			waiting[0].task_assignment <- task
+//			waiting = waiting[1:]
+//			api.available_workers[task.User.Id] = waiting
+//		}
+//	} else {
+//		if len(api.shared_workers) > 0 {
+//			api.shared_workers[0].task_assignment <- task
+//			api.shared_workers = api.shared_workers[1:]
+//		}
+//	}
 }
 
 // TODO document this
@@ -89,13 +89,13 @@ func (api *WorkerAPI) cancelTask(tid int64) {
 
 	defer func() {
 		recover()
-		db.UpdateTaskStatus(tid, db.Cancled)
+		db.UpdateTaskStatus(tid, db.Cancelled)
 	}()
 	if cancel, ok := api.running_workers[tid]; ok {
 		cancel <- true
 		delete(api.running_workers, tid)
 	}
-	db.UpdateTaskStatus(tid, db.Cancled)
+	db.UpdateTaskStatus(tid, db.Cancelled)
 }
 
 // TODO document this
@@ -175,10 +175,12 @@ func (api *WorkerAPI) GetTask(worker_token string, task *Task) error {
 		api.guard.Lock()
 	}
 
+    
+// TODO fill this    
 	task.Id = pending.Id
-	task.Project = pending.Project.Name
-	task.Bot = pending.Bot.Name
-	task.GH_token = pending.User.Token
+//	task.Project = pending.Project.Name
+//	task.Bot = pending.Bot.Name
+//	task.GH_token = pending.User.Token
 	api.running_workers[task.Id] = make(chan bool, 1)
 
 	return nil

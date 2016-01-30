@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+const dummy int64 = 13
+
 // Maximal duration in seconds for each task.
 const max_task_time int64 = 60
 
@@ -36,14 +38,17 @@ func Init(port string) error {
 // - Starting an asynchronous task.
 // The task id of the newly created task is returned.
 func CreateNewTask(token string, pid string, bid string) (int64, error) {
-	task, err := db.CreateNewTask(token, pid, bid)
-	if err != nil {
-		return -1, err
-	}
 
-	api.assignTask(task)
+    //TODO implement this
+    
+//  task, err := db.CreateNewTask(token, pid, bid)
+//	if err != nil {
+//		return -1, err
+//	}
+//
+//	api.assignTask(task)
 
-	return task.Id, nil
+	return dummy, nil
 }
 
 // Cancels the running task specified by the given task id using the channel.
@@ -65,4 +70,8 @@ func CancleTimedOverTasks() {
 	for _, e := range tasks {
 		Cancle(strconv.FormatInt(e, 10))
 	}
+}
+
+func UpdatePeriodTimer(){
+    
 }
