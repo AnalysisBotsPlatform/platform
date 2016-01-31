@@ -248,6 +248,7 @@ func initRoutes() (rootRouter *mux.Router) {
 	botsRouter := rootRouter.PathPrefix("/bots").Subrouter()
 	projectsRouter := rootRouter.PathPrefix("/projects").Subrouter()
 	tasksRouter := rootRouter.PathPrefix("/tasks").Subrouter()
+	apiRouter := rootRouter.PathPrefix("/api").Subrouter()
 
 	// register handlers for http requests
 
@@ -291,6 +292,22 @@ func initRoutes() (rootRouter *mux.Router) {
 	tasksRouter.HandleFunc(fmt.Sprintf("/{tid:%s}/cancel", id_regex),
 		makeHandler(makeTokenHandler(handleTasksTidCancel)))
 
+	// API
+	apiRouter.HandleFunc("/bot", makeAPIHandler(handleAPIPostBot)).
+		Methods("POST")
+	apiRouter.HandleFunc("/bots", makeAPIHandler(handleAPIGetBots)).
+		Methods("GET")
+	apiRouter.HandleFunc("/projects", makeAPIHandler(handleAPIGetProjects)).
+		Methods("GET")
+	apiRouter.HandleFunc("/task", makeAPIHandler(handleAPIGetTask)).
+		Methods("GET")
+	apiRouter.HandleFunc("/task", makeAPIHandler(handleAPIPostTask)).
+		Methods("POST")
+	apiRouter.HandleFunc("/task", makeAPIHandler(handleAPIDeleteTask)).
+		Methods("DELETE")
+	apiRouter.HandleFunc("/tasks", makeAPIHandler(handleAPIGetTasks)).
+		Methods("GET")
+
 	return
 }
 
@@ -329,6 +346,22 @@ func makeTokenHandler(
 	}
 }
 
+// Function closure for `http.HandlerFunc`. In addition to `http.HandlerFunc`
+// the API token is read from the "Authentication" header field and verified.
+func makeAPIHandler(
+	fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		token := r.Header.Get("Authentication")
+		if !db.IsValidAPIToken(token) {
+			http.Error(w, "Unautherized access or number of accesses exceeded "+
+				"allowed amount!", http.StatusNotFound)
+			return
+		}
+		fn(w, r, token)
+	}
+}
+
 // The function renders the given template `tmpl`. This is done by injecting
 // `data` into the cached template. In case `tmpl` does not exist, an internal
 // server error is triggered.
@@ -353,13 +386,12 @@ func authGitHubRequest(w http.ResponseWriter, req_url string,
 	req, _ := http.NewRequest("GET",
 		fmt.Sprintf("https://api.github.com/%s", req_url),
 		bytes.NewBufferString(data.Encode()))
-	// req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 
 	// do request
 	response, err := client.Do(req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return nil, err
 	}
 	defer response.Body.Close()
 
@@ -369,7 +401,7 @@ func authGitHubRequest(w http.ResponseWriter, req_url string,
 	}
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return nil, err
 	}
 	var resp_data interface{}
 	dec := json.NewDecoder(bytes.NewReader(body))
@@ -623,7 +655,7 @@ func handleBotsNewPost(w http.ResponseWriter, r *http.Request,
 		handleError(w, r, errors.New("Docker Hub entry does not exist!"))
 		return
 	}
-	if err := db.AddBot(path, description, tags); err != nil {
+	if _, err := db.AddBot(path, description, tags); err != nil {
 		handleError(w, r, err)
 		return
 	}
@@ -789,5 +821,170 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 		handleError(w, r, err)
 	} else {
 		http.Redirect(w, r, "/tasks/", http.StatusFound)
+	}
+}
+
+// Validates the user's input and adds a new Bot to the database. After
+// successful insertion the newly created Bot is retrieved again, marshaled as
+// JSON object and sent back.
+func handleAPIPostBot(w http.ResponseWriter, r *http.Request, token string) {
+	path := r.FormValue("path")
+	description := r.FormValue("description")
+	tags := r.FormValue("tags")
+	if path == "" || description == "" || tags == "" {
+		http.Error(w, "Invalid input for Bot creation!", http.StatusNotFound)
+		return
+	}
+	resp, err := http.Get(
+		fmt.Sprintf("https://index.docker.io/v1/repositories/%s/tags", path))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, "Docker Hub entry does not exist!", http.StatusNotFound)
+		return
+	}
+	if bid, err := db.AddBot(path, description, tags); err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	} else {
+		bot, err := db.GetBot(bid)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			js, err := json.Marshal(bot)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				w.Header().Set("Content-Type", "application/json")
+				w.Write(js)
+			}
+		}
+	}
+}
+
+// Retrieves all Bots from the database and marshals them as JSON object.
+func handleAPIGetBots(w http.ResponseWriter, r *http.Request, token string) {
+	bots, err := db.GetBots()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	} else {
+		js, err := json.Marshal(bots)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(js)
+		}
+	}
+}
+
+// Retrieves all Projects of the user from the database and marshals them as
+// JSON object. Before doing so, the project information is synchronized with
+// GitHub.
+func handleAPIGetProjects(w http.ResponseWriter, r *http.Request,
+	token string) {
+	user_token, err := db.GetUserTokenFromAPIToken(token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+	response, err := authGitHubRequest(w, "user/repos", user_token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	} else {
+		projects, err := db.UpdateProjects(response, user_token)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			js, err := json.Marshal(projects)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				w.Header().Set("Content-Type", "application/json")
+				w.Write(js)
+			}
+		}
+	}
+}
+
+// Retrieves a Task (specified by the "tid" GET parameter) of the user from the
+// database and marshals it as JSON object.
+func handleAPIGetTask(w http.ResponseWriter, r *http.Request, token string) {
+	user_token, err := db.GetUserTokenFromAPIToken(token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+	task, err := db.GetTask(r.FormValue("tid"), user_token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	} else {
+		js, err := json.Marshal(task)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(js)
+		}
+	}
+}
+
+// Validates the user's input and adds a new Task to the database. After
+// successful insertion the newly created Task is retrieved again, marshaled as
+// JSON object and sent back.
+func handleAPIPostTask(w http.ResponseWriter, r *http.Request, token string) {
+	user_token, err := db.GetUserTokenFromAPIToken(token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+	pid := r.FormValue("pid")
+	bid := r.FormValue("bid")
+
+	tid, err := worker.CreateNewTask(user_token, pid, bid)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	} else {
+		task, err := db.GetTask(strconv.FormatInt(tid, 10), user_token)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			js, err := json.Marshal(task)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else {
+				w.Header().Set("Content-Type", "application/json")
+				w.Write(js)
+			}
+		}
+	}
+}
+
+// Cancels the specified task, if it is pending or running.
+func handleAPIDeleteTask(w http.ResponseWriter, r *http.Request, token string) {
+	err := worker.Cancle(r.FormValue("tid"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+}
+
+// Retrieves all Tasks of the user from the database and marshals them as JSON
+// object.
+func handleAPIGetTasks(w http.ResponseWriter, r *http.Request, token string) {
+	user_token, err := db.GetUserTokenFromAPIToken(token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+	tasks, err := db.GetTasks(user_token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	} else {
+		js, err := json.Marshal(tasks)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(js)
+		}
 	}
 }

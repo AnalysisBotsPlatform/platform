@@ -12,7 +12,7 @@ const Token_length = 32
 const (
 	Pending   = iota
 	Running   = iota
-	Cancled   = iota
+	Canceled  = iota
 	Succeeded = iota
 	Failed    = iota
 )
@@ -84,8 +84,8 @@ func (t *Task) StatusString() string {
 		return "Pending"
 	case t.Status == Running:
 		return "Running"
-	case t.Status == Cancled:
-		return "Cancled"
+	case t.Status == Canceled:
+		return "Canceled"
 	case t.Status == Succeeded:
 		return "Succeeded"
 	case t.Status == Failed:

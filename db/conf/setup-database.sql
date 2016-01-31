@@ -23,6 +23,18 @@ CREATE TABLE users(
 	admin boolean
 );
 
+CREATE TABLE api_tokens(
+	token varchar(50) PRIMARY KEY NOT NULL,
+	uid integer NOT NULL,
+	name varchar(50) NOT NULL
+);
+
+CREATE TABLE api_accesses(
+	id SERIAL PRIMARY KEY NOT NULL,
+	uid integer NOT NULL,
+	time timestamp NOT NULL
+);
+
 CREATE TABLE bots(
 	id SERIAL PRIMARY KEY NOT NULL,
 	name varchar(50) NOT NULL UNIQUE, CHECK (name <> ''),
@@ -69,6 +81,8 @@ CREATE TABLE members(
 
 -- Transfer ownership to the newly created user.
 ALTER TABLE users OWNER TO :db_user;
+ALTER TABLE api_tokens OWNER TO :db_user;
+ALTER TABLE api_accesses OWNER TO :db_user;
 ALTER TABLE bots OWNER TO :db_user;
 ALTER TABLE projects OWNER TO :db_user;
 ALTER TABLE workers OWNER TO :db_user;

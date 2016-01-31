@@ -89,13 +89,13 @@ func (api *WorkerAPI) cancelTask(tid int64) {
 
 	defer func() {
 		recover()
-		db.UpdateTaskStatus(tid, db.Cancled)
+		db.UpdateTaskStatus(tid, db.Canceled)
 	}()
 	if cancel, ok := api.running_workers[tid]; ok {
 		cancel <- true
 		delete(api.running_workers, tid)
 	}
-	db.UpdateTaskStatus(tid, db.Cancled)
+	db.UpdateTaskStatus(tid, db.Canceled)
 }
 
 // TODO document this

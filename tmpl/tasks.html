@@ -42,7 +42,7 @@
                                                         <a href="/tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button>
                                                         </a>
                                                         {{ end }}
-                                                        {{ if or (eq .Status 3) (eq .Status 4) }}
+                                                        {{ if or (eq .Status 2) (or (eq .Status 3) (eq .Status 4)) }}
                                                         <a href="/bots/{{.Bot.Id}}/{{.Project.Id}}"><button type="button" class="btn btn-success">Rerun</button>
                                                         </a>
                                                         {{ end }}

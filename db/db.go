@@ -14,6 +14,13 @@ import (
 	"time"
 )
 
+const (
+	// Number of allowed accesses during `api_restriction_interval`
+	api_restriction_count = 5000
+	// Time interval used to count the number of API accesses
+	api_restriction_interval = "1 hour"
+)
+
 // The import "pq" is a pure Go postgres driver for Go's database/sql package
 // See also: https://github.com/lib/pq
 var db *sql.DB //pq.Conn
@@ -178,20 +185,74 @@ func existsUser(gh_id int64) bool {
 // This function updates the user information
 // provided by the User struct in the database
 func updateUser(user *User) {
+	var dummy string
+
 	// update user information
 	db.QueryRow("UPDATE users SET username=$1, realname=$2, email=$3, token=$4"+
 		" WHERE gh_id=$5", user.User_name, user.Real_name, user.Email,
-		user.Token, user.GH_Id)
+		user.Token, user.GH_Id).Scan(&dummy)
 }
 
 // This function creates an user by storing the information
 // provided by the User struct in the database
 func createUser(user *User) {
+	var dummy string
+
 	// create user
 	db.QueryRow("INSERT INTO users (gh_id, username, realname, email, token, "+
 		"worker_token, admin) VALUES ($1, $2, $3, $4, $5, $6, $7)", user.GH_Id,
 		user.User_name, user.Real_name, user.Email, user.Token,
-		user.Worker_token, user.Admin)
+		user.Worker_token, user.Admin).Scan(&dummy)
+}
+
+// Verifies that the given token is a valid API token. Returns false if it is
+// not a valid token or the number of API accesses exceeds the value specified
+// by `api_restriction_count` within `api_restriction_interval`.
+// If the provided API token is valid a new entry is created in the
+// "api_accesses" relation.
+func IsValidAPIToken(token string) bool {
+	var dummy string
+
+	if err := db.QueryRow("SELECT token FROM api_tokens WHERE token = $1",
+		token).Scan(&dummy); err != nil {
+		return false
+	}
+
+	db.QueryRow(fmt.Sprintf("DELETE FROM api_accesses "+
+		"WHERE time < now() - interval '%s'", api_restriction_interval)).
+		Scan(&dummy)
+
+	var accesses int
+	if err := db.QueryRow("SELECT count(*) FROM api_accesses "+
+		"WHERE uid = (SELECT uid FROM api_tokens WHERE token = $1)", token).
+		Scan(&accesses); err != nil {
+		return false
+	}
+
+	if accesses < api_restriction_count {
+		db.QueryRow("INSERT INTO api_accesses (uid, time) "+
+			"VALUES ((SELECT uid FROM api_tokens WHERE token = $1), now())",
+			token).Scan(&dummy)
+		return true
+	} else {
+		return false
+	}
+}
+
+// Retrieves the user's GitHub application token using one of his/her API
+// tokens.
+func GetUserTokenFromAPIToken(token string) (string, error) {
+	var result string
+
+	// get user token
+	if err := db.QueryRow("SELECT users.token, api_tokens.token FROM users "+
+		"INNER JOIN api_tokens ON users.id = api_tokens.uid "+
+		"WHERE api_tokens.token = $1", token).
+		Scan(&result, &token); err != nil {
+		return "", err
+	}
+
+	return result, nil
 }
 
 //
@@ -250,11 +311,14 @@ func UpdateProjects(values interface{}, token string) ([]*Project, error) {
 			return nil, err
 		}
 		if _, ok := identifier[gh_id]; !ok {
-			db.QueryRow("DELETE FROM members WHERE uid=$1 AND pid=$2", uid, pid)
+			var dummy string
+			db.QueryRow("DELETE FROM members WHERE uid=$1 AND pid=$2", uid,
+				pid).Scan(&dummy)
 			var count int64 = -1
 			if err := db.QueryRow("SELECT count(*) FROM members WHERE pid=$1",
 				pid).Scan(&count); err == nil && count == 0 {
-				db.QueryRow("DELETE FROM projects WHERE id=$1", pid)
+				db.QueryRow("DELETE FROM projects WHERE id=$1", pid).
+					Scan(&dummy)
 			}
 		}
 	}
@@ -329,7 +393,9 @@ func fillProject(project *Project, uid int64) error {
 	// update member relation
 	if err := db.QueryRow("SELECT * FROM members WHERE uid=$1 AND pid=$2", uid,
 		project.Id).Scan(&uid, &project.Id); err == sql.ErrNoRows {
-		db.QueryRow("INSERT INTO members VALUES ($1, $2)", uid, project.Id)
+		var dummy string
+		db.QueryRow("INSERT INTO members VALUES ($1, $2)", uid, project.Id).
+			Scan(&dummy)
 	}
 
 	return nil
@@ -338,9 +404,11 @@ func fillProject(project *Project, uid int64) error {
 // This function updates the Project referenced by the users' id in the database
 // with the information given by the Project structure
 func updateProject(project *Project, uid int64) error {
+	var dummy string
+
 	// update project information
 	db.QueryRow("UPDATE projects SET name=$1, clone_url=$2 WHERE gh_id=$3",
-		project.Name, project.Clone_url, project.GH_Id)
+		project.Name, project.Clone_url, project.GH_Id).Scan(&dummy)
 
 	if err := fillProject(project, uid); err != nil {
 		return err
@@ -353,9 +421,12 @@ func updateProject(project *Project, uid int64) error {
 // given by the Project structure and sets a reference to the user specified by
 // his id
 func createProject(project *Project, uid int64) error {
+	var dummy string
+
 	// create project
 	db.QueryRow("INSERT INTO projects (gh_id, name, clone_url)"+
-		" VALUES ($1, $2, $3)", project.GH_Id, project.Name, project.Clone_url)
+		" VALUES ($1, $2, $3)", project.GH_Id, project.Name, project.Clone_url).
+		Scan(&dummy)
 
 	if err := fillProject(project, uid); err != nil {
 		return err
@@ -370,11 +441,11 @@ func createProject(project *Project, uid int64) error {
 
 // This function inserts a new Bot to the database unless
 // it does not already exist
-func AddBot(path, description, tags string) error {
+func AddBot(path, description, tags string) (string, error) {
 	// check whether bot exists already
 	err := db.QueryRow("SELECT id FROM bots WHERE name=$1", path).Scan(&path)
 	if err == nil {
-		return errors.New("Bot already exists!")
+		return "", errors.New("Bot already exists!")
 	}
 
 	// escape tags
@@ -390,12 +461,13 @@ func AddBot(path, description, tags string) error {
 	// create bot
 	var result string
 	if err := db.QueryRow("INSERT INTO bots (name, description, tags, fs_path)"+
-		" VALUES ($1, $2, $3, $4)", path, description, buffer.String(), path).
+		" VALUES ($1, $2, $3, $4) RETURNING id", path, description,
+		buffer.String(), path).
 		Scan(&result); err != nil && err != sql.ErrNoRows {
-		return err
+		return "", err
 	}
 
-	return nil
+	return result, nil
 }
 
 // This function returns all bots from the database
@@ -590,14 +662,18 @@ func CreateNewTask(token string, pid string, bid string) (*Task, error) {
 
 // This function updates the tasks' status with the provided value
 func UpdateTaskStatus(tid int64, new_status int64) {
+	var dummy string
+
 	if new_status == Running {
-		db.QueryRow("UPDATE tasks SET status=$1, start_time=now()::timestamp(0) WHERE id=$2",
-			new_status, tid)
-	} else if new_status == Cancled {
-		db.QueryRow("UPDATE tasks SET status=$1, end_time=now()::timestamp(0) WHERE id=$2",
-			new_status, tid)
+		db.QueryRow("UPDATE tasks SET status=$1, "+
+			"start_time=now()::timestamp(0) WHERE id=$2", new_status, tid).
+			Scan(&dummy)
+	} else if new_status == Canceled {
+		db.QueryRow("UPDATE tasks SET status=$1, end_time=now()::timestamp(0) "+
+			"WHERE id=$2", new_status, tid).Scan(&dummy)
 	} else {
-		db.QueryRow("UPDATE tasks SET status=$1 WHERE id=$2", new_status, tid)
+		db.QueryRow("UPDATE tasks SET status=$1 WHERE id=$2", new_status, tid).
+			Scan(&dummy)
 	}
 }
 
@@ -607,8 +683,10 @@ func UpdateTaskResult(tid int64, output string, exit_code int) {
 	if exit_code != 0 {
 		new_status = Failed
 	}
+	var dummy string
 	db.QueryRow("UPDATE tasks SET status=$1, end_time=now(), output=$2, "+
-		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid)
+		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid).
+		Scan(&dummy)
 }
 
 // This function returns all tasks which succeeded the 'maxseconds' duration
@@ -719,12 +797,13 @@ func CreateWorker(user_token, name string, shared bool) (string, error) {
 			errors.New("Only admins are allowed to create shared workers!")
 	}
 
+	var dummy string
 	// create worker
 	token := nonExistingRandString(Token_length,
 		"SELECT 42 FROM workers WHERE token = $1")
 	db.QueryRow("INSERT INTO workers (uid, token, name, last_contact, active, "+
 		"shared) VALUES ($1, $2, $3, now(), $4, $5)", uid, token, name, false,
-		shared)
+		shared).Scan(&dummy)
 
 	return token, nil
 }
@@ -733,8 +812,9 @@ func CreateWorker(user_token, name string, shared bool) (string, error) {
 // `last_contact` time is updated. If the worker does not exist an error is
 // returned.
 func SetWorkerActive(token string) error {
+	var dummy string
 	db.QueryRow("UPDATE workers SET active=true, last_contact=now() "+
-		"WHERE token=$1", token)
+		"WHERE token=$1", token).Scan(&dummy)
 
 	return nil
 }
@@ -743,8 +823,9 @@ func SetWorkerActive(token string) error {
 // `last_contact` time is updated. If the worker does not exist an error is
 // returned.
 func SetWorkerInactive(token string) error {
+	var dummy string
 	db.QueryRow("UPDATE workers SET active=false, last_contact=now() "+
-		"WHERE token=$1", token)
+		"WHERE token=$1", token).Scan(&dummy)
 
 	return nil
 }
