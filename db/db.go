@@ -1002,3 +1002,70 @@ func SetEventTask(event int64) (int64, error) {
 	err := db.QueryRow("UPDATE event_tasks SET event_type=$1", event).Scan(&insertId)
 	return insertId, err
 }
+
+
+//##########################################################################################
+// TODO implement this
+//##########################################################################################
+
+
+func GetOverdueScheduledTasks(time time.Time) ([]*ScheduledTask, error){
+    return nil, nil
+}
+
+func UpdateScheduledTaskStatus(tid int64 , status int) (error){
+    return nil
+}
+
+func CreateNewChildTask(parentId int64) (*Task, error){
+    return nil, nil
+}
+
+func GetMinimalNextTime()(*time.Time, error){
+    return nil, nil
+}
+
+func GetHourlyTaskHours(tid int64)(int, error){
+    return 0, nil
+}
+
+func UpdateNextScheduleTime(tid int64, scheduledTime *time.Time)(error){
+    return nil
+}
+
+func GetHookId(tid int64) (int64, error){
+    return 0, nil
+}
+
+func CreateNewScheduledTaskEventDriven(name string, token string, pid string, bid string, eventType int64)(*ScheduledTask, error){
+    return nil, nil
+}
+
+func CreateNewScheduledTaskHourly(name string, token string,
+                                        pid string, bid string, nextTime time.Time, hour int64)(*ScheduledTask, error){
+    return nil, nil
+}
+
+func CreateNewScheduledTaskDaily(name string, token string , pid string, bid string, nextTime time.Time)(*ScheduledTask, error){
+    return nil, nil
+}
+
+func CreateNewScheduledTaskWeekly(name string, token string, pid string, bid string, nextTime time.Time, day int64)(*ScheduledTask, error){
+    return nil, nil
+}
+
+func CreateNewScheduledTaskOneTime(name string, token string, pid string, bid string, nextTime time.Time)(*ScheduledTask, error){
+    return nil, nil
+}
+
+func GetParentTask(childId int64)(*ScheduledTask, error){
+    return nil, nil
+}
+
+func GetRunningChildren(tid int64)([] *Task, error){
+    return nil, nil
+}
+
+func GetRunningScheduledTasks(token string)([] *ScheduledTask, error){
+    return nil, nil
+}

@@ -434,6 +434,8 @@ func authGitHubRequest(w http.ResponseWriter, req_url string,
 }
 
 
+
+
 // TODO document this
 func authGitHubRequestPost(w http.ResponseWriter, req_url string,
 	token string, payload []byte) (interface{}, error) {
@@ -443,6 +445,45 @@ func authGitHubRequestPost(w http.ResponseWriter, req_url string,
 	req, _ := http.NewRequest("POST",
 		fmt.Sprintf("https://api.github.com/%s", req_url),
 		bytes.NewBuffer(payload))
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+
+	// do request
+	response, err := client.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	defer response.Body.Close()
+
+	// read response
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.New("Bad request!")
+	}
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	var resp_data interface{}
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	if err := dec.Decode(&resp_data); err != nil {
+		return nil, errors.New("Decoding error!")
+	}
+
+	return resp_data, nil
+}
+
+// TODO document this
+func authGitHubRequestDelete(w http.ResponseWriter, req_url string,
+	token string) (interface{}, error) {
+	
+    data := url.Values{}
+    
+	// set up request
+	client := &http.Client{}
+	req, _ := http.NewRequest("DELETE",
+		fmt.Sprintf("https://api.github.com/%s", req_url),
+		bytes.NewBufferString(data.Encode()))
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 
@@ -830,6 +871,12 @@ func handleProjectsPidNewtask(w http.ResponseWriter, r *http.Request,
 func handleTasks(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
     
+    hErr := updateHooks(w, token)
+    if(hErr != nil){
+        handleError(w, r, hErr)
+        return
+    }
+    
 // TODO check this
 	tasks, err := db.GetScheduledTasks(token)
 	if err != nil {
@@ -844,6 +891,15 @@ func handleTasks(w http.ResponseWriter, r *http.Request,
 // `renderTemplate` with the template "projects-pid" and the retrieved data.
 func handleTasksTid(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
+    
+    hErr := updateHooks(w, token)
+    if(hErr != nil){
+        handleError(w, r, hErr)
+        return
+    }
+    
+    // TODO implement this
+    
 	task, err := db.GetTask(vars["tid"], token)
 	if err != nil {
 		handleError(w, r, err)
@@ -858,27 +914,28 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// The handler creates a new task with the help of the background worker. If
-// this fails the `handleError` function is called else the user is redirected
-// to the details page of the newly created task.
-func handleTasksNew(w http.ResponseWriter, r *http.Request,
-	vars map[string]string, session *sessions.Session, token string) {
-	tid, err := worker.CreateNewTask(token, vars["pid"], vars["bid"])
-	if err != nil {
-		handleError(w, r, err)
-	} else {
-		http.Redirect(w, r, fmt.Sprintf("/tasks/%d", tid), http.StatusFound)
-	}
-}
+
 
 
 // TODO document this
 func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string){
+    
+    hErr := updateHooks(w, token)
+    if(hErr != nil){
+        handleError(w, r, hErr)
+        return
+    }
    
+    event, eErr := strconv.ParseInt(vars["event"], 10, 64)
+    if(eErr != nil){
+        handleError(w, r, eErr) 
+        return
+    }
+    
     // TODO updated version
-    schedTask, err := db.CreateNewScheduledTask(db.Event, vars["name"], token,
-                                                vars["pid"], vars["bid"], nil)
+    schedTask, err := db.CreateNewScheduledTaskEventDriven(vars["name"], token,
+                                            vars["pid"], vars["bid"], event)
     
     if err != nil{
         handleError(w, r, err)
@@ -921,12 +978,18 @@ func handleTasksNewHourly(w http.ResponseWriter, r *http.Request,
     
     currentTime := time.Now()
     
-//    hourPeriod := vars["hours"]    
-    // TODO updated version
-    schedTask, err := db.CreateNewScheduledTask(db.Hourly, vars["name"], token,
-                                        vars["pid"], vars["bid"], &currentTime)
+    hourPeriod := vars["hours"]    
+    hourP, err := strconv.ParseInt(hourPeriod, 10, 64)
     if(err != nil){
         handleError(w, r, err)
+        return
+    }
+    // TODO updated version
+    schedTask, err := db.CreateNewScheduledTaskHourly(vars["name"], token,
+                                        vars["pid"], vars["bid"], currentTime, hourP)
+    if(err != nil){
+        handleError(w, r, err)
+        return
     }else{
         http.Redirect(w, r, fmt.Sprintf("/tasks/%d", schedTask.Id),
                       http.StatusFound)
@@ -948,11 +1011,12 @@ func handleTasksNewDaily(w http.ResponseWriter, r *http.Request,
         scheduleTime = time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), scheduleTime.Hour(), scheduleTime.Minute(), scheduleTime.Second(), scheduleTime.Nanosecond(), currentTime.Location())
     
         // TODO updated version
-        schedTask, err := db.CreateNewScheduledTask(db.Daily, vars["name"], token,
-                                            vars["pid"], vars["bid"], &scheduleTime)
+        schedTask, err := db.CreateNewScheduledTaskDaily(vars["name"], token,
+                                            vars["pid"], vars["bid"], scheduleTime)
         
         if(err != nil){
             handleError(w, r, err)
+            return
         }else{
             http.Redirect(w, r, fmt.Sprintf("/tasks/%d", schedTask.Id),
                           http.StatusFound)
@@ -981,11 +1045,11 @@ func handleTasksNewWeekly(w http.ResponseWriter, r *http.Request,
             scheduleTime := time.Date(currentTime.Year(), currentTime.Month(),
                                       currentTime.Day(), scheduleHour.Hour(), scheduleHour.Minute(),
                                       scheduleHour.Second(), scheduleHour.Nanosecond(),currentTime.Location())
-            scheduleTime = utils.ComputeDate(scheduleTime, int(day))
+            scheduleTime = worker.ComputeDate(scheduleTime, int(day))
             
             // TODO updated version
-            schedTask, err := db.CreateNewScheduledTask(db.Daily, vars["name"], token,
-                                                vars["pid"], vars["bid"], &scheduleTime)
+            schedTask, err := db.CreateNewScheduledTaskWeekly(vars["name"], token,
+                                                vars["pid"], vars["bid"], scheduleTime, day)
 
             if(err != nil){
                 handleError(w, r, err)
@@ -1013,8 +1077,8 @@ func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
     }else{
         scheduleTime := time.Unix(seconds, 0)
          // TODO updated version
-        schedTask, err := db.CreateNewScheduledTask(db.Daily, vars["name"], token,
-                                            vars["pid"], vars["bid"], &scheduleTime)
+        schedTask, err := db.CreateNewScheduledTaskOneTime(vars["name"], token,
+                                            vars["pid"], vars["bid"], scheduleTime)
 
         if(err != nil){
             handleError(w, r, err)
@@ -1036,8 +1100,8 @@ func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
 
     scheduleTime := time.Now()
      // TODO updated version
-    schedTask, err := db.CreateNewScheduledTask(db.Daily, vars["name"], token,
-                                        vars["pid"], vars["bid"], &scheduleTime)
+    schedTask, err := db.CreateNewScheduledTaskOneTime(vars["name"], token,
+                                        vars["pid"], vars["bid"], scheduleTime)
 
     if(err != nil){
         handleError(w, r, err)
@@ -1056,20 +1120,115 @@ func handleWebhook(w http.ResponseWriter, r *http.Request){
     vars := mux.Vars(r)
     taskId := vars["tid"]
     
-    worker.CreateNewEventTask(taskId)
+    body, err := ioutil.ReadAll(r.Body)
+    if err != nil {
+        // TODO err0r handling
+    }
+    
+    type hook struct{
+        Hook_id int64
+    }
+    
+    var h hook
+    err = json.Unmarshal(body, &h)
+    if err != nil {
+        // TODO error handling
+        return
+    }
+    
+    tid, iErr := strconv.ParseInt(taskId, 10, 64)
+    if(iErr != nil ){
+        // TODO error handling
+        return
+    }
+    
+    // sanity check
+    hookId, tErr := db.GetHookId(tid)
+    if(tErr != nil ){
+        // TODO error handling
+        return
+    }
+    if(hookId != h.Hook_id){
+        // TODO error handling
+        return
+    }
+    
+    worker.CreateNewTask(tid)
 }
 
 
 
-// The handler attempts to cancel the specified task. If this fails the
-// `handleError` function is called else the user is redirected to the Bot
-// status overview page.
+// TODO document this
 func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
-	err := worker.Cancle(vars["tid"])
-	if err != nil {
-		handleError(w, r, err)
-	} else {
-		http.Redirect(w, r, "/tasks/", http.StatusFound)
-	}
+    
+    task, pErr := db.GetScheduledTask(vars["tid"], token, false)
+    if(pErr != nil){
+        handleError(w, r, pErr)
+        return
+    }
+    if(task.Type == db.Event){
+        hookId, hErr := db.GetHookId(task.Id)
+        if(hErr != nil){
+            handleError(w, r, hErr)
+            return
+        }
+        url := fmt.Sprintf("/repos/%s/hooks/%d", task.Project.Name, hookId)
+        _, dErr := authGitHubRequestDelete(w, url, token)
+        if(dErr != nil){
+            handleError(w, r, dErr)
+            return
+        }
+    }
+    
+    
+    tid, err := strconv.ParseInt(vars["tid"], 10, 64)
+    if(err != nil){
+        handleError(w, r, err)
+        return
+    }
+    
+    children, cErr := db.GetRunningChildren(tid)
+    if(cErr != nil){
+        handleError(w, r, cErr)
+        return
+    }
+    
+    for _, task := range children{
+        worker.Cancle(task.Id)        
+    }
+    
+    
+    
+    db.UpdateScheduledTaskStatus(tid, db.Complete)    
+	
+    http.Redirect(w, r, "/tasks/", http.StatusFound)
+	
+}
+
+
+// TODO document this
+func updateHooks(w http.ResponseWriter, token string) (error){
+    
+    
+    
+    tasks, err := db.GetRunningScheduledTasks(token)
+    if(err != nil){
+        return err
+    }
+    
+    for _,task := range tasks{
+        hook_id, hErr := db.GetHookId(task.Id)
+        if(hErr != nil){
+        return hErr
+    }
+        url := fmt.Sprintf("/repos/%s/hooks/%d",task.Project.Name, hook_id)
+        _, rErr := authGitHubRequest(w, url, token)
+        if(rErr != nil){
+            db.UpdateScheduledTaskStatus(task.Id, db.Complete)    
+        }
+    }
+    
+    return nil    
+    
 }

@@ -64,22 +64,27 @@ func NewWorkerAPI() *WorkerAPI {
 
 // TODO document this
 func (api *WorkerAPI) assignTask(task *db.Task) {
-//	api.guard.Lock()
-//	defer api.guard.Unlock()
-//
-//	waiting, ok := api.available_workers[task.User.Id]
-//	if ok {
-//		if len(waiting) > 0 {
-//			waiting[0].task_assignment <- task
-//			waiting = waiting[1:]
-//			api.available_workers[task.User.Id] = waiting
-//		}
-//	} else {
-//		if len(api.shared_workers) > 0 {
-//			api.shared_workers[0].task_assignment <- task
-//			api.shared_workers = api.shared_workers[1:]
-//		}
-//	}
+	api.guard.Lock()
+	defer api.guard.Unlock()
+    
+    parentTask, err := db.GetParentTask(task.Id)
+    if(err != nil){
+        // TODO error handling
+    }
+
+	waiting, ok := api.available_workers[parentTask.User.Id]
+	if ok {
+		if len(waiting) > 0 {
+			waiting[0].task_assignment <- task
+			waiting = waiting[1:]
+			api.available_workers[parentTask.User.Id] = waiting
+		}
+	} else {
+		if len(api.shared_workers) > 0 {
+			api.shared_workers[0].task_assignment <- task
+			api.shared_workers = api.shared_workers[1:]
+		}
+	}
 }
 
 // TODO document this

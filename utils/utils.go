@@ -2,7 +2,7 @@ package utils
 
 import (
 	"math/rand"
-	"time"
+    "time"
 )
 
 // List of characters used to generate random character sequence.
@@ -34,18 +34,4 @@ func RandString(n int) string {
 	}
 
 	return string(b)
-}
-
-func ComputeDate(t time.Time, day int) time.Time{
-    
-    currentDay := int(t.Weekday())
-    var dayDiff int
-    if(day >= currentDay){
-        dayDiff = day - currentDay
-    }else{
-        dayDiff = 7 - (currentDay - day)
-    }
-    
-    return t.AddDate(0,0, dayDiff)
-    
 }
