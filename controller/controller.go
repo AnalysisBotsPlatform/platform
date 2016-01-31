@@ -197,8 +197,12 @@ func Start() {
 	} else {
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			fmt.Println("Cache directory does not exist!")
-			fmt.Println(err)
-			return
+			fmt.Printf("Create cache directory %s\n", dir)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				fmt.Println("Cache directory cannot be created!")
+				fmt.Println(err)
+				return
+			}
 		} else {
 			if err := worker.Init(worker_port); err != nil {
 				fmt.Println(err)
