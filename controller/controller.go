@@ -900,14 +900,9 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
     }
     
     // TODO implement this
+
     
-    tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
-    if(cErr != nil){
-        handleError(w, r, cErr)
-        return
-    }
-    
-	task, err := db.GetTask(tid, token)
+	task, err := db.GetTask(vars["tid"], token)
 	if err != nil {
 		handleError(w, r, err)
 	} else {

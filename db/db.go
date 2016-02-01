@@ -1177,9 +1177,7 @@ func GetParentTask(childId int64)(*ScheduledTask, error){
 // DONE
 func GetOverdueScheduledTasks(max_time time.Time) ([]*ScheduledTask, error){
 	var scheduled_tasks []*ScheduledTask
-	var stids []int64
 
-	maxseconds := int64(time.Since(max_time).Seconds())
 	rows, err := db.Query("SELECT scheduled_tasks.id , scheduled_tasks.next_run, users.token"+
 	" FROM scheduled_tasks INNER JOIN users ON users.id=scheduled_tasks.uid WHERE status=$1", Active)
 	if err != nil {
