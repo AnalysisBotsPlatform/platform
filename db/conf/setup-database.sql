@@ -96,7 +96,8 @@ CREATE TABLE single_tasks(
 
 CREATE TABLE event_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
-	event_type integer NOT NULL
+	event_type integer NOT NULL,
+	hookId integer NOT NULL
 );
 
 CREATE TABLE members(
