@@ -144,18 +144,18 @@ func updateScheduleTimeAndStatus(task *db.ScheduledTask){
                 // TODO error handling
             }
             scheduledTime := task.Next
-            *scheduledTime = scheduledTime.Add(time.Duration(hours)*time.Hour)
-            db.UpdateNextScheduleTime(tid, scheduledTime)
+            scheduledTime = scheduledTime.Add(time.Duration(hours)*time.Hour)
+            db.UpdateNextScheduleTime(tid, &scheduledTime)
             break;
         case db.Daily:
             scheduledTime := task.Next
-            *scheduledTime = scheduledTime.AddDate(0, 0, 1)
-            db.UpdateNextScheduleTime(tid, scheduledTime)
+            scheduledTime = scheduledTime.AddDate(0, 0, 1)
+            db.UpdateNextScheduleTime(tid, &scheduledTime)
             break;
         case db.Weekly:
             scheduledTime := task.Next
-            *scheduledTime = scheduledTime.AddDate(0, 0, 7)
-            db.UpdateNextScheduleTime(tid, scheduledTime)
+            scheduledTime = scheduledTime.AddDate(0, 0, 7)
+            db.UpdateNextScheduleTime(tid, &scheduledTime)
             break;
         
         case db.OneTime:

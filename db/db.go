@@ -1120,6 +1120,7 @@ func GetHourlyTaskHours(tid int64)(int64, error){
 }
 
 // DONE
+// TODO insert a column hook_id (see telegram)
 func GetHookId(tid int64) (int64, error){
 	var hookId int64
 	err := db.QueryRow("SELECT event_type FROM event_tasks INNER JOIN scheduled_tasks"+
@@ -1173,7 +1174,7 @@ func GetParentTask(childId int64)(*ScheduledTask, error){
 		return GetScheduledTask(strconv.FormatInt(stid, 10), token, false)
 }
 
-// DONE
+// TODO imeplement this (see Telegram)
 func GetOverdueScheduledTasks(max_time time.Time) ([]*ScheduledTask, error){
 	var scheduled_tasks []*ScheduledTask
 	var stids []int64
@@ -1195,4 +1196,18 @@ func GetOverdueScheduledTasks(max_time time.Time) ([]*ScheduledTask, error){
 		scheduled_tasks = append(scheduled_tasks, scheduled_task)
 	}
 	return scheduled_tasks, nil
+}
+
+
+// TODO implement this
+func UpdateTaskStatus(tid int64, status int){
+    
+}
+// TODO implement this
+func UpdateTaskResult(tid int64, output string, exitStatus int){
+    
+}
+// TODO implement this
+func GetTask(tid int64, token string)(*Task, error){
+    return nil, nil
 }
