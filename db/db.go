@@ -515,7 +515,7 @@ func GetScheduledTask(stid string, token string, children bool) (*ScheduledTask,
 
 	// fetch subtasks
 	if children {
-		tasks, err := GetSubTasks(stid, token)
+		tasks, err := GetChildrenTasks(stid, token)
 		if err != nil {
 			return nil, err
 		}
@@ -558,7 +558,7 @@ func GetScheduledTask(stid string, token string, children bool) (*ScheduledTask,
 		scheduled_task.Event = event.Int64
 	}
 	if next.Valid {
-		scheduled_task.Next = &next.Time
+		scheduled_task.Next = next.Time
 	}
 
 	return &scheduled_task, nil
@@ -665,10 +665,10 @@ func GetChildrenTask(tid string, token string) (*Task, error) {
 
 	// set remaining fields
 	if start_time.Valid {
-		task.Start_time = &start_time.Time
+		task.Start_time = start_time.Time
 	}
 	if end_time.Valid {
-		task.End_time = &end_time.Time
+		task.End_time = end_time.Time
 	}
 	if status.Valid {
 		task.Status = status.Int64
@@ -686,7 +686,7 @@ func GetChildrenTask(tid string, token string) (*Task, error) {
 // TODO document this
 //
 func CreateNewScheduledTask(styp int64, name string, token string, pid string,
-	bid string, sid int64) (*ScheduledTask, error) {
+	bid string, sid int64, nextTime time.Time) (*ScheduledTask, error) {
 	// Check whether the user is allowed to access the project
 	project, err := GetProject(pid, token)
 	if err != nil {
@@ -711,19 +711,19 @@ func CreateNewScheduledTask(styp int64, name string, token string, pid string,
 		Bot:        	bot,
 		Status:     	Active,
 		Type:      		styp,
-		Next:					next,
+		Next:					nextTime,
 	}
 
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO scheduled_tasks"+
 		" (name, uid, pid, bid, status, schedule_type, sid, next_run)"+
 		" VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id ", name ,user.Id,
-		project.Id, bot.Id, Active, styp, sid, next).
+		project.Id, bot.Id, Active, styp, sid, nextTime).
 		Scan(&scheduled_task.Id); err != nil {
 		return nil, err
 	}
 
-	task, err := CreateNewTask(strconv.FormatInt(scheduled_task.Id, 10), token, next)
+	task, err := CreateNewChildrenTask(strconv.FormatInt(scheduled_task.Id, 10), token)
 	if err != nil {
 		return nil, err
 	}
@@ -756,12 +756,17 @@ func CreateNewChildrenTask(stid string, token string) (*Task, error) {
 		return nil, err
 	}
 
+	var now time.Time
+	now = time.Now()
+
+	var end pq.NullTime
+
 	// Create new task
 	task := Task{
 		ScheduledTask:	scheduled_task,
 		Worker:    			worker,
-		Start_time:     time.now()::timestamp(0),
-		End_time:       nil,
+		Start_time:     now,
+		End_time:       end.Time,
 		Status:     		Pending,
 		Exit_status:		-1,
 		Output:      		"",
@@ -802,7 +807,7 @@ func UpdateChildrenTaskResult(tid int64, output string, exit_code int) {
 		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid)
 }
 
-// This function returns all tasks which succeeded the 'maxseconds' duration
+// This function returns all tasks ids which succeeded the 'maxseconds' duration
 func GetTimedOverTasks(maxseconds int64) ([]int64, error) {
 	var starttime pq.NullTime
 	var tid 			int64
@@ -962,7 +967,7 @@ func GetWorker(token string) (*Worker, error) {
 
 // TODO document this
 //
-func setHourlyTask(nextTime *time.Time, hour int64) (int64, error) {
+func setHourlyTask(nextTime time.Time, hour int64) (int64, error) {
 	var insertId int64
 	err := db.QueryRow("UPDATE hourly_tasks SET scale=$1 , start_time=$2", nextTime, hour).Scan(&insertId)
 	return insertId, err
@@ -970,7 +975,7 @@ func setHourlyTask(nextTime *time.Time, hour int64) (int64, error) {
 
 // TODO document this
 //
-func setDailyTask(nextTime *time.Time) (int64, error) {
+func setDailyTask(nextTime time.Time) (int64, error) {
 	var insertId int64
 	err := db.QueryRow("UPDATE daily_tasks SET start_time=$1", nextTime).Scan(&insertId)
 	return insertId, err
@@ -978,7 +983,7 @@ func setDailyTask(nextTime *time.Time) (int64, error) {
 
 // TODO document this
 //
-func setWeeklyTask(nextTime *time.Time, day int64) (int64, error) {
+func setWeeklyTask(nextTime time.Time, day int64) (int64, error) {
 	var insertId int64
 	err := db.QueryRow("UPDATE weekly_tasks SET weekday=$1 , start_time=$2", nextTime, day).Scan(&insertId)
 	return insertId, err
@@ -986,7 +991,7 @@ func setWeeklyTask(nextTime *time.Time, day int64) (int64, error) {
 
 // TODO document this
 //
-func setOneTimeTask(nextTime *time.Time) (int64, error) {
+func setOneTimeTask(nextTime time.Time) (int64, error) {
 	var insertId int64
 	err := db.QueryRow("UPDATE single_tasks SET start_time=$1", nextTime).Scan(&insertId)
 	return insertId, err
@@ -1006,39 +1011,39 @@ func setEventTask(eventType int64) (int64, error) {
 //##########################################################################################
 
 // DONE
-func CreateNewScheduledTaskHourly(name string, token string, pid string, bid string, nextTime *time.Time, hour int64)(*ScheduledTask, error){
+func CreateNewScheduledTaskHourly(name string, token string, pid string, bid string, nextTime time.Time, hour int64)(*ScheduledTask, error){
 	sid, err := setHourlyTask(nextTime, hour)
 	if err !=nil {
 		return nil, err
 	}
-	return CreateNewScheduledTask(1, name, token, pid, bid, sid)
+	return CreateNewScheduledTask(1, name, token, pid, bid, sid, nextTime)
 }
 
 // DONE
-func CreateNewScheduledTaskDaily(name string, token string , pid string, bid string, nextTime *time.Time)(*ScheduledTask, error){
+func CreateNewScheduledTaskDaily(name string, token string , pid string, bid string, nextTime time.Time)(*ScheduledTask, error){
 	sid, err := setDailyTask(nextTime)
 	if err !=nil {
 		return nil, err
 	}
-	return CreateNewScheduledTask(2, name, token, pid, bid, sid)
+	return CreateNewScheduledTask(2, name, token, pid, bid, sid, nextTime)
 }
 
 // DONE
-func CreateNewScheduledTaskWeekly(name string, token string, pid string, bid string, nextTime *time.Time, day int64)(*ScheduledTask, error){
+func CreateNewScheduledTaskWeekly(name string, token string, pid string, bid string, nextTime time.Time, day int64)(*ScheduledTask, error){
 	sid, err := setWeeklyTask(nextTime, day)
 	if err !=nil {
 		return nil, err
 	}
-	return CreateNewScheduledTask(3, name, token, pid, bid, sid)
+	return CreateNewScheduledTask(3, name, token, pid, bid, sid, nextTime)
 }
 
 // DONE
-func CreateNewScheduledTaskOneTime(name string, token string, pid string, bid string, nextTime *time.Time)(*ScheduledTask, error){
+func CreateNewScheduledTaskOneTime(name string, token string, pid string, bid string, nextTime time.Time)(*ScheduledTask, error){
 	sid, err := setOneTimeTask(nextTime)
 	if err !=nil {
 		return nil, err
 	}
-	return CreateNewScheduledTask(4, name, token, pid, bid, sid)
+	return CreateNewScheduledTask(4, name, token, pid, bid, sid, nextTime)
 }
 
 // DONE
@@ -1047,7 +1052,7 @@ func CreateNewScheduledTaskEventDriven(name string, token string, pid string, bi
 	if err !=nil {
 		return nil, err
 	}
-	return CreateNewScheduledTask(5, name, token, pid, bid, sid)
+	return CreateNewScheduledTask(5, name, token, pid, bid, sid, time.Now())
 }
 
 // DONE
@@ -1058,25 +1063,25 @@ func CreateNewChildTask(parentId int64) (*Task, error){
 		Scan(&token); err != nil {
 		return nil, err
 	}
-	return CreateNewChildrenTask(parentId, token)
+	return CreateNewChildrenTask(strconv.FormatInt(parentId, 10), token)
 }
 
 // DONE
 func UpdateScheduledTaskStatus(tid int64 , status int) (error){
-		res, err := db.Exec("UPDATE scheduled_tasks SET status=status WHERE id=$1", tid)
+		_, err := db.Exec("UPDATE scheduled_tasks SET status=status WHERE id=$1", tid)
     return err
 }
 
 // DONE
-func GetMinimalNextTime()(*time.Time, error){
-		var nextTime *time.Time
-    err := db.QueryRow("SELECT MIN(next_run) FROM scheduled_tasks").Scan(&time)
+func GetMinimalNextTime() (time.Time, error) {
+		var nextTime time.Time
+    err := db.QueryRow("SELECT MIN(next_run) FROM scheduled_tasks").Scan(&nextTime)
 		return nextTime, err
 }
 
 // DONE
 func UpdateNextScheduleTime(tid int64, scheduledTime *time.Time)(error){
-	res, err := db.Exec("UPDATE scheduled_tasks SET next_run=scheduledTime WHERE id=$1", tid)
+	_, err := db.Exec("UPDATE scheduled_tasks SET next_run=scheduledTime WHERE id=$1", tid)
 	return err
 }
 
@@ -1109,22 +1114,22 @@ func GetRunningScheduledTasks(token string)([]*ScheduledTask, error){
 // DONE
 func GetHourlyTaskHours(tid int64)(int64, error){
 		var hours int64
-		err := db.QueryRow("SELECT scale FROM hourly_tasks INNER JOIN scheduled_tasks"
-		+" ON scheduled_tasks.sid=hourly_tasks.id WHERE scheduled_tasks.id=$1", tid).Scan(&hours)
+		err := db.QueryRow("SELECT scale FROM hourly_tasks INNER JOIN scheduled_tasks"+
+		" ON scheduled_tasks.sid=hourly_tasks.id WHERE scheduled_tasks.id=$1", tid).Scan(&hours)
 		return hours, err
 }
 
 // DONE
 func GetHookId(tid int64) (int64, error){
 	var hookId int64
-	err := db.QueryRow("SELECT event_type FROM event_tasks INNER JOIN scheduled_tasks"
-	+" ON scheduled_tasks.sid=event_tasks.id WHERE scheduled_tasks.id=$1", tid).Scan(&hookId)
+	err := db.QueryRow("SELECT event_type FROM event_tasks INNER JOIN scheduled_tasks"+
+	" ON scheduled_tasks.sid=event_tasks.id WHERE scheduled_tasks.id=$1", tid).Scan(&hookId)
 	return hookId, err
 }
 
 // DONE
 func GetRunningChildren(tid int64)([]*Task, error){
-	var running []*ScheduledTask
+	var running []*Task
 
 	rows, err := db.Query("SELECT id FROM tasks INNER JOIN scheduled_tasks ON"+
 		" scheduled_tasks.id=tasks.stid"+
@@ -1132,6 +1137,9 @@ func GetRunningChildren(tid int64)([]*Task, error){
 	if err != nil {
 		return nil, err
 	}
+
+	//Get Token
+	token := ""
 
 	defer rows.Close()
 	for rows.Next() {
@@ -1152,20 +1160,39 @@ func GetRunningChildren(tid int64)([]*Task, error){
 func GetParentTask(childId int64)(*ScheduledTask, error){
     var stid int64
 		var token string
-		err := db.QueryRow("SELECT scheduled_tasks.id FROM scheduled_tasks"
-		+" INNER JOIN tasks ON tasks.stid=scheduled_tasks.id WHERE tasks.id=$1", childId).Scan(&stid)
+		err := db.QueryRow("SELECT scheduled_tasks.id FROM scheduled_tasks"+
+		" INNER JOIN tasks ON tasks.stid=scheduled_tasks.id WHERE tasks.id=$1", childId).Scan(&stid)
 		if err != nil {
 			return nil, err
 		}
-		err := db.QueryRow("SELECT users.token FROM users"
-		+" INNER JOIN scheduled_tasks ON scheduled_tasks.uid=users.id WHERE scheduled_tasks.id=$1", stid).Scan(&token)
+		err = db.QueryRow("SELECT users.token FROM users"+
+		" INNER JOIN scheduled_tasks ON scheduled_tasks.uid=users.id WHERE scheduled_tasks.id=$1", stid).Scan(&token)
 		if err != nil {
 			return nil, err
 		}
-		return GetScheduledTask(strconv.FormatInt(stid, 10), token, true)
+		return GetScheduledTask(strconv.FormatInt(stid, 10), token, false)
 }
 
-// TODO
-func GetOverdueScheduledTasks(time *time.Time) ([]*ScheduledTask, error){
-    return nil, nil
+// DONE
+func GetOverdueScheduledTasks(max_time time.Time) ([]*ScheduledTask, error){
+	var scheduled_tasks []*ScheduledTask
+	var stids []int64
+
+	maxseconds := int64(time.Since(max_time).Seconds())
+	task_ids, err := GetTimedOverTasks(maxseconds)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range task_ids {
+		scheduled_task, err := GetParentTask(e)
+		if err != nil {
+			return nil, err
+		}
+		if utils.Contains(stids, scheduled_task.Id) {
+			break
+		}
+		stids = append(stids, scheduled_task.Id)
+		scheduled_tasks = append(scheduled_tasks, scheduled_task)
+	}
+	return scheduled_tasks, nil
 }

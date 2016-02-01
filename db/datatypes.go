@@ -119,7 +119,7 @@ type ScheduledTask struct {
 	Status      int64
 	Type				int64
 	Event 			int64
-	Next      	*time.Time
+	Next      	time.Time
 }
 
 // A task is a bot's execution on a project
@@ -127,8 +127,8 @@ type Task struct {
 	Id          	int64
 	ScheduledTask *ScheduledTask
 	Worker      	*Worker
-	Start_time  	*time.Time
-	End_time    	*time.Time
+	Start_time  	time.Time
+	End_time    	time.Time
 	Status      	int64
 	Exit_status 	int64
 	Output      	string
