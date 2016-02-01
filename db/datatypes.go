@@ -66,7 +66,7 @@ const (
 	Hourly	= iota
 	Daily 	= iota
 	Weekly 	= iota
-    OneTime = iota
+  OneTime = iota
 	Instant = iota
 	Event 	= iota
 )

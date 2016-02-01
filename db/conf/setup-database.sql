@@ -57,7 +57,7 @@ CREATE TABLE scheduled_tasks(
 	bid integer REFERENCES bots(id) NOT NULL,
 	status integer NOT NULL,
 	schedule_type integer NOT NULL,
-	eid integer NOT NULL,
+	sid integer NOT NULL,
 	next_run timestamp(0)
 );
 
