@@ -620,7 +620,7 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 			"https://github.com/login/oauth/access_token",
 			bytes.NewBufferString(data.Encode()))
 		req.Header.Set("Accept", "application/json")
-
+        
 		// do request
 		response, err := client.Do(req)
 		if err != nil {
@@ -637,7 +637,7 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 		if err := json.Unmarshal(body, &resp_data); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-
+        
 		// store access token and user information
 		token := resp_data["access_token"].(string)
 		session.Values["token"] = token
