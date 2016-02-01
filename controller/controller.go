@@ -256,6 +256,7 @@ func Start() {
 	go func() {
 		<-sigs
 		ticker.Stop()
+        worker.StopPeriodRunner()
 		db.CloseDB()
 		fmt.Println("... controller terminated")
 		os.Exit(0)
