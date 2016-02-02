@@ -89,7 +89,7 @@ CREATE TABLE weekly_tasks(
 	start_time timestamp(0)
 );
 
-CREATE TABLE single_tasks(
+CREATE TABLE onetime_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	start_time timestamp(0)
 );
@@ -97,7 +97,7 @@ CREATE TABLE single_tasks(
 CREATE TABLE event_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	event_type integer NOT NULL,
-	hookId integer NOT NULL
+	hook_id integer NOT NULL
 );
 
 CREATE TABLE members(
