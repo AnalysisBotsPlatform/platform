@@ -977,7 +977,7 @@ func GetWorker(token string) (*Worker, error) {
 }
 
 //
-// Schedule Setter
+// Schedule Helper
 //
 
 // TODO document this
@@ -1018,10 +1018,10 @@ func createOneTimeTask(nextTime time.Time) (int64, error) {
 
 // TODO document this
 //
-func createEventTask(eventType int64, hookId int64) (int64, error) {
+func createEventTask(eventType int64) (int64, error) {
 	var insertId int64
-	err := db.QueryRow("INSERT INTO event_tasks (even_type, hook_id)"+
-		" VALUES ($1, $2) RETURNING id", eventType, hookId).Scan(&insertId)
+	err := db.QueryRow("INSERT INTO event_tasks (even_type)"+
+		" VALUES ($1) RETURNING id", eventType).Scan(&insertId)
 	return insertId, err
 }
 
@@ -1071,8 +1071,8 @@ func CreateNewScheduledTaskOneTime(name string, token string, pid string, bid st
 
 // TODO document this
 //
-func CreateNewScheduledTaskEventDriven(name string, token string, pid string, bid string, eventType int64, hookId int64)(*ScheduledTask, error){
-	sid, err := createEventTask(eventType, hookId)
+func CreateNewScheduledTaskEventDriven(name string, token string, pid string, bid string, eventType int64) (*ScheduledTask, error) {
+	sid, err := createEventTask(eventType)
 	if err !=nil {
 		return nil, err
 	}
@@ -1080,7 +1080,7 @@ func CreateNewScheduledTaskEventDriven(name string, token string, pid string, bi
 }
 
 //
-// Various ScheduledTask
+// Various ScheduledTask Functions
 //
 
 // TODO document this
@@ -1163,6 +1163,18 @@ func GetHookId(tid int64) (int64, error){
 	"	INNER JOIN scheduled_tasks ON scheduled_tasks.sid=event_tasks.id"+
 	" WHERE scheduled_tasks.id=$1", tid).Scan(&hookId)
 	return hookId, err
+}
+
+// TODO document this
+//
+func SetHookId(tid int64, hookId int64) error {
+	var eid int64
+	if err := db.QueryRow("SELECT eid FROM scheduled_tasks"+
+	" WHERE id=$1", tid).Scan(&eid); err != nil {
+		return err
+	}
+	_, err := db.Exec("UPDATE event_tasks SET hook_id=$1 WHERE id=$2", hookId, eid)
+	return err
 }
 
 // TODO document this
