@@ -981,8 +981,7 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 func handleTasksNewHourly(w http.ResponseWriter, r *http.Request,
     vars map[string]string, session *sessions.Session, token string){
     
-    fmt.Println("Hourly handler")
-    
+        
     currentTime := time.Now()
     
     hourPeriod := vars["hours"]    

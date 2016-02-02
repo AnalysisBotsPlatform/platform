@@ -589,9 +589,11 @@ func GetTasks(stid string, token string) ([]*Task, error) {
         return nil, cErr
     }
 
-	rows, err := db.Query("SELECT tasks.id FROM tasks"+
-		" INNER JOIN users ON tasks.uid=users.id WHERE users.token=$1 AND tasks.stid=$2"+
-		" ORDER BY tasks.id", token, stidInt)
+	rows, err := db.Query("SELECT parent.id FROM "+
+                          " (SELECT scheduled_tasks.id, scheduled_tasks.uid FROM tasks"+
+                          " INNER JOIN scheduled_tasks ON tasks.stid = scheduled_tasks.id) AS parent"+               
+		" INNER JOIN users ON parent.uid=users.id WHERE users.token=$1 AND parent.id=$2"+
+		" ORDER BY parent.id", token, stidInt)
 	if err != nil {
 		return nil, err
 	}
@@ -707,7 +709,7 @@ func GetTask(tid string, token string) (*Task, error) {
 func CreateNewScheduledTask(styp int64, name string, token string, pid string,
 	bid string, sid int64, nextTime time.Time) (*ScheduledTask, error) {
 	// Check whether the user is allowed to access the project
-    fmt.Println("CreateNewScheduledTask: time:"+strconv.FormatInt(nextTime.Unix(), 10))
+    
 	project, err := GetProject(pid, token)
 	if err != nil {
 		return nil, err
@@ -745,7 +747,7 @@ func CreateNewScheduledTask(styp int64, name string, token string, pid string,
 		return nil, err
 	}
     
-    fmt.Println("Inserted Task")
+
 
     
     // TODO WHY ARE WE DOING THIS!!!!!!!!!!!!!!!????????????????????
