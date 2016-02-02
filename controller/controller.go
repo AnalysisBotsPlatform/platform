@@ -966,6 +966,7 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
                 authGitHubRequestPost(w, reqUrl, token, payloadMarshalled)
                 http.Redirect(w, r, fmt.Sprintf("/tasks/%d", schedTask.Id),
                               http.StatusFound)
+                // TODO add hook_id
             }
             
         }
@@ -977,11 +978,14 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 func handleTasksNewHourly(w http.ResponseWriter, r *http.Request,
     vars map[string]string, session *sessions.Session, token string){
     
+    fmt.Println("Hourly handler")
+    
     currentTime := time.Now()
     
     hourPeriod := vars["hours"]    
     hourP, err := strconv.ParseInt(hourPeriod, 10, 64)
     if(err != nil){
+        fmt.Println("Parsing error")
         handleError(w, r, err)
         return
     }

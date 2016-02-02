@@ -471,12 +471,16 @@ func GetScheduledTasks(token string) ([]*ScheduledTask, error) {
 	var scheduled_tasks []*ScheduledTask
 	var stid 						int64
 
+    fmt.Println("Retrieve Tasks...")
+    
 	rows, err := db.Query("SELECT scheduled_tasks.id FROM scheduled_tasks"+
 		" INNER JOIN users ON scheduled_tasks.uid=users.id WHERE users.token=$1"+
 		" ORDER BY scheduled_tasks.id", token)
 	if err != nil {
 		return nil, err
 	}
+    
+    fmt.Println("Retrieved Tasks")
 
 	// fetch tasks
 	defer rows.Close()
@@ -703,6 +707,7 @@ func GetTask(tid string, token string) (*Task, error) {
 func CreateNewScheduledTask(styp int64, name string, token string, pid string,
 	bid string, sid int64, nextTime time.Time) (*ScheduledTask, error) {
 	// Check whether the user is allowed to access the project
+    fmt.Println("CreateNewScheduledTask: time:"+strconv.FormatInt(nextTime.Unix(), 10))
 	project, err := GetProject(pid, token)
 	if err != nil {
 		return nil, err
@@ -728,12 +733,14 @@ func CreateNewScheduledTask(styp int64, name string, token string, pid string,
 		Type:      		styp,
 		Next:					nextTime,
 	}
+    
+    fmt.Println("CreateNewScheduledTask: time:"+strconv.FormatInt(nextTime.Unix(), 10))
 
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO scheduled_tasks"+
 		" (name, uid, pid, bid, status, schedule_type, sid, next_run)"+
-		" VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id ", name ,user.Id,
-		project.Id, bot.Id, Active, styp, sid, nextTime).
+		" VALUES ($1, $2, $3, $4, $5, $6, $7, to_timestamp($8) RETURNING id ", name ,user.Id,
+                          project.Id, bot.Id, Active, styp, sid, nextTime.Unix()).
 		Scan(&scheduled_task.Id); err != nil {
 		return nil, err
 	}
@@ -985,7 +992,7 @@ func GetWorker(token string) (*Worker, error) {
 func createHourlyTask(nextTime time.Time, hour int64) (int64, error) {
 	var insertId int64
 	err := db.QueryRow("INSERT INTO hourly_tasks (scale, start_time)"+
-		" VALUES ($1, $2) RETURNING id", nextTime, hour).Scan(&insertId)
+                       " VALUES ($1, to_timestamp($2)) RETURNING id", hour, nextTime.Unix()).Scan(&insertId)
 	return insertId, err
 }
 
@@ -994,7 +1001,7 @@ func createHourlyTask(nextTime time.Time, hour int64) (int64, error) {
 func createDailyTask(nextTime time.Time) (int64, error) {
 	var insertId int64
 	err := db.QueryRow("INSERT INTO daily_tasks (start_time)"+
-		" VALUES ($1) RETURNING id", nextTime).Scan(&insertId)
+                       " VALUES (to_timestamp($1)) RETURNING id", nextTime.Unix()).Scan(&insertId)
 	return insertId, err
 }
 
@@ -1003,7 +1010,7 @@ func createDailyTask(nextTime time.Time) (int64, error) {
 func createWeeklyTask(nextTime time.Time, weekday int64) (int64, error) {
 	var insertId int64
 	err := db.QueryRow("INSERT INTO weekly_tasks (weekday, start_time)"+
-		" VALUES ($1, $2) RETURNING id", weekday, nextTime).Scan(&insertId)
+                       " VALUES ($1, to_timestamp($2)) RETURNING id", weekday, nextTime.Unix()).Scan(&insertId)
 	return insertId, err
 }
 
@@ -1012,7 +1019,7 @@ func createWeeklyTask(nextTime time.Time, weekday int64) (int64, error) {
 func createOneTimeTask(nextTime time.Time) (int64, error) {
 	var insertId int64
 	err := db.QueryRow("INSERT INTO onetime_tasks (Start_time)"+
-		" VALUES ($1) RETURNING id", nextTime).Scan(&insertId)
+                       " VALUES (to_timestamp($1)) RETURNING id", nextTime.Unix()).Scan(&insertId)
 	return insertId, err
 }
 
@@ -1123,7 +1130,7 @@ func UpdateNextScheduleTime(tid int64, scheduledTime *time.Time) (error) {
 func GetRunningScheduledTasks(token string) ([]*ScheduledTask, error) {
 	var scheduled_tasks []*ScheduledTask
 
-	rows, err := db.Query("SELECT id FROM scheduled_tasks"+
+	rows, err := db.Query("SELECT scheduled_tasks.id FROM scheduled_tasks"+
 		" INNER JOIN users ON users.id=scheduled_tasks.uid"+
 		" WHERE users.token=$1 AND scheduled_tasks.status=$2", token, Active)
 	if err != nil {
