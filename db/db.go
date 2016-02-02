@@ -734,17 +734,21 @@ func CreateNewScheduledTask(styp int64, name string, token string, pid string,
 		Next:					nextTime,
 	}
     
-    fmt.Println("CreateNewScheduledTask: time:"+strconv.FormatInt(nextTime.Unix(), 10))
 
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO scheduled_tasks"+
 		" (name, uid, pid, bid, status, schedule_type, sid, next_run)"+
-		" VALUES ($1, $2, $3, $4, $5, $6, $7, to_timestamp($8) RETURNING id ", name ,user.Id,
+                          " VALUES ($1, $2, $3, $4, $5, $6, $7, to_timestamp($8)) RETURNING id ", name ,user.Id,
                           project.Id, bot.Id, Active, styp, sid, nextTime.Unix()).
 		Scan(&scheduled_task.Id); err != nil {
+            fmt.Println("CreateNewScheduledTask: Error: "+err.Error())
 		return nil, err
 	}
+    
+    fmt.Println("Inserted Task")
 
+    
+    // TODO WHY ARE WE DOING THIS!!!!!!!!!!!!!!!????????????????????
 	task, err := CreateNewTask(strconv.FormatInt(scheduled_task.Id, 10), token)
 	if err != nil {
 		return nil, err
