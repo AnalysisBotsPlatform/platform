@@ -506,12 +506,17 @@ func GetScheduledTask(stid string, token string, children bool) (*ScheduledTask,
 	var event 				sql.NullInt64
 	var next 					pq.NullTime
 
+    tid, cErr := strconv.ParseInt(stid, 10, 64)
+    if cErr != nil{
+        return nil, cErr
+    }
 	// fetch scheduled task entry for stid
-	if err := db.QueryRow("SELECT * FROM scheduled_tasks WHERE id=$1", stid).
+	if err := db.QueryRow("SELECT * FROM scheduled_tasks WHERE id=$1", tid).
 		Scan(&scheduled_task.Id, &name, &uid, &pid, &bid, &status,
 		&stype, &event, &next); err != nil {
 		return nil, err
 	}
+    
 
 	// fetch subtasks
 	if children {
@@ -574,10 +579,15 @@ func GetScheduledTask(stid string, token string, children bool) (*ScheduledTask,
 func GetTasks(stid string, token string) ([]*Task, error) {
 	var tasks []*Task
 	var tid		int64
+    
+    stidInt, cErr := strconv.ParseInt(stid, 10, 64)
+    if cErr != nil{
+        return nil, cErr
+    }
 
 	rows, err := db.Query("SELECT tasks.id FROM tasks"+
 		" INNER JOIN users ON tasks.uid=users.id WHERE users.token=$1 AND tasks.stid=$2"+
-		" ORDER BY tasks.id", token, stid)
+		" ORDER BY tasks.id", token, stidInt)
 	if err != nil {
 		return nil, err
 	}
@@ -638,8 +648,13 @@ func GetTask(tid string, token string) (*Task, error) {
 	var status 								sql.NullInt64
 	var exit_status 					sql.NullInt64
 	var output 								sql.NullString
+    
+    tidInt, cErr := strconv.ParseInt(tid, 10, 64)
+    if cErr != nil{
+        return nil, cErr
+    }
 
-	if err := db.QueryRow("SELECT * FROM tasks WHERE id=$1", tid).
+	if err := db.QueryRow("SELECT * FROM tasks WHERE id=$1", tidInt).
 		Scan(&task.Id, &stid, &worker_token, &start_time, &end_time,
 			&status, &exit_status, &output); err != nil {
 			return nil, err

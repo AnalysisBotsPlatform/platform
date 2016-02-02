@@ -871,7 +871,6 @@ func handleProjectsPidNewtask(w http.ResponseWriter, r *http.Request,
 // template "tasks" and the retrieved data.
 func handleTasks(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
-    
     hErr := updateHooks(w, token)
     if(hErr != nil){
         handleError(w, r, hErr)
