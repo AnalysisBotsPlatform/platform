@@ -92,6 +92,7 @@ func UpdatePeriodTimer(){
 
 func StopPeriodRunner(){
     cancelChan <- true
+    timer.Stop()
 }
 
 func runPeriodicTasks(){
