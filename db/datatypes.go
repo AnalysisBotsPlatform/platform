@@ -118,7 +118,7 @@ type Member struct {
 // A task is a bot's execution on a project
 type Task struct {
 	Id          	int64
-	G_Id					int64
+	Gid						int64
 	Worker      	*Worker
 	Start_time  	time.Time
 	End_time    	time.Time
@@ -129,32 +129,43 @@ type Task struct {
 
 type ScheduleTask struct {
 	Id          	int64
-	G_Id					int64
-	name					strings
-	status				int64
-	next					timestamp
-	cron					string
+	Gid						int64
+	User 					*User
+	Project				*Project
+	Bot						*Bot
+	Name					strings
+	Status				int64
+	Next					timestamp
+	Cron					string
 }
 
 type UniqueTask struct {
 	Id          	int64
-	G_Id					int64
-
+	Gid						int64
+	User 					*User
+	Project				*Project
+	Bot						*Bot
+	Exec_time			timestamp
 }
 
 type InstantTask struct {
 	Id          	int64
-	G_Id					int64
-	exec_time			timestamp
+	Gid						int64
+	User 					*User
+	Project				*Project
+	Bot						*Bot
 }
 
 type EventTask struct {
 	Id          	int64
-	G_Id					int64
-	name					string
-	status				int64
-	event					int64
-	hook_id				int64
+	Gid						int64
+	User 					*User
+	Project				*Project
+	Bot						*Bot
+	Name					string
+	Status				int64
+	Event					int64
+	HookId				int64
 }
 
 // A worker executes tasks

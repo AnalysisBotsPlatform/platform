@@ -97,6 +97,7 @@ CREATE TABLE event_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	name varchar(50) NOT NULL CHECK (name <> ''),
 	gid integer REFERENCES task_groups(id) NOT NULL,
+	status integer NOT NULL,
 	event integer NOT NULL,
 	hook_id integer NOT NULL
 );
