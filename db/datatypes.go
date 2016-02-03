@@ -29,6 +29,29 @@ type User struct {
 	Admin        bool
 }
 
+// User statistics
+type User_statistics struct {
+	GH_projects      int64
+	Bots_used        int64
+	Tasks_unfinished int64
+	Tasks_total      int64
+}
+
+// API token
+type API_token struct {
+	Token string
+	Uid   int64
+	Name  string
+}
+
+// API statistics
+type API_statistics struct {
+	Was_accessed       bool
+	Last_access        time.Time
+	Interval           string
+	Remaining_accesses int64
+}
+
 // GitHub project
 type Project struct {
 	Id        int64

@@ -205,6 +205,59 @@ func createUser(user *User) {
 		user.Worker_token, user.Admin).Scan(&dummy)
 }
 
+// Fetch all user specific statistics from the database.
+func GetUserStatistics(token string) (*User_statistics, error) {
+	// declarations
+	stats := User_statistics{}
+
+	// fetch statistics
+	if err := db.QueryRow("SELECT "+
+		"(SELECT count(*) FROM users INNER JOIN members "+
+		"ON users.id = members.uid WHERE users.token = $1), "+
+		"(SELECT count(DISTINCT tasks.bid) FROM users INNER JOIN tasks "+
+		"ON users.id = tasks.uid WHERE users.token = $1), "+
+		"(SELECT count(*) FROM users INNER JOIN tasks ON users.id = tasks.uid "+
+		"WHERE users.token = $1 AND (tasks.status = 0 OR tasks.status = 1)), "+
+		"(SELECT count(*) FROM users INNER JOIN tasks ON users.id = tasks.uid "+
+		"WHERE users.token = $1)", token).Scan(&stats.GH_projects,
+		&stats.Bots_used, &stats.Tasks_unfinished,
+		&stats.Tasks_total); err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
+}
+
+// Fetch all user specific API statistics from the database.
+func GetAPIStatistics(token string) (*API_statistics, error) {
+	// declarations
+	stats := API_statistics{
+		Interval: api_restriction_interval,
+	}
+	var last_access pq.NullTime
+
+	// fetch statistics
+	if err := db.QueryRow(fmt.Sprintf("SELECT "+
+		"(SELECT max(time) FROM users INNER JOIN api_accesses "+
+		"ON users.id = api_accesses.uid WHERE users.token = $1), "+
+		"(SELECT $2 - count(*) FROM users INNER JOIN api_accesses "+
+		"ON users.id = api_accesses.uid WHERE users.token = $1 "+
+		"AND api_accesses.time > now () - interval '%s')",
+		api_restriction_interval), token, api_restriction_count).
+		Scan(&last_access, &stats.Remaining_accesses); err != nil {
+		if err != sql.ErrNoRows {
+			return nil, err
+		}
+	}
+
+	if last_access.Valid {
+		stats.Was_accessed = true
+		stats.Last_access = last_access.Time
+	}
+
+	return &stats, nil
+}
+
 // Verifies that the given token is a valid API token. Returns false if it is
 // not a valid token or the number of API accesses exceeds the value specified
 // by `api_restriction_count` within `api_restriction_interval`.
@@ -218,13 +271,10 @@ func IsValidAPIToken(token string) bool {
 		return false
 	}
 
-	db.QueryRow(fmt.Sprintf("DELETE FROM api_accesses "+
-		"WHERE time < now() - interval '%s'", api_restriction_interval)).
-		Scan(&dummy)
-
 	var accesses int
-	if err := db.QueryRow("SELECT count(*) FROM api_accesses "+
-		"WHERE uid = (SELECT uid FROM api_tokens WHERE token = $1)", token).
+	if err := db.QueryRow(fmt.Sprintf("SELECT count(*) FROM api_accesses "+
+		"WHERE uid = (SELECT uid FROM api_tokens WHERE token = $1) "+
+		"AND time > now () - interval '%s'", api_restriction_interval), token).
 		Scan(&accesses); err != nil {
 		return false
 	}
@@ -253,6 +303,65 @@ func GetUserTokenFromAPIToken(token string) (string, error) {
 	}
 
 	return result, nil
+}
+
+// Retrieves all of the user's API access tokens.
+func GetAPITokens(user_token string) ([]*API_token, error) {
+	// declarations
+	var tokens []*API_token
+	rows, err := db.Query("SELECT at.* FROM api_tokens AS at INNER JOIN users "+
+		"ON at.uid = users.id WHERE users.token = $1", user_token)
+	if err != nil {
+		return nil, err
+	}
+
+	// fetch API tokens
+	defer rows.Close()
+	for rows.Next() {
+		token := API_token{}
+
+		err := rows.Scan(&token.Token, &token.Uid, &token.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		tokens = append(tokens, &token)
+	}
+
+	return tokens, nil
+}
+
+// Generate a new API token for the given user and insert it into the database.
+func AddAPIToken(user_token, name string) error {
+	// declarations
+	api_token := nonExistingRandString(Token_length,
+		"SELECT 42 FROM api_tokens WHERE token = $1")
+	var dummy string
+
+	if err := db.QueryRow("INSERT INTO api_tokens (token, uid, name) "+
+		"VALUES ($1, (SELECT id FROM users WHERE token = $2), $3)", api_token,
+		user_token, name).Scan(&dummy); err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Delete the given API token for the given user from the database.
+func DeleteAPIToken(user_token, api_token string) error {
+	//declarations
+	token := API_token{}
+
+	if err := db.QueryRow("DELETE FROM api_tokens WHERE token = $1 "+
+		"AND uid = (SELECT id FROM users WHERE token = $2) RETURNING *",
+		api_token, user_token).Scan(&token.Token, &token.Uid,
+		&token.Name); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 //
@@ -564,6 +673,35 @@ func GetTasks(token string) ([]*Task, error) {
 	return tasks, nil
 }
 
+// This function returns the latest `size` tasks from the database specified by
+// the users' token
+func GetLatestTasks(token string, size int) ([]*Task, error) {
+	//declarations
+	var tasks []*Task
+	rows, err := db.Query("SELECT tasks.id, users.token FROM tasks"+
+		" INNER JOIN users ON tasks.uid=users.id WHERE users.token=$1"+
+		" ORDER BY tasks.id DESC LIMIT $2", token, size)
+	if err != nil {
+		return nil, err
+	}
+
+	// fetch tasks
+	defer rows.Close()
+	for rows.Next() {
+		var tid string
+		if err := rows.Scan(&tid, &token); err != nil {
+			return nil, err
+		}
+		task, err := GetTask(tid, token)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+
+	return tasks, nil
+}
+
 // This function returns the task specified by the tasks' id and the users'
 // token
 func GetTask(tid string, token string) (*Task, error) {
@@ -831,10 +969,15 @@ func SetWorkerInactive(token string) error {
 }
 
 // Returns the worker that corresponds to the given token. In case the token is
-// invalid an error is returned.
+// invalid an error is returned. In addition the last contact field is updated.
 func GetWorker(token string) (*Worker, error) {
 	// declarations
 	worker := Worker{}
+	var dummy string
+
+	// update last contact
+	db.QueryRow("UPDATE workers SET last_contact = now() WHERE token = $1",
+		token).Scan(&dummy)
 
 	// get worker
 	if err := db.QueryRow("SELECT * FROM workers WHERE token = $1", token).
@@ -844,4 +987,47 @@ func GetWorker(token string) (*Worker, error) {
 	}
 
 	return &worker, nil
+}
+
+// Retrieves all of the user's workers.
+func GetWorkers(token string) ([]*Worker, error) {
+	// declarations
+	var workers []*Worker
+	rows, err := db.Query("SELECT * FROM workers "+
+		"WHERE uid = (SELECT id FROM users WHERE token = $1)", token)
+	if err != nil {
+		return nil, err
+	}
+
+	// fetch workers
+	defer rows.Close()
+	for rows.Next() {
+		worker := Worker{}
+
+		err := rows.Scan(&worker.Id, &worker.Uid, &worker.Token, &worker.Name,
+			&worker.Last_contact, &worker.Active, &worker.Shared)
+		if err != nil {
+			return nil, err
+		}
+
+		workers = append(workers, &worker)
+	}
+
+	return workers, nil
+}
+
+// Delete the given worker for the given user from the database.
+func DeleteWorker(user_token, worker_token string) error {
+	//declarations
+	worker := Worker{}
+
+	if err := db.QueryRow("DELETE FROM workers WHERE token = $1 "+
+		"AND uid = (SELECT id FROM users WHERE token = $2) RETURNING *",
+		worker_token, user_token).Scan(&worker.Id, &worker.Uid, &worker.Token,
+		&worker.Name, &worker.Last_contact, &worker.Active,
+		&worker.Shared); err != nil {
+		return err
+	}
+
+	return nil
 }

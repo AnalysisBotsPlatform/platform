@@ -8,7 +8,8 @@ import (
 	"sync"
 )
 
-// TODO document this
+// This struct stores all relevant information to handle RPS's for the worker
+// API.
 type WorkerAPI struct {
 	available_workers map[int64][]waiting_worker
 	shared_workers    []waiting_worker
@@ -16,14 +17,14 @@ type WorkerAPI struct {
 	guard             *sync.RWMutex
 }
 
-// TODO document this
+// Payload for registering a new worker client.
 type NewWorker struct {
 	User_token string
 	Name       string
 	Shared     bool
 }
 
-// TODO document this
+// Payload for task assignments.
 type Task struct {
 	Id       int64
 	Project  string
@@ -31,7 +32,7 @@ type Task struct {
 	GH_token string
 }
 
-// TODO document this
+// Payload for returning task results.
 type Result struct {
 	Tid         int64
 	Stdout      string
@@ -39,20 +40,22 @@ type Result struct {
 	Exit_status int
 }
 
-// TODO document this
+// Enable a worker to wait for a new task by adding a channel that delivers the
+// task to execute.
 type waiting_worker struct {
 	worker          *db.Worker
 	task_assignment chan *db.Task
 }
 
-// TODO document this
+// Custom error messages.
 var (
 	InvalidToken  = errors.New("The provided token is not valid!")
+	NoTask        = errors.New("No task assigned!")
 	NotPrivileged = errors.New("Only admins can register shared workers!")
 	NotValidTask  = errors.New("The provided task is not valid!")
 )
 
-// TODO document this
+// Instantiate a new remote API for worker clients.
 func NewWorkerAPI() *WorkerAPI {
 	return &WorkerAPI{
 		available_workers: make(map[int64][]waiting_worker),
@@ -62,7 +65,13 @@ func NewWorkerAPI() *WorkerAPI {
 	}
 }
 
-// TODO document this
+// Assign an available worker to the new task. If there is no worker available
+// the task is not assigned. The assignment is done in two phases:
+//
+// 1. Try to find a worker belonging to the user that started the task.
+//
+// 2. Only if there is no such worker try to find a shared worker that can
+// execute the task.
 func (api *WorkerAPI) assignTask(task *db.Task) {
 	api.guard.Lock()
 	defer api.guard.Unlock()
@@ -82,11 +91,13 @@ func (api *WorkerAPI) assignTask(task *db.Task) {
 	}
 }
 
-// TODO document this
+// Cancel the task specified by `tid`, i.e. send an cancel signal to the worker
+// executing the task (if applicable) and update the task's status to canceled.
 func (api *WorkerAPI) cancelTask(tid int64) {
 	api.guard.Lock()
 	defer api.guard.Unlock()
 
+	// NOTE reason whether this defer call is needed or not
 	defer func() {
 		recover()
 		db.UpdateTaskStatus(tid, db.Canceled)
@@ -98,7 +109,8 @@ func (api *WorkerAPI) cancelTask(tid int64) {
 	db.UpdateTaskStatus(tid, db.Canceled)
 }
 
-// TODO document this
+// Register a new worker client for the user whose worker registration token is
+// passed.
 func (api *WorkerAPI) RegisterNewWorker(worker NewWorker, token *string) error {
 	tok, err := db.CreateWorker(worker.User_token, worker.Name, worker.Shared)
 	if err != nil { // TODO handle invalid token and not privileged
@@ -109,7 +121,8 @@ func (api *WorkerAPI) RegisterNewWorker(worker NewWorker, token *string) error {
 	return err
 }
 
-// TODO document this
+// Marks the given worker as active. Must be called before any attempt to
+// execute tasks.
 func (api *WorkerAPI) RegisterWorker(worker string, ack *bool) error {
 	err := db.SetWorkerActive(worker)
 	*ack = err == nil
@@ -120,18 +133,50 @@ func (api *WorkerAPI) RegisterWorker(worker string, ack *bool) error {
 	return err
 }
 
-// TODO document this
-func (api *WorkerAPI) UnregisterWorker(worker string, ack *bool) error {
-	err := db.SetWorkerInactive(worker)
+// Marks the given worker as inactive and removes it from the set of available
+// workers. Must be called before the worker client terminates.
+func (api *WorkerAPI) UnregisterWorker(worker_token string, ack *bool) error {
+	err := db.SetWorkerInactive(worker_token)
 	*ack = err == nil
 	if err != nil {
-		err = InvalidToken
+		return InvalidToken
 	}
 
-	return err
+	worker, err := db.GetWorker(worker_token)
+	*ack = err == nil
+	if err != nil {
+		return InvalidToken
+	}
+
+	api.guard.Lock()
+	defer api.guard.Unlock()
+
+	waiting, ok := api.available_workers[worker.Uid]
+	if ok {
+		for i, ww := range waiting {
+			if ww.worker.Id == worker.Id {
+				waiting = append(waiting[:i], waiting[i+1:]...)
+				ww.task_assignment <- nil
+				break
+			}
+		}
+		api.available_workers[worker.Uid] = waiting
+	} else {
+		for i, ww := range api.shared_workers {
+			if ww.worker.Id == worker.Id {
+				api.shared_workers = append(api.shared_workers[:i],
+					api.shared_workers[i+1:]...)
+				ww.task_assignment <- nil
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
-// TODO document this
+// Helper to add a worker to the set of available workers. Creates a
+// `waiting_worker` and inserts it into the set.
 func (api *WorkerAPI) addAvailableWorker(worker *db.Worker) waiting_worker {
 	waiting := waiting_worker{
 		worker:          worker,
@@ -148,7 +193,9 @@ func (api *WorkerAPI) addAvailableWorker(worker *db.Worker) waiting_worker {
 	return waiting
 }
 
-// TODO document this
+// Assign a pending task to the calling worker client. Blocks if there is no
+// pending task. Continues execution after a new task was created and assigned
+// to this worker.
 func (api *WorkerAPI) GetTask(worker_token string, task *Task) error {
 	worker, err := db.GetWorker(worker_token)
 	if err != nil {
@@ -173,6 +220,9 @@ func (api *WorkerAPI) GetTask(worker_token string, task *Task) error {
 		api.guard.Unlock()
 		pending = <-waiting.task_assignment
 		api.guard.Lock()
+		if pending == nil {
+			return NoTask
+		}
 	}
 
 	task.Id = pending.Id
@@ -184,7 +234,8 @@ func (api *WorkerAPI) GetTask(worker_token string, task *Task) error {
 	return nil
 }
 
-// TODO document this
+// Wait for task to complete its execution or until it is canceled. Must be
+// called immediately after `GetTask`.
 func (api *WorkerAPI) WaitForTaskCancelation(task Task, canceled *bool) error {
 	api.guard.RLock()
 	cancel, ok := api.running_workers[task.Id]
@@ -200,7 +251,7 @@ func (api *WorkerAPI) WaitForTaskCancelation(task Task, canceled *bool) error {
 	return nil
 }
 
-// TODO document this
+// Mark a pending task as running.
 func (api *WorkerAPI) PublishTaskStarted(task Task, ack *bool) error {
 	api.guard.RLock()
 	_, ok := api.running_workers[task.Id]
@@ -216,7 +267,7 @@ func (api *WorkerAPI) PublishTaskStarted(task Task, ack *bool) error {
 	return nil
 }
 
-// TODO document this
+// Return the task's result back to the server.
 func (api *WorkerAPI) PublishTaskResult(result Result, ack *bool) error {
 	api.guard.RLock()
 	cancel, ok := api.running_workers[result.Tid]

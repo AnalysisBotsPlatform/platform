@@ -258,8 +258,13 @@ func initRoutes() (rootRouter *mux.Router) {
 	rootRouter.HandleFunc("/{file:.*\\.js}", makeHandler(handleJavaScripts))
 	rootRouter.HandleFunc("/login", makeHandler(handleLogin))
 	rootRouter.HandleFunc("/logout", makeHandler(handleLogout))
-	// NOTE: Not implemented yet.
 	rootRouter.HandleFunc("/user", makeHandler(makeTokenHandler(handleUser)))
+	rootRouter.HandleFunc("/user/api_token",
+		makeHandler(makeTokenHandler(handleUserNewAPIToken))).Methods("POST")
+	rootRouter.HandleFunc("/user/api_token/revoke",
+		makeHandler(makeTokenHandler(handleUserRevokeAPIToken)))
+	rootRouter.HandleFunc("/user/worker/deregister",
+		makeHandler(makeTokenHandler(handleUserDegegisterWorker)))
 
 	// bots
 	botsRouter.HandleFunc("/", makeHandler(makeTokenHandler(handleBots)))
@@ -447,13 +452,29 @@ func getTokenOrRedirect(w http.ResponseWriter, r *http.Request,
 // displayed.
 func handleRoot(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
-	if _, ok := session.Values["token"]; ok {
-		if err := r.FormValue("err"); err != "" {
-			renderTemplate(w, "index", error_map[err])
-			delete(error_map, err)
-		} else {
-			renderTemplate(w, "index", nil)
+	if token, ok := session.Values["token"]; ok {
+		user_stats, err := db.GetUserStatistics(token.(string))
+		if err != nil {
+			handleError(w, r, err)
+			return
 		}
+
+		tasks, err := db.GetLatestTasks(token.(string), 10)
+		if err != nil {
+			handleError(w, r, err)
+			return
+		}
+
+		data := make(map[string]interface{})
+		data["User_statistics"] = user_stats
+		data["Latest_tasks_size"] = 10
+		data["Latest_tasks"] = tasks
+
+		if err := r.FormValue("err"); err != "" {
+			data["Error"] = error_map[err]
+			delete(error_map, err)
+		}
+		renderTemplate(w, "index", data)
 	} else {
 		if err := r.FormValue("err"); err != "" {
 			renderTemplate(w, "login", error_map[err])
@@ -604,10 +625,101 @@ func handleLogout(w http.ResponseWriter, r *http.Request,
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-// NOTE: Not implemented yet.
+// The handler fetches all user specific data and statistics to pass them to
+// `renderTemplate` with "user" as template.
 func handleUser(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
-	renderTemplate(w, "user", nil)
+	user, err := db.GetUser(token)
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	user_stats, err := db.GetUserStatistics(token)
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	api_stats, err := db.GetAPIStatistics(token)
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	api_tokens, err := db.GetAPITokens(token)
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	workers, err := db.GetWorkers(token)
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	data := make(map[string]interface{})
+	data["User"] = user
+	data["User_statistics"] = user_stats
+	data["API_statistics"] = api_stats
+	data["API_tokens"] = api_tokens
+	data["Workers"] = workers
+	renderTemplate(w, "user", data)
+}
+
+// The handler creates a new API token named `name` for the user and redirects
+// to the user page.
+func handleUserNewAPIToken(w http.ResponseWriter, r *http.Request,
+	vars map[string]string, session *sessions.Session, token string) {
+	name := r.FormValue("name")
+	if name == "" {
+		handleError(w, r, errors.New("Not all input fields were filled in!"))
+		return
+	}
+
+	if err := db.AddAPIToken(token, name); err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	http.Redirect(w, r, "/user", http.StatusFound)
+}
+
+// The handler invalidates the specified API token for the user and redirects to
+// the user page.
+func handleUserRevokeAPIToken(w http.ResponseWriter, r *http.Request,
+	vars map[string]string, session *sessions.Session, token string) {
+	api_token := r.FormValue("token")
+	if api_token == "" {
+		handleError(w, r, errors.New("No API token specified!"))
+		return
+	}
+
+	if err := db.DeleteAPIToken(token, api_token); err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	http.Redirect(w, r, "/user", http.StatusFound)
+}
+
+// The handler invalidates the specified worker for the user and redirects to
+// the user page.
+func handleUserDegegisterWorker(w http.ResponseWriter, r *http.Request,
+	vars map[string]string, session *sessions.Session, token string) {
+	worker_token := r.FormValue("token")
+	if worker_token == "" {
+		handleError(w, r, errors.New("No Worker token specified!"))
+		return
+	}
+
+	if err := db.DeleteWorker(token, worker_token); err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	http.Redirect(w, r, "/user", http.StatusFound)
 }
 
 // The handler requests information about all Bots from the database. If an
