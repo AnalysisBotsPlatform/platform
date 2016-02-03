@@ -706,7 +706,7 @@ func GetTask(tid string, token string) (*Task, error) {
 // TODO document this
 //
 func CreateNewScheduledTask(styp int64, name string, token string, pid string,
-	bid string, sid int64, nextTime time.Time) (*ScheduledTask, error) {
+	bid string, sid int64, nextTime time.Time, period int64) (*ScheduledTask, error) {
 	// Check whether the user is allowed to access the project
 
 	project, err := GetProject(pid, token)
@@ -732,14 +732,15 @@ func CreateNewScheduledTask(styp int64, name string, token string, pid string,
 		Bot:        	bot,
 		Status:     	Active,
 		Type:      		styp,
+		Period:				period,
 		Next:					nextTime,
 	}
 
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO scheduled_tasks"+
 		" (name, uid, pid, bid, status, schedule_type, sid, next_run)"+
-                          " VALUES ($1, $2, $3, $4, $5, $6, $7, to_timestamp($8)) RETURNING id ", name ,user.Id,
-                          project.Id, bot.Id, Active, styp, sid, nextTime.Unix()).
+                          " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, to_timestamp($9)) RETURNING id ", name ,user.Id,
+                          project.Id, bot.Id, Active, styp, sid, period, nextTime.Unix()).
 		Scan(&scheduled_task.Id); err != nil {
             fmt.Println("CreateNewScheduledTask: Error: "+err.Error())
 		return nil, err
@@ -802,10 +803,10 @@ func CreateNewTask(stid string, token string) (*Task, error) {
 // This function updates the tasks' status with the provided value
 func UpdateTaskStatus(tid int64, new_status int64) {
 	if new_status == Running {
-		db.QueryRow("UPDATE tasks SET status=$1, start_time=now()::timestamp(0) WHERE id=$2",
+		db.QueryRow("UPDATE tasks SET status=$1, start_time=now() WHERE id=$2",
 			new_status, tid)
 	} else if new_status == Cancelled {
-		db.QueryRow("UPDATE tasks SET status=$1, end_time=now()::timestamp(0) WHERE id=$2",
+		db.QueryRow("UPDATE tasks SET status=$1, end_time=now() WHERE id=$2",
 			new_status, tid)
 	} else {
 		db.QueryRow("UPDATE tasks SET status=$1 WHERE id=$2", new_status, tid)
@@ -818,7 +819,7 @@ func UpdateTaskResult(tid int64, output string, exit_code int) {
 	if exit_code != 0 {
 		new_status = Failed
 	}
-	db.QueryRow("UPDATE tasks SET status=$1, end_time=now()::timestamp(0), output=$2, "+
+	db.QueryRow("UPDATE tasks SET status=$1, end_time=now(), output=$2, "+
 		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid)
 }
 
@@ -934,7 +935,7 @@ func CreateWorker(user_token, name string, shared bool) (string, error) {
 	token := nonExistingRandString(Token_length,
 		"SELECT 42 FROM workers WHERE token = $1")
 	db.QueryRow("INSERT INTO workers (uid, token, name, last_contact, active, "+
-		"shared) VALUES ($1, $2, $3, now()::timestamp(0), $4, $5)", uid, token, name, false,
+		"shared) VALUES ($1, $2, $3, now(), $4, $5)", uid, token, name, false,
 		shared)
 
 	return token, nil
@@ -944,7 +945,7 @@ func CreateWorker(user_token, name string, shared bool) (string, error) {
 // `last_contact` time is updated. If the worker does not exist an error is
 // returned.
 func SetWorkerActive(token string) error {
-	db.QueryRow("UPDATE workers SET active=true, last_contact=now()::timestamp(0) "+
+	db.QueryRow("UPDATE workers SET active=true, last_contact=now() "+
 		"WHERE token=$1", token)
 
 	return nil
@@ -954,7 +955,7 @@ func SetWorkerActive(token string) error {
 // `last_contact` time is updated. If the worker does not exist an error is
 // returned.
 func SetWorkerInactive(token string) error {
-	db.QueryRow("UPDATE workers SET active=false, last_contact=now()::timestamp(0) "+
+	db.QueryRow("UPDATE workers SET active=false, last_contact=now() "+
 		"WHERE token=$1", token)
 
 	return nil

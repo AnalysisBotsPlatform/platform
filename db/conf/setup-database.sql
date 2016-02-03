@@ -58,6 +58,7 @@ CREATE TABLE scheduled_tasks(
 	status integer NOT NULL,
 	schedule_type integer NOT NULL,
 	sid integer NOT NULL,
+	period integer NOT NULL,
 	next_run timestamp(0)
 );
 
@@ -75,23 +76,23 @@ CREATE TABLE tasks(
 CREATE TABLE hourly_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	scale integer NOT NULL,
-	start_time timestamp(0)
+	start_time timestamp
 );
 
 CREATE TABLE daily_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
-	start_time timestamp(0)
+	start_time timestamp
 );
 
 CREATE TABLE weekly_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	weekday integer NOT NULL,
-	start_time timestamp(0)
+	start_time timestamp
 );
 
 CREATE TABLE onetime_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
-	start_time timestamp(0)
+	start_time timestamp
 );
 
 CREATE TABLE event_tasks(

@@ -119,6 +119,7 @@ type ScheduledTask struct {
 	Status      int64
 	Type				int64
 	Event 			int64
+	Period			int64
 	Next      	time.Time
 }
 
