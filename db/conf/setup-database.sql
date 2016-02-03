@@ -82,9 +82,10 @@ CREATE TABLE schedule_tasks(
 	cron varchar(100) NOT NULL CHECK (cron <> ''),
 );
 
-CREATE TABLE unique_tasks(
+CREATE TABLE onetime_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	gid integer REFERENCES task_groups(id) NOT NULL,
+    name varchar(50) NOT NULL CHECK (name <> ''),
 	exec_time timestamp
 );
 
@@ -111,6 +112,6 @@ ALTER TABLE members OWNER TO :db_user;
 ALTER TABLE task_groups OWNER TO :db_user;
 ALTER TABLE tasks OWNER TO :db_user;
 ALTER TABLE scheduled_tasks OWNER TO :db_user;
-ALTER TABLE unique_tasks OWNER TO :db_user;
+ALTER TABLE onetime_tasks OWNER TO :db_user;
 ALTER TABLE instant_tasks OWNER TO :db_user;
 ALTER TABLE event_tasks OWNER TO :db_user;

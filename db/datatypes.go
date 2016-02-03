@@ -133,18 +133,19 @@ type ScheduleTask struct {
 	User 					*User
 	Project				*Project
 	Bot						*Bot
-	Name					strings
+	Name					string
 	Status				int64
 	Next					timestamp
 	Cron					string
 }
 
-type UniqueTask struct {
+type OneTimeTask struct {
 	Id          	int64
 	Gid						int64
 	User 					*User
 	Project				*Project
 	Bot						*Bot
+    Name                string
 	Exec_time			timestamp
 }
 

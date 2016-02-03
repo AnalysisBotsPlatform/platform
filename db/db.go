@@ -708,7 +708,7 @@ func CreateScheduleTask(user_token string, pid string, bid string, name string, 
 // TODO document this
 // NOTE DONE
 //
-func CreateUniqueTask(user_token string, pid string, bid string, exec_time time.Time) (*UniqueTask, error) {
+func CreateOneTimeTask(user_token string, pid string, bid string, name string, exec_time time.Time) (*OneTimeTask, error) {
 	// Check if pid, bid are integer values
 	if _, err := strconv.ParseInt(pid, 10, 64); err != nil {
 		return nil, err
@@ -732,18 +732,20 @@ func CreateUniqueTask(user_token string, pid string, bid string, exec_time time.
 		return nil, err
 	}
 	// Create new scheduled task
-	task := UniqueTask{
+	task := OneTimeTask{
 		Gid:				gid
+        Name:               name
 		User:				user
 		Project:		project
 		Bot:				bot
 		Exec_time:	exec_time
 	}
 	// Insert into database
-	if err := db.QueryRow("INSERT INTO unique_tasks"+
-		" (gid, exec_time)"+
-    " VALUES ($1, to_timestamp($2)) RETURNING id",
-		 gid, exec_time).
+    // TODO update database -> Name
+	if err := db.QueryRow("INSERT INTO onetime_tasks"+
+		" (gid, name, exec_time)"+
+    " VALUES ($1, $2, to_timestamp($3)) RETURNING id",
+                          gid, name, exec_time.Unix()).
 		Scan(&task.Id); err != nil {
     	fmt.Println("CreateUniqueTask: Error: "+err.Error())
 			return nil, err
@@ -1348,3 +1350,6 @@ func GetPendingTask(uid int64, shared bool) (*Task, error) {
 // 	}
 // 	return tasks, nil
 // }
+
+
+
