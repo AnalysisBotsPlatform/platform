@@ -735,7 +735,6 @@ func CreateNewScheduledTask(styp int64, name string, token string, pid string,
 		Next:					nextTime,
 	}
 
-
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO scheduled_tasks"+
 		" (name, uid, pid, bid, status, schedule_type, sid, next_run)"+
@@ -745,17 +744,6 @@ func CreateNewScheduledTask(styp int64, name string, token string, pid string,
             fmt.Println("CreateNewScheduledTask: Error: "+err.Error())
 		return nil, err
 	}
-
-
-
-
-    // TODO WHY ARE WE DOING THIS!!!!!!!!!!!!!!!????????????????????
-	task, err := CreateNewTask(strconv.FormatInt(scheduled_task.Id, 10), token)
-	if err != nil {
-		return nil, err
-	}
-	var tasks []*Task
-	scheduled_task.Tasks = append(tasks, task)
 
 	return &scheduled_task, nil
 }
