@@ -247,7 +247,7 @@ func UpdateProjects(values interface{}, token string) ([]*Project, error) {
 	var gh_id, pid int64
 	for rows.Next() {
 		if err := rows.Scan(&gh_id, &pid, &uid); err != nil {
-			return nil, err
+			return nil, nil
 		}
 		if _, ok := identifier[gh_id]; !ok {
 			db.QueryRow("DELETE FROM members WHERE uid=$1 AND pid=$2", uid, pid)
@@ -413,9 +413,8 @@ func GetBots() ([]*Bot, error) {
 		bot := Bot{}
 		var description, tags, fs_path sql.NullString
 
-		err := rows.Scan(&bot.Id, &bot.Name, &description, &tags, &fs_path)
-		if err != nil {
-			return nil, err
+		if err := rows.Scan(&bot.Id, &bot.Name, &description, &tags, &fs_path); err != nil {
+			return nil, nil
 		}
 
 		if description.Valid {
@@ -472,21 +471,21 @@ func GetScheduledTasks(token string) ([]*ScheduledTask, error) {
 	var stid 						int64
 
     fmt.Println("Retrieve Tasks...")
-    
+
 	rows, err := db.Query("SELECT scheduled_tasks.id FROM scheduled_tasks"+
 		" INNER JOIN users ON scheduled_tasks.uid=users.id WHERE users.token=$1"+
 		" ORDER BY scheduled_tasks.id", token)
 	if err != nil {
 		return nil, err
 	}
-    
+
     fmt.Println("Retrieved Tasks")
 
 	// fetch tasks
 	defer rows.Close()
 	for rows.Next() {
 		if err := rows.Scan(&stid); err != nil {
-			return nil, err
+			return nil, nil
 		}
 		scheduled_task, err := GetScheduledTask(strconv.FormatInt(stid, 10), token, false)
 		if err != nil {
@@ -591,7 +590,7 @@ func GetTasks(stid string, token string) ([]*Task, error) {
 
 	rows, err := db.Query("SELECT parent.id FROM "+
                           " (SELECT scheduled_tasks.id, scheduled_tasks.uid FROM tasks"+
-                          " INNER JOIN scheduled_tasks ON tasks.stid = scheduled_tasks.id) AS parent"+               
+                          " INNER JOIN scheduled_tasks ON tasks.stid = scheduled_tasks.id) AS parent"+
 		" INNER JOIN users ON parent.uid=users.id WHERE users.token=$1 AND parent.id=$2"+
 		" ORDER BY parent.id", token, stidInt)
 	if err != nil {
@@ -602,7 +601,7 @@ func GetTasks(stid string, token string) ([]*Task, error) {
 	defer rows.Close()
 	for rows.Next() {
 		if err := rows.Scan(&tid); err != nil {
-			return nil, err
+			return nil, nil
 		}
 		task, err := GetTask(strconv.FormatInt(tid, 10), token)
 		if err != nil {
@@ -632,7 +631,7 @@ func GetAllTasks(token string) ([]*Task, error) {
 	for rows.Next() {
 
 		if err := rows.Scan(&tid); err != nil {
-			return nil, err
+			return nil, nil
 		}
 		task, err := GetTask(strconv.FormatInt(tid, 10), token)
 		if err != nil {
@@ -709,7 +708,7 @@ func GetTask(tid string, token string) (*Task, error) {
 func CreateNewScheduledTask(styp int64, name string, token string, pid string,
 	bid string, sid int64, nextTime time.Time) (*ScheduledTask, error) {
 	// Check whether the user is allowed to access the project
-    
+
 	project, err := GetProject(pid, token)
 	if err != nil {
 		return nil, err
@@ -735,7 +734,7 @@ func CreateNewScheduledTask(styp int64, name string, token string, pid string,
 		Type:      		styp,
 		Next:					nextTime,
 	}
-    
+
 
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO scheduled_tasks"+
@@ -746,10 +745,10 @@ func CreateNewScheduledTask(styp int64, name string, token string, pid string,
             fmt.Println("CreateNewScheduledTask: Error: "+err.Error())
 		return nil, err
 	}
-    
 
 
-    
+
+
     // TODO WHY ARE WE DOING THIS!!!!!!!!!!!!!!!????????????????????
 	task, err := CreateNewTask(strconv.FormatInt(scheduled_task.Id, 10), token)
 	if err != nil {
@@ -852,7 +851,7 @@ func GetTimedOverTasks(maxseconds int64) ([]int64, error) {
 	// get starting time of running bots
 	for rows.Next() {
 		if err := rows.Scan(&tid, &starttime); err != nil {
-			return nil, err
+			return nil, nil
 		}
 		// check if running time succeeded maximal time
 		if starttime.Valid {
@@ -882,7 +881,7 @@ func GetPendingTask(uid int64, shared bool) (*Task, error) {
 	for rows.Next() {
 		var tid, uid, status, token string
 		if err := rows.Scan(&tid, &uid, &status, &token); err != nil {
-			return nil, err
+			return nil, nil
 		}
 		task, err := GetTask(tid, token)
 		if err != nil {
@@ -905,7 +904,7 @@ func GetPendingTask(uid int64, shared bool) (*Task, error) {
 		for rows.Next() {
 			var tid, status, token string
 			if err := rows.Scan(&tid, &status, &token); err != nil {
-				return nil, err
+				return nil, nil
 			}
 			task, err := GetTask(tid, token)
 			if err != nil {
@@ -1147,7 +1146,7 @@ func GetRunningScheduledTasks(token string) ([]*ScheduledTask, error) {
 	for rows.Next() {
 		var tid int64
 		if err := rows.Scan(&tid); err != nil {
-			return nil, err
+			return nil, nil
 		}
 		task, err := GetScheduledTask(strconv.FormatInt(tid, 10), token, false)
 		if err != nil {
@@ -1208,7 +1207,7 @@ func GetRunningChildren(stid int64)([]*Task, error){
 		var tid int64
 		var token string
 		if err := rows.Scan(&tid, &token); err != nil {
-			return nil, err
+			return nil, nil
 		}
 		task, err := GetTask(strconv.FormatInt(tid, 10), token)
 		if err != nil {
@@ -1255,7 +1254,7 @@ func GetOverdueScheduledTasks(max_time time.Time) ([]*ScheduledTask, error){
 		var next pq.NullTime
 		var token string
 		if err := rows.Scan(&stid, &next, &token); err != nil {
-			return nil, err
+			return nil, nil
 		}
 		if next.Valid {
 			if int64(time.Since(next.Time).Seconds()) <= int64(time.Since(max_time).Seconds()) {
