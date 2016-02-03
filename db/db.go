@@ -805,7 +805,7 @@ func UpdateTaskStatus(tid int64, new_status int64) {
 	if new_status == Running {
 		db.QueryRow("UPDATE tasks SET status=$1, start_time=now() WHERE id=$2",
 			new_status, tid)
-	} else if new_status == Cancelled {
+	} else if new_status == Canceled {
 		db.QueryRow("UPDATE tasks SET status=$1, end_time=now() WHERE id=$2",
 			new_status, tid)
 	} else {

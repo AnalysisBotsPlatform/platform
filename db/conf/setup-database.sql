@@ -49,22 +49,22 @@ CREATE TABLE workers(
 	shared boolean NOT NULL
 );
 
-CREATE TABLE scheduled_tasks(
-	id SERIAL PRIMARY KEY NOT NULL,
-	name varchar(50) NOT NULL CHECK (name <> ''),
+CREATE TABLE members(
 	uid integer REFERENCES users(id) NOT NULL,
 	pid integer REFERENCES projects(id) NOT NULL,
-	bid integer REFERENCES bots(id) NOT NULL,
-	status integer NOT NULL,
-	schedule_type integer NOT NULL,
-	sid integer NOT NULL,
-	period integer NOT NULL,
-	next_run timestamp
+	PRIMARY KEY (uid, pid)
+);
+
+CREATE TABLE task_groups(
+	id SERIAL PRIMARY KEY NOT NULL,
+	uid integer REFERENCES users(id) NOT NULL,
+	pid integer REFERENCES projects(id) NOT NULL,
+	bid integer REFERENCES bots(id) NOT NULL
 );
 
 CREATE TABLE tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
-	stid integer REFERENCES scheduled_tasks(id) NOT NULL,
+	gid integer REFERENCES task_groups(id) NOT NULL,
 	worker_token varchar(50) NOT NULL UNIQUE CHECK (worker_token <> ''),
 	start_time timestamp,
 	end_time timestamp,
@@ -73,38 +73,32 @@ CREATE TABLE tasks(
 	output text
 );
 
-CREATE TABLE hourly_tasks(
+CREATE TABLE schedule_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
-	scale integer NOT NULL,
-	start_time timestamp
+	name varchar(50) NOT NULL CHECK (name <> ''),
+	gid integer REFERENCES task_groups(id) NOT NULL,
+	status integer NOT NULL,
+	next timestamp,
+	cron varchar(100) NOT NULL CHECK (cron <> ''),
 );
 
-CREATE TABLE daily_tasks(
+CREATE TABLE unique_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
-	start_time timestamp
+	gid integer REFERENCES task_groups(id) NOT NULL,
+	exec_time timestamp
 );
 
-CREATE TABLE weekly_tasks(
+CREATE TABLE instant_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
-	weekday integer NOT NULL,
-	start_time timestamp
-);
-
-CREATE TABLE onetime_tasks(
-	id SERIAL PRIMARY KEY NOT NULL,
-	start_time timestamp
+	gid integer REFERENCES task_groups(id) NOT NULL
 );
 
 CREATE TABLE event_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
-	event_type integer NOT NULL,
+	name varchar(50) NOT NULL CHECK (name <> ''),
+	gid integer REFERENCES task_groups(id) NOT NULL,
+	event integer NOT NULL,
 	hook_id integer NOT NULL
-);
-
-CREATE TABLE members(
-	uid integer REFERENCES users(id) NOT NULL,
-	pid integer REFERENCES projects(id) NOT NULL,
-	PRIMARY KEY (uid, pid)
 );
 
 -- Transfer ownership to the newly created user.
@@ -112,5 +106,10 @@ ALTER TABLE users OWNER TO :db_user;
 ALTER TABLE bots OWNER TO :db_user;
 ALTER TABLE projects OWNER TO :db_user;
 ALTER TABLE workers OWNER TO :db_user;
-ALTER TABLE tasks OWNER TO :db_user;
 ALTER TABLE members OWNER TO :db_user;
+ALTER TABLE task_groups OWNER TO :db_user;
+ALTER TABLE tasks OWNER TO :db_user;
+ALTER TABLE scheduled_tasks OWNER TO :db_user;
+ALTER TABLE unique_tasks OWNER TO :db_user;
+ALTER TABLE instant_tasks OWNER TO :db_user;
+ALTER TABLE event_tasks OWNER TO :db_user;

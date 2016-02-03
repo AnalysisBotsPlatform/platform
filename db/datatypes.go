@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+//
+// ## Constants ##
+//
+
 // Token length
 const Token_length = 32
 
@@ -12,7 +16,7 @@ const Token_length = 32
 const (
 	Pending   = iota
 	Running   = iota
-	Cancelled = iota
+	Canceled 	= iota
 	Succeeded = iota
 	Failed    = iota
 )
@@ -54,23 +58,26 @@ const (
 	watch												= iota
 )
 
-// Schedule Status
+// Statuses of a Scheduled Task
 const (
 	Active 		= iota
 	Stopped		= iota
 	Complete 	= iota
 )
 
-// Schedule Types
+// Trigger for a task
 const (
-	Hourly	= iota
-	Daily 	= iota
-	Weekly 	= iota
-  OneTime = iota
-	Instant = iota
-	Event 	= iota
+	Hourly		= iota	// every hour
+	Daily 		= iota	// every day
+	Weekly 		= iota	// every week
+  Unique 		= iota	// just once
+	Instant 	= iota	// immediately
+	Event 		= iota	// when event occurs
 )
 
+//
+// ## Data Structures ##
+//
 
 // User
 type User struct {
@@ -109,30 +116,45 @@ type Member struct {
 }
 
 // A task is a bot's execution on a project
-type ScheduledTask struct {
-	Id          int64
-	Name				string
-	Tasks				[]*Task
-	User        *User
-	Project     *Project
-	Bot         *Bot
-	Status      int64
-	Type				int64
-	Event 			int64
-	Period			int64
-	Next      	time.Time
-}
-
-// A task is a bot's execution on a project
 type Task struct {
 	Id          	int64
-	ScheduledTask *ScheduledTask
+	G_Id					int64
 	Worker      	*Worker
 	Start_time  	time.Time
 	End_time    	time.Time
 	Status      	int64
 	Exit_status 	int64
 	Output      	string
+}
+
+type ScheduleTask struct {
+	Id          	int64
+	G_Id					int64
+	name					strings
+	status				int64
+	next					timestamp
+	cron					string
+}
+
+type UniqueTask struct {
+	Id          	int64
+	G_Id					int64
+
+}
+
+type InstantTask struct {
+	Id          	int64
+	G_Id					int64
+	exec_time			timestamp
+}
+
+type EventTask struct {
+	Id          	int64
+	G_Id					int64
+	name					string
+	status				int64
+	event					int64
+	hook_id				int64
 }
 
 // A worker executes tasks
@@ -146,14 +168,18 @@ type Worker struct {
 	Shared       bool
 }
 
+//
+// ## Helper Functions ##
+//
+
 func (t *Task) StatusString() string {
 	switch {
 	case t.Status == Pending:
 		return "Pending"
 	case t.Status == Running:
 		return "Running"
-	case t.Status == Cancelled:
-		return "Cancelled"
+	case t.Status == Canceled:
+		return "Canceled"
 	case t.Status == Succeeded:
 		return "Succeeded"
 	case t.Status == Failed:
