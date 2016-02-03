@@ -44,7 +44,7 @@ CREATE TABLE workers(
 	uid integer REFERENCES users(id) NOT NULL,
 	token varchar(50) NOT NULL UNIQUE CHECK (token <> ''),
 	name varchar(50) NOT NULL,
-	last_contact timestamp(0) NOT NULL,
+	last_contact timestamp NOT NULL,
 	active boolean NOT NULL,
 	shared boolean NOT NULL
 );
@@ -59,15 +59,15 @@ CREATE TABLE scheduled_tasks(
 	schedule_type integer NOT NULL,
 	sid integer NOT NULL,
 	period integer NOT NULL,
-	next_run timestamp(0)
+	next_run timestamp
 );
 
 CREATE TABLE tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	stid integer REFERENCES scheduled_tasks(id) NOT NULL,
 	worker_token varchar(50) NOT NULL UNIQUE CHECK (worker_token <> ''),
-	start_time timestamp(0),
-	end_time timestamp(0),
+	start_time timestamp,
+	end_time timestamp,
 	status integer NOT NULL,
 	exit_status integer,
 	output text
