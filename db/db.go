@@ -558,7 +558,7 @@ func GetScheduledTasks(token string) ([]*ScheduledTask, error) {
 		if err := rows.Scan(&stid); err != nil {
 			return nil, nil
 		}
-		scheduled_task, err := GetScheduledTask(strconv.FormatInt(stid, 10), token, false)
+		scheduled_task, _, err := GetScheduledTask(strconv.FormatInt(stid, 10), token, false)
 		if err != nil {
 			return nil, err
 		}
@@ -570,7 +570,7 @@ func GetScheduledTasks(token string) ([]*ScheduledTask, error) {
 //
 // TODO document this
 //
-func GetScheduledTask(stid string, token string, children bool) (*ScheduledTask, error) {
+func GetScheduledTask(stid string, token string, children bool) (*ScheduledTask, []*Task, error) {
 	// declarations
 	scheduled_task := ScheduledTask{}
 	var name 					sql.NullString
@@ -580,67 +580,33 @@ func GetScheduledTask(stid string, token string, children bool) (*ScheduledTask,
 	var event 				sql.NullInt64
 	var next 					pq.NullTime
 
-    tid, cErr := strconv.ParseInt(stid, 10, 64)
-    if cErr != nil{
-        return nil, cErr
-    }
-	// fetch scheduled task entry for stid
-	if err := db.QueryRow("SELECT * FROM scheduled_tasks WHERE id=$1", tid).
-		Scan(&scheduled_task.Id, &name, &uid, &pid, &bid, &status,
-		&stype, &event, &next); err != nil {
-		return nil, err
-	}
+    // TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
-	// fetch subtasks
-	if children {
-		tasks, err := GetTasks(stid, token)
-		if err != nil {
-			return nil, err
-		}
-		scheduled_task.Tasks = tasks
-	} else {
-		scheduled_task.Tasks = nil
-	}
+	var tasks []*Task
 
 	// fetch user and verify token
 	user, err := getUser(strconv.FormatInt(uid, 10), token)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	scheduled_task.User = user
 
 	// fetch project
 	project, err := GetProject(strconv.FormatInt(pid, 10), token)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	scheduled_task.Project = project
 
 	// fetch bot
 	bot, err := GetBot(strconv.FormatInt(bid, 10))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	scheduled_task.Bot = bot
 
-	if name.Valid {
-		scheduled_task.Name = name.String
-	}
-	if status.Valid {
-		scheduled_task.Status = status.Int64
-	}
-	if stype.Valid {
-		scheduled_task.Type = stype.Int64
-	}
-	if event.Valid {
-		scheduled_task.Event = event.Int64
-	}
-	if next.Valid {
-		scheduled_task.Next = next.Time
-	}
 
-	return &scheduled_task, nil
+	return &scheduled_task, tasks, nil
 }
 
 //
@@ -658,7 +624,7 @@ func CreateTaskGroup(uid string, pid string, bid string) (int64, error) {
 // TODO document this
 // NOTE DONE
 //
-func CreateScheduleTask(user_token string, pid string, bid string, name string, next time.Time, cron string) (*ScheduleTask, error) {
+func CreateScheduleTask(user_token string, pid string, bid string, name string, next time.Time, cron string) (*ScheduledTask, error) {
 	// Check if pid, bid are integer values
 	if _, err := strconv.ParseInt(pid, 10, 64); err != nil {
 		return nil, err
@@ -683,15 +649,14 @@ func CreateScheduleTask(user_token string, pid string, bid string, name string, 
 	}
 	// Create new scheduled task
 	task := ScheduleTask{
-		Gid:			gid
-		User:			user
-		Project: 	project
-		Bot:			bot
-		Name:			name
-		Status:		status
-		Next:			next
-		Cron:			cron
-	}
+		Gid:			gid,
+		User:			user,
+		Project: 	project,
+		Bot:			bot,
+		Name:			name,
+		Status:		status,
+		Next:			next,
+		Cron:			cron }
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO schedule_tasks"+
 		" (name, gid, status, next, cron)"+
@@ -733,13 +698,12 @@ func CreateOneTimeTask(user_token string, pid string, bid string, name string, e
 	}
 	// Create new scheduled task
 	task := OneTimeTask{
-		Gid:				gid
-        Name:               name
-		User:				user
-		Project:		project
-		Bot:				bot
-		Exec_time:	exec_time
-	}
+		Gid:				gid,
+        Name:               name,
+		User:				user,
+		Project:		project,
+		Bot:				bot,
+		Exec_time:	exec_time }
 	// Insert into database
     // TODO update database -> Name
 	if err := db.QueryRow("INSERT INTO onetime_tasks"+
@@ -782,11 +746,10 @@ func CreateInstantTask(user_token string, pid string, bid string) (*InstantTask,
 	}
 	// Create new scheduled task
 	task := InstantTask{
-		Gid:				gid
-		User:				user
-		Project:		project
-		Bot:				bot
-	}
+		Gid:				gid,
+		User:				user,
+		Project:		project,
+		Bot:				bot }
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO instant_tasks"+
 		" (gid)"+
@@ -828,15 +791,14 @@ func CreateEventTask(user_token string, pid string, bid string, name string, sta
 	}
 	// Create new scheduled task
 	task := EventTask{
-		Gid:				gid
-		User:				user
-		Project:		project
-		Bot:				bot
-		Name:				name
-		Status:			status
-		Event:			event
-		HookId:			hookId
-	}
+		Gid:				gid,
+		User:				user,
+		Project:		project,
+		Bot:				bot,
+		Name:				name,
+		Status:			status,
+		Event:			event,
+		HookId:			hookId	}
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO _tasks"+
 		" (name, gid, event, hook_id)"+
@@ -879,8 +841,7 @@ func CreateTask(gid string, user_token string) (*Task, error) {
 		End_time:     end.Time,
 		Status:     	Active,
 		Exit_status:	-1,
-		Output:      	"",
-	}
+		Output:      	""	}
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO tasks"+
 		" (gid, worker_token, start_time, end_time, status, exit_status, output)"+
@@ -991,7 +952,7 @@ func GetHookId(tid int64) (int64, error){
 	var hookId sql.NullInt64
 	if err := db.QueryRow("SELECT hook_id FROM"+
 	"	(SELECT task_groups.id FROM task_groups"+
-	" INNER JOIN tasks ON tasks.gid=task_groups.id) AS parent"
+	" INNER JOIN tasks ON tasks.gid=task_groups.id) AS parent"+
 	"	INNER JOIN event_tasks ON event_tasks.gid=parent.id"+
 	" WHERE tasks.id=$1", tid).
 	Scan(&hookId); err == sql.ErrNoRows {
@@ -1032,8 +993,8 @@ func UpdateTaskStatus(tid int64, new_status int) error {
 // TODO document this
 // NOTE DONE
 //
-func UpdateEventTaskStatus(?? int64, new_status int) error {
-		_, err := db.Exec("UPDATE event_tasks SET status=$1 WHERE id=$2", new_status, ??)
+func UpdateEventTaskStatus(eid int64, new_status int) error {
+		_, err := db.Exec("UPDATE event_tasks SET status=$1 WHERE id=$2", new_status, eid)
 	return err
 }
 
@@ -1350,6 +1311,3 @@ func GetPendingTask(uid int64, shared bool) (*Task, error) {
 // 	}
 // 	return tasks, nil
 // }
-
-
-

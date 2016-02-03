@@ -127,7 +127,7 @@ type Task struct {
 	Output      	string
 }
 
-type ScheduleTask struct {
+type ScheduledTask struct {
 	Id          	int64
 	Gid						int64
 	User 					*User
@@ -135,7 +135,7 @@ type ScheduleTask struct {
 	Bot						*Bot
 	Name					string
 	Status				int64
-	Next					timestamp
+	Next					time.Time
 	Cron					string
 }
 
@@ -146,7 +146,7 @@ type OneTimeTask struct {
 	Project				*Project
 	Bot						*Bot
     Name                string
-	Exec_time			timestamp
+	Exec_time			time.Time
 }
 
 type InstantTask struct {

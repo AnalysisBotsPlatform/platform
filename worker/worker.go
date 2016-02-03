@@ -4,6 +4,7 @@ package worker
 import (
 	"fmt"
 	"github.com/AnalysisBotsPlatform/platform/db"
+	"github.com/gorhill/cronexpr"
 	"net"
 	"net/rpc"
     "time"
@@ -21,10 +22,11 @@ var api *WorkerAPI
 var timer *time.Timer
 
 // channel to cancel period runner
-var cancelChan chan bool
+var pauseChan chan bool
 
-// channel to send signal for next tasks
-var timeChan <-chan time.Time
+var runningTasks map[int64]chan bool
+
+
 
 // Initialization of the worker. Sets up the RPC infrastructure.
 func Init(port string) error {
@@ -35,15 +37,10 @@ func Init(port string) error {
 	if err != nil {
 		return err
 	}
-    
-    timer = time.NewTimer(1*time.Hour)
-    timeChan = timer.C
-    
-    cancelChan = make(chan bool, 1)
-    
-    UpdatePeriodTimer()
-    
-    go runPeriodicTasks()
+
+	pauseChan = make(chan bool)
+	runningTasks = make(map[int64]chan bool)
+
 
 	go rpc.Accept(listener)
 
@@ -63,11 +60,87 @@ func CreateNewTask(parentTaskId int64) error{
 }
 
 
+func RunScheduledTask(stid int64){
+	cancelChan = make(chan bool, 1)
+	runningTasks[stid] = cancelChan
+	go runScheduledTask(stid, cancelChan)
+}
+
+
+func RunOneTimeTask(otid int64){
+	cancelChan = make(chan bool)
+	runningTasks[otid] = cancelChan
+	go runOneTimeTask(otid, cancelChan)
+}
+
+// ############################
+// TODO
+// cancel GroupTasks
+// ############################
+
+func CancelScheduledTask(stid int64) error{
+	runningTasks[stid] <- true
+	err := db.UpdateScheduledTaskStatus(stid, db.Complete)
+	runningChildren, gErr := db.GetRunningChildren(stid)
+	if(gErr != nil){
+		return gErr
+	}
+
+	for _, childTask := range runningChildren{
+		cancel(childTask.Id)
+	}
+
+	return err
+}
+
+func CancelOneTimeTask(stid int64) error{
+	runningTasks[stid] <- true
+	err := db.UpdateOneTimeTaskStatus(stid, db.Complete)
+	runningChildren, gErr := db.GetRunningChildren(stid)
+	if(gErr != nil){
+		return gErr
+	}
+
+	for _, childTask := range runningChildren{
+		cancel(childTask.Id)
+	}
+
+	return err
+}
+
+
+func CancelEventTask(stid int64) error{
+	err := db.UpdateEventTaskStatus(stid, db.Complete)
+	runningChildren, gErr := db.GetRunningChildren(stid)
+	if(gErr != nil){
+		return gErr
+	}
+
+	for _, childTask := range runningChildren{
+		cancel(childTask.Id)
+	}
+
+	return err
+}
+
+func CancelInstantTask(stid int64) error{
+	runningTasks[stid] <- true
+	runningChildren, gErr := db.GetRunningChildren(stid)
+	if(gErr != nil){
+		return gErr
+	}
+
+	for _, childTask := range runningChildren{
+		cancel(childTask.Id)
+	}
+
+	return nil
+}
 
 // Cancels the running task specified by the given task id using the channel.
 // Also updates the database entry accordingly.
-func Cancle(tid int64) {
-	
+func cancel(tid int64) {
+
 	api.cancelTask(tid)
 
 }
@@ -80,93 +153,49 @@ func CancleTimedOverTasks() {
 	}
 }
 
-func UpdatePeriodTimer(){
-    nextExecTime, err := db.GetMinimalNextTime()
-    if(err != nil){
-        // TODO error handling
-    }
-    sleepTime := nextExecTime.Sub(time.Now())
-    timer.Reset(sleepTime)
+
+func StopPeriodRunners(){
+    close(pauseChan)
 }
 
-
-func StopPeriodRunner(){
-    cancelChan <- true
-    timer.Stop()
+func runScheduledTask(stid int64, cancelChan chan bool){
+	for{
+		scheduledTask, err := db.GetScheduledTask(stid)
+		if(err != nil){
+			db.UpdateScheduledTaskStatus(stid, db.Complete)
+			return
+		}
+		nextTime := cronexpr.MustParse(scheduledTask.cron).Next(time.Now())
+		sleepTime := nextTime.Sub(time.Now())
+		uErr := db.UpdateNextScheduleTime(scheduledTask.Id, nextTime)
+		if(uErr != nil){
+			db.UpdateScheduledTaskStatus(stid, db.Complete)
+			return
+		}
+		select{
+		case <- time.After(sleepTime):
+			CreateNewTask(stid)
+		case <- cancelChan:
+			db.UpdateScheduledTaskStatus(stid, db.Complete)
+			return;
+		case <- pauseChan:
+			return;
+		}
+	}
 }
 
-func runPeriodicTasks(){
-    for{
-        select{
-            case <- timeChan:
-            scheduledTasks, err := db.GetOverdueScheduledTasks(time.Now())
-            if(err != nil){
-                // TODO error handling
-            }
-            for _, task := range scheduledTasks{
-                err := CreateNewTask(task.Id)
-                if(err != nil){
-                    continue
-                }
-                updateScheduleTimeAndStatus(task)
-                UpdatePeriodTimer()
-            }
-            
-            case <- cancelChan:
-                return;
-        }
-    }
-}
-
-func ComputeDate(t time.Time, day int) time.Time{
-    
-    currentDay := int(t.Weekday())
-    var dayDiff int
-    if(day >= currentDay){
-        dayDiff = day - currentDay
-    }else{
-        dayDiff = 7 - (currentDay - day)
-    }
-    
-    return t.AddDate(0,0, dayDiff)
-    
-}
-
-
-// TODO document this
-
-// TODO error handling
-
-func updateScheduleTimeAndStatus(task *db.ScheduledTask){
-    taskType := task.Type
-    tid := task.Id
-    switch(taskType){
-        case db.Hourly:
-            hours, hErr := db.GetHourlyTaskHours(tid)
-            if(hErr != nil){
-                // TODO error handling
-            }
-            scheduledTime := task.Next
-            scheduledTime = scheduledTime.Add(time.Duration(hours)*time.Hour)
-            db.UpdateNextScheduleTime(tid, &scheduledTime)
-            break;
-        case db.Daily:
-            scheduledTime := task.Next
-            scheduledTime = scheduledTime.AddDate(0, 0, 1)
-            db.UpdateNextScheduleTime(tid, &scheduledTime)
-            break;
-        case db.Weekly:
-            scheduledTime := task.Next
-            scheduledTime = scheduledTime.AddDate(0, 0, 7)
-            db.UpdateNextScheduleTime(tid, &scheduledTime)
-            break;
-        
-        case db.OneTime:
-            db.UpdateScheduledTaskStatus(tid, db.Complete)
-            break;
-        
-        case db.Instant:
-            db.UpdateScheduledTaskStatus(tid, db.Complete)
-            break;
-    }
+func runOneTimeTask(otid int64, cancelChan chan bool){
+	oneTimeTask, err := db.GetOneTimeTask(otid)
+	if(err != nil){
+		// TODO error handling
+		return;
+	}
+	select{
+	case <- time.After(oneTimeTask.next.Sub(time.Now())):
+		CreateNewTask(otid)
+	case <- cancelChan:
+		return;
+	case <- pauseChan:
+		return;
+	}
 }
