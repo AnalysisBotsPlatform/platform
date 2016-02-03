@@ -11,6 +11,7 @@ import (
 	"github.com/AnalysisBotsPlatform/platform/worker"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
+    "github.com/gorhill/cronexpr"
 	"html/template"
 	"io/ioutil"
 	"net/http"
@@ -306,18 +307,15 @@ func initRoutes() (rootRouter *mux.Router) {
 		makeHandler(makeTokenHandler(handleBotsBid)))
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/newtask", id_regex),
 		makeHandler(makeTokenHandler(handleBotsBidNewtask)))
-    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/0/{name:%s}/{hours:%s}", id_regex, id_regex, bot_name_regex, time_regex),
-		makeHandler(makeTokenHandler(handleTasksNewHourly)))
-    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/1/{name:%s}/{hour:%s}", id_regex, id_regex, bot_name_regex, time_regex),
-		makeHandler(makeTokenHandler(handleTasksNewDaily)))
-    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/2/{name:%s}/{weekday:%s}/{hour:%s}", id_regex, id_regex, bot_name_regex, day_regex, time_regex),
-		makeHandler(makeTokenHandler(handleTasksNewWeekly)))
-    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/3/{name:%s}/{hour:%s}", id_regex, id_regex, bot_name_regex, time_regex),
-		makeHandler(makeTokenHandler(handleTasksNewOneTime)))
-    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/4/{name:%s}", id_regex, id_regex, bot_name_regex),
-		makeHandler(makeTokenHandler(handleTasksNewInstant)))
-    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}/5/{name:%s}/{event:%s}", id_regex, id_regex, bot_name_regex, event_regex),
-		makeHandler(makeTokenHandler(handleTasksNewEventDriven)))
+    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
+                          makeHandler(makeTokenHandler(handleTasksNewScheduled))).Queries("name", "", "cron", "")
+    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
+                          makeHandler(makeTokenHandler(handleTasksNewOnetime))).Queries("name", "", "time", "")
+    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
+                          makeHandler(makeTokenHandler(handleTasksNewManual)))
+    botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
+                          makeHandler(makeTokenHandler(handleTasksNewEvent))).Queries("name", "", "type", "")
+
 
 
 	// projects
@@ -327,19 +325,14 @@ func initRoutes() (rootRouter *mux.Router) {
 		makeHandler(makeTokenHandler(handleProjectsPid)))
 	projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/newtask", id_regex),
 		makeHandler(makeTokenHandler(handleProjectsPidNewtask)))
-    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/0/{name:%s}/{hours:%s}", id_regex, id_regex, bot_name_regex, time_regex),
-		makeHandler(makeTokenHandler(handleTasksNewHourly)))
-    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/1/{name:%s}/{hour:%s}", id_regex, id_regex, bot_name_regex, time_regex),
-		makeHandler(makeTokenHandler(handleTasksNewDaily)))
-    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/2/{name:%s}/{weekday:%s}/{hour:%s}", id_regex, id_regex, bot_name_regex, day_regex, time_regex),
-		makeHandler(makeTokenHandler(handleTasksNewWeekly)))
-    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/3/{name:%s}/{hour:%s}", id_regex, id_regex, bot_name_regex, time_regex),
-		makeHandler(makeTokenHandler(handleTasksNewOneTime)))
-    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/4/{name:%s}", id_regex, id_regex, bot_name_regex),
-		makeHandler(makeTokenHandler(handleTasksNewInstant)))
-    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}/5/{name:%s}/{event:%s}", id_regex, id_regex, bot_name_regex, event_regex),
-		makeHandler(makeTokenHandler(handleTasksNewEventDriven)))
-
+    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
+                          makeHandler(makeTokenHandler(handleTasksNewScheduled))).Queries("name", "", "cron", "")
+    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
+                          makeHandler(makeTokenHandler(handleTasksNewOnetime))).Queries("name", "", "time", "")
+    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
+                          makeHandler(makeTokenHandler(handleTasksNewManual)))
+    projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
+                          makeHandler(makeTokenHandler(handleTasksNewEvent))).Queries("name", "", "type", "")
 	// tasks
 	tasksRouter.HandleFunc("/", makeHandler(makeTokenHandler(handleTasks)))
 	tasksRouter.HandleFunc(fmt.Sprintf("/{tid:%s}", id_regex),
@@ -443,7 +436,7 @@ func authGitHubRequest(w http.ResponseWriter, req_url string,
 // TODO document this
 func authGitHubRequestPost(w http.ResponseWriter, req_url string,
 	token string, payload []byte) (interface{}, error) {
-	
+
 	// set up request
 	client := &http.Client{}
 	req, _ := http.NewRequest("POST",
@@ -480,9 +473,9 @@ func authGitHubRequestPost(w http.ResponseWriter, req_url string,
 // TODO document this
 func authGitHubRequestDelete(w http.ResponseWriter, req_url string,
 	token string) (interface{}, error) {
-	
+
     data := url.Values{}
-    
+
 	// set up request
 	client := &http.Client{}
 	req, _ := http.NewRequest("DELETE",
@@ -623,7 +616,7 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 			"https://github.com/login/oauth/access_token",
 			bytes.NewBufferString(data.Encode()))
 		req.Header.Set("Accept", "application/json")
-        
+
 		// do request
 		response, err := client.Do(req)
 		if err != nil {
@@ -640,7 +633,7 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 		if err := json.Unmarshal(body, &resp_data); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-        
+
 		// store access token and user information
 		token := resp_data["access_token"].(string)
 		session.Values["token"] = token
@@ -879,7 +872,7 @@ func handleTasks(w http.ResponseWriter, r *http.Request,
         handleError(w, r, hErr)
         return
     }
-    
+
 // TODO check this
 	tasks, err := db.GetScheduledTasks(token)
 	if err != nil {
@@ -894,16 +887,16 @@ func handleTasks(w http.ResponseWriter, r *http.Request,
 // `renderTemplate` with the template "projects-pid" and the retrieved data.
 func handleTasksTid(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
-    
+
     hErr := updateHooks(w, token)
     if(hErr != nil){
         handleError(w, r, hErr)
         return
     }
-    
+
     // TODO implement this
 
-    
+
 	task, err := db.GetTask(vars["tid"], token)
 	if err != nil {
 		handleError(w, r, err)
@@ -924,151 +917,79 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
 // TODO document this
 func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string){
-    
+
     hErr := updateHooks(w, token)
     if(hErr != nil){
         handleError(w, r, hErr)
         return
     }
-   
-    event, eErr := strconv.ParseInt(vars["event"], 10, 64)
+
+    event, eErr := strconv.ParseInt(r.FormValue("event"), 10, 64)
     if(eErr != nil){
-        handleError(w, r, eErr) 
+        handleError(w, r, eErr)
         return
     }
-    
+
     // TODO updated version
-    schedTask, err := db.CreateNewScheduledTaskEventDriven(vars["name"], token,
+    schedTask, err := db.CreateNewEventDrivenTask(r.FormValue("name"), token,
                                             vars["pid"], vars["bid"], event)
-    
+
     if err != nil{
         handleError(w, r, err)
     }else{
-        
+
         project, projErr := db.GetProject(vars["pid"], token)
         if(projErr != nil){
             handleError(w, r, projErr)
         }else{
             reqUrl := fmt.Sprintf("/repos/%s/hooks", project.Name)
-            
+
             var hookConfig = WebhookConfig{
-                url : fmt.Sprintf("http://%s/%s/%d", controller_host, 
+                url : fmt.Sprintf("http://%s/%s/%d", controller_host,
                                   webhook_subpath, schedTask.Id),
                 content_type: "json" }
-            
+
             var hook = Webhook{
                 name: "web",
                 active: true,
                 events: []string{vars["event"]},
                 config: hookConfig }
-            
+
             payloadMarshalled, marshErr := json.Marshal(hook)
             if(marshErr != nil){
                 handleError(w, r, marshErr)
             }else{
                 authGitHubRequestPost(w, reqUrl, token, payloadMarshalled)
-                http.Redirect(w, r, fmt.Sprintf("/tasks/%d", schedTask.Id),
+                http.Redirect(w, r, fmt.Sprintf("/tasks"3),
                               http.StatusFound)
                 // TODO add hook_id
             }
-            
+
         }
-        
+
     }
 }
 
 
-func handleTasksNewHourly(w http.ResponseWriter, r *http.Request,
+func handleTasksNewScheduled(w http.ResponseWriter, r *http.Request,
     vars map[string]string, session *sessions.Session, token string){
-    
-        
-    currentTime := time.Now()
-    
-    hourPeriod := vars["hours"]    
-    hourP, err := strconv.ParseInt(hourPeriod, 10, 64)
-    if(err != nil){
-        fmt.Println("Parsing error")
-        handleError(w, r, err)
-        return
-    }
-    // TODO updated version
-    schedTask, err := db.CreateNewScheduledTaskHourly(vars["name"], token,
-                                        vars["pid"], vars["bid"], currentTime, hourP)
+
+
+    cronexp := cronexpr.MustParse(r.FormValue("cron"))
+    nextExecTime := cronexp.Next(time.Now())
+
+    sched, err := db.CreateNewScheduledTask(vars["pid"], token, vars["bid"],
+                                            db.Active, nextExecTime, r.FormValue("name"), r.FormValue("cron"))
     if(err != nil){
         handleError(w, r, err)
         return
-    }else{
-        http.Redirect(w, r, fmt.Sprintf("/tasks/%d", schedTask.Id),
-                      http.StatusFound)
+    } else{
+        http.Redirect(w, r, "/tasks", http.StatusFound)
     }
-    
-    worker.UpdatePeriodTimer()       
-    
-}
 
-func handleTasksNewDaily(w http.ResponseWriter, r *http.Request,
-    vars map[string]string, session *sessions.Session, token string){
-     
-    seconds, err := strconv.ParseInt(vars["hour"], 10, 64)
-    if(err != nil){
-        handleError(w, r, err)
-    }else{
-        currentTime := time.Now()
-        scheduleTime := time.Unix(seconds, 0)
-        scheduleTime = time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), scheduleTime.Hour(), scheduleTime.Minute(), scheduleTime.Second(), scheduleTime.Nanosecond(), currentTime.Location())
-    
-        // TODO updated version
-        schedTask, err := db.CreateNewScheduledTaskDaily(vars["name"], token,
-                                            vars["pid"], vars["bid"], scheduleTime)
-        
-        if(err != nil){
-            handleError(w, r, err)
-            return
-        }else{
-            http.Redirect(w, r, fmt.Sprintf("/tasks/%d", schedTask.Id),
-                          http.StatusFound)
-        }
+    // TODO worker !!!
 
-        worker.UpdatePeriodTimer() 
-    }
-    
-    
-}
-
-// TODO document this
-func handleTasksNewWeekly(w http.ResponseWriter, r *http.Request,
-    vars map[string]string, session *sessions.Session, token string){
-
-    day, dayErr := strconv.ParseInt(vars["weekday"], 10, 64)
-    if(dayErr != nil){
-        handleError(w, r, dayErr)
-    }else{
-       seconds, err := strconv.ParseInt(vars["hour"], 10, 64)
-        if(err != nil){
-            handleError(w, r, err)
-        }else{
-            scheduleHour := time.Unix(seconds, 0)
-            currentTime := time.Now();
-            scheduleTime := time.Date(currentTime.Year(), currentTime.Month(),
-                                      currentTime.Day(), scheduleHour.Hour(), scheduleHour.Minute(),
-                                      scheduleHour.Second(), scheduleHour.Nanosecond(),currentTime.Location())
-            scheduleTime = worker.ComputeDate(scheduleTime, int(day))
-            
-            // TODO updated version
-            schedTask, err := db.CreateNewScheduledTaskWeekly(vars["name"], token,
-                                                vars["pid"], vars["bid"], scheduleTime, day)
-
-            if(err != nil){
-                handleError(w, r, err)
-            }else{
-                http.Redirect(w, r, fmt.Sprintf("/tasks/%d", schedTask.Id),
-                              http.StatusFound)
-            }
-
-            worker.UpdatePeriodTimer() 
-        } 
-    }
-}
+  }
 
 
 
@@ -1076,79 +997,82 @@ func handleTasksNewWeekly(w http.ResponseWriter, r *http.Request,
 // TODO document this
 func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
                           vars map[string]string, session *sessions.Session, token string){
-    
-    
-    seconds, err := strconv.ParseInt(vars["hour"], 10, 64)
+
+
+    seconds, err := strconv.ParseInt(r.FormValue("time"), 10, 64)
     if(err != nil){
         handleError(w, r, err)
     }else{
         scheduleTime := time.Unix(seconds, 0)
          // TODO updated version
-        schedTask, err := db.CreateNewScheduledTaskOneTime(vars["name"], token,
-                                            vars["pid"], vars["bid"], scheduleTime)
+        schedTask, err := db.CreateNewOneTimeTask(vars["pid"], vars["bid"], r.FormValue("name"), token,
+                                             scheduleTime)
 
         if(err != nil){
             handleError(w, r, err)
         }else{
-            http.Redirect(w, r, fmt.Sprintf("/tasks/%d", schedTask.Id),
+            http.Redirect(w, r, fmt.Sprintf("/tasks"),
                           http.StatusFound)
         }
 
+        // TODO worker !!!
         worker.UpdatePeriodTimer()
     }
-    
+
 }
 
 // TODO document this
-func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
+func handleTasksNewManual(w http.ResponseWriter, r *http.Request,
                           vars map[string]string, session *sessions.Session, token string){
-    
-    
+
+
 
     scheduleTime := time.Now()
      // TODO updated version
-    schedTask, err := db.CreateNewScheduledTaskOneTime(vars["name"], token,
-                                        vars["pid"], vars["bid"], scheduleTime)
+    schedTask, err := db.CreateNewManualTask(token,
+                                        vars["pid"], vars["bid"])
 
     if(err != nil){
         handleError(w, r, err)
     }else{
-        http.Redirect(w, r, fmt.Sprintf("/tasks/%d", schedTask.Id),
+        http.Redirect(w, r, fmt.Sprintf("/tasks"),
                       http.StatusFound)
     }
 
+    // TODO worker !!!
+
     worker.UpdatePeriodTimer()
 
-    
+
 }
 
 // TODO document this
 func handleWebhook(w http.ResponseWriter, r *http.Request){
     vars := mux.Vars(r)
     taskId := vars["tid"]
-    
+
     body, err := ioutil.ReadAll(r.Body)
     if err != nil {
         // TODO err0r handling
     }
-    
+
     type hook struct{
         Hook_id int64
     }
-    
+
     var h hook
     err = json.Unmarshal(body, &h)
     if err != nil {
         // TODO error handling
         return
     }
-    
+
     tid, iErr := strconv.ParseInt(taskId, 10, 64)
     if(iErr != nil ){
         // TODO error handling
         return
     }
-    
+
     // sanity check
     hookId, tErr := db.GetHookId(tid)
     if(tErr != nil ){
@@ -1159,7 +1083,7 @@ func handleWebhook(w http.ResponseWriter, r *http.Request){
         // TODO error handling
         return
     }
-    
+
     worker.CreateNewTask(tid)
 }
 
@@ -1168,7 +1092,7 @@ func handleWebhook(w http.ResponseWriter, r *http.Request){
 // TODO document this
 func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
-    
+
     task, pErr := db.GetScheduledTask(vars["tid"], token, false)
     if(pErr != nil){
         handleError(w, r, pErr)
@@ -1187,43 +1111,42 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
             return
         }
     }
-    
-    
+
+
     tid, err := strconv.ParseInt(vars["tid"], 10, 64)
     if(err != nil){
         handleError(w, r, err)
         return
     }
-    
+
     children, cErr := db.GetRunningChildren(tid)
     if(cErr != nil){
         handleError(w, r, cErr)
         return
     }
-    
+
     for _, task := range children{
-        worker.Cancle(task.Id)        
+        worker.Cancle(task.Id)
     }
-    
-    
-    
-    db.UpdateScheduledTaskStatus(tid, db.Complete)    
-	
+
+
+
+    db.UpdateScheduledTaskStatus(tid, db.Complete)
+
     http.Redirect(w, r, "/tasks/", http.StatusFound)
-	
+
 }
 
 
 // TODO document this
 func updateHooks(w http.ResponseWriter, token string) (error){
-    
-    
-    
+
+
     tasks, err := db.GetRunningScheduledTasks(token)
     if(err != nil){
         return err
     }
-    
+
     for _,task := range tasks{
         hook_id, hErr := db.GetHookId(task.Id)
         if(hErr != nil){
@@ -1232,10 +1155,10 @@ func updateHooks(w http.ResponseWriter, token string) (error){
         url := fmt.Sprintf("/repos/%s/hooks/%d",task.Project.Name, hook_id)
         _, rErr := authGitHubRequest(w, url, token)
         if(rErr != nil){
-            db.UpdateScheduledTaskStatus(task.Id, db.Complete)    
+            db.UpdateScheduledTaskStatus(task.Id, db.Complete)
         }
     }
-    
-    return nil    
-    
+
+    return nil
+
 }
