@@ -79,13 +79,14 @@ CREATE TABLE schedule_tasks(
 	gid integer REFERENCES task_groups(id) NOT NULL,
 	status integer NOT NULL,
 	next timestamp,
-	cron varchar(100) NOT NULL CHECK (cron <> ''),
+	cron varchar(100) NOT NULL CHECK (cron <> '')
 );
 
 CREATE TABLE onetime_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	gid integer REFERENCES task_groups(id) NOT NULL,
     name varchar(50) NOT NULL CHECK (name <> ''),
+	status integer NOT NULL,
 	exec_time timestamp
 );
 

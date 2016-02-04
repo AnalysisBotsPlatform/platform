@@ -61,14 +61,14 @@ func CreateNewTask(parentTaskId int64) error{
 
 
 func RunScheduledTask(stid int64){
-	cancelChan = make(chan bool, 1)
+	cancelChan := make(chan bool, 1)
 	runningTasks[stid] = cancelChan
 	go runScheduledTask(stid, cancelChan)
 }
 
 
 func RunOneTimeTask(otid int64){
-	cancelChan = make(chan bool)
+	cancelChan := make(chan bool)
 	runningTasks[otid] = cancelChan
 	go runOneTimeTask(otid, cancelChan)
 }
@@ -149,7 +149,7 @@ func cancel(tid int64) {
 func CancleTimedOverTasks() {
 	tasks, _ := db.GetTimedOverTasks(max_task_time)
 	for _, e := range tasks {
-		Cancle(e)
+		cancel(e)
 	}
 }
 
@@ -165,7 +165,7 @@ func runScheduledTask(stid int64, cancelChan chan bool){
 			db.UpdateScheduledTaskStatus(stid, db.Complete)
 			return
 		}
-		nextTime := cronexpr.MustParse(scheduledTask.cron).Next(time.Now())
+		nextTime := cronexpr.MustParse(scheduledTask.Cron).Next(time.Now())
 		sleepTime := nextTime.Sub(time.Now())
 		uErr := db.UpdateNextScheduleTime(scheduledTask.Id, nextTime)
 		if(uErr != nil){
@@ -191,7 +191,7 @@ func runOneTimeTask(otid int64, cancelChan chan bool){
 		return;
 	}
 	select{
-	case <- time.After(oneTimeTask.next.Sub(time.Now())):
+	case <- time.After(oneTimeTask.Exec_time.Sub(time.Now())):
 		CreateNewTask(otid)
 	case <- cancelChan:
 		return;

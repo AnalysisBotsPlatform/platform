@@ -115,6 +115,13 @@ type Member struct {
 	Project *Project
 }
 
+type GroupTask struct{
+	Id 		int64
+	User	User
+	Project	Project
+	Bot		Bot
+}
+
 // A task is a bot's execution on a project
 type Task struct {
 	Id          	int64
@@ -126,6 +133,7 @@ type Task struct {
 	Exit_status 	int64
 	Output      	string
 }
+
 
 type ScheduledTask struct {
 	Id          	int64
@@ -146,6 +154,7 @@ type OneTimeTask struct {
 	Project				*Project
 	Bot						*Bot
     Name                string
+	Status			int64
 	Exec_time			time.Time
 }
 

@@ -260,7 +260,7 @@ func Start() {
 	go func() {
 		<-sigs
 		ticker.Stop()
-        worker.StopPeriodRunner()
+        worker.StopPeriodRunners()
 		db.CloseDB()
 		fmt.Println("... controller terminated")
 		os.Exit(0)
@@ -308,8 +308,7 @@ func initRoutes() (rootRouter *mux.Router) {
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/newtask", id_regex),
 		makeHandler(makeTokenHandler(handleBotsBidNewtask)))
     botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
-                          makeHandler(makeTokenHandler(handleTasksNewScheduled))),
-		makeHandler(makeTokenHandler(handleTasksNewOneTime))).Queries("name", "", "cron", "")
+                          makeHandler(makeTokenHandler(handleTasksNewScheduled))).Queries("name", "", "cron", "")
     botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
                           makeHandler(makeTokenHandler(handleTasksNewOneTime))).Queries("name", "", "time", "")
     botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
@@ -326,8 +325,7 @@ func initRoutes() (rootRouter *mux.Router) {
 	projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/newtask", id_regex),
 		makeHandler(makeTokenHandler(handleProjectsPidNewtask)))
     projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
-                          makeHandler(makeTokenHandler(handleTasksNewScheduled))),
-		makeHandler(makeTokenHandler(handleTasksNewOneTime))).Queries("name", "", "cron", "")
+                          makeHandler(makeTokenHandler(handleTasksNewScheduled))).Queries("name", "", "cron", "")
     projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
                           makeHandler(makeTokenHandler(handleTasksNewOneTime))).Queries("name", "", "time", "")
     projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
@@ -898,8 +896,9 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
 
     // TODO implement this
 
+	tid, err := strconv.ParseInt(vars["tid"], 10, 64)
 
-	task, err := db.GetTask(vars["tid"], token)
+	task, err := db.GetTask(tid, token)
 	if err != nil {
 		handleError(w, r, err)
 	} else {
@@ -933,7 +932,7 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
     }
 
     // TODO updated version
-    eventTask, err := db.CreateNewEventTask(token, vars["pid"], vars["bid"], r.FormValue("name"), event, 0)
+    eventTask, err := db.CreateNewEventTask(token, vars["pid"], vars["bid"], r.FormValue("name"), event)
 
     if err != nil{
         handleError(w, r, err)
@@ -966,8 +965,7 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
                     // TODO proper error handling
                     db.UpdateEventTaskStatus(eventTask.Id, db.Complete)
                     return
-                }
-                else{
+                } else{
                     http.Redirect(w, r, fmt.Sprintf("/tasks"),
                               http.StatusFound)
                 // TODO add hook_id
@@ -985,7 +983,7 @@ func handleTasksNewScheduled(w http.ResponseWriter, r *http.Request,
     vars map[string]string, session *sessions.Session, token string){
 
     nextTime := cronexpr.MustParse(r.FormValue("cron")).Next(time.Now())
-    if(nextTime.isZero()){
+    if(nextTime.IsZero()){
         handleError(w, r, errors.New("The cron expression <"+r.FormValue("cron")+"> could not have been parsed."))
         return;
     }
@@ -1098,7 +1096,12 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 
 
 	if is, err := db.IsScheduledTask(vars["tid"]); is && err != nil{
-		scheduledTask, tErr := db.GetScheduleTask(vars["tid"])
+		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
+		if(cErr != nil){
+			handleError(w, r, cErr)
+			return
+		}
+		scheduledTask, tErr := db.GetScheduledTask(tid)
 		if(tErr != nil){
 			handleError(w, r, tErr)
 			return
@@ -1109,13 +1112,18 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 	}
 
 	if is, err := db.IsEventTask(vars["tid"]); is && err != nil{
-		eventTask, tErr := db.GetEventTask(vars["tid"])
+		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
+		if(cErr != nil){
+			handleError(w, r, cErr)
+			return
+		}
+		eventTask, tErr := db.GetEventTask(tid)
 		if(tErr != nil){
 			handleError(w, r, tErr)
 			return
 		}
 
-        hookId, hErr := db.GetHookId(vars["tid"])
+        hookId, hErr := db.GetHookId(tid)
         if(hErr != nil){
             handleError(w, r, hErr)
             return
@@ -1133,7 +1141,12 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
     }
 
 	if is, err := db.IsOneTimeTask(vars["tid"]); is && err != nil{
-		oneTimeTask, tErr := db.GetOneTimeTask(vars["tid"])
+		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
+		if(cErr != nil){
+			handleError(w, r, cErr)
+			return
+		}
+		oneTimeTask, tErr := db.GetOneTimeTask(tid)
 		if(tErr != nil){
 			handleError(w, r, tErr)
 			return
@@ -1144,7 +1157,12 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 	}
 
 	if is, err := db.IsInstantTask(vars["tid"]); is && err != nil{
-		instantTask, tErr := db.GetInstantTask(vars["tid"])
+		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
+		if(cErr != nil){
+			handleError(w, r, cErr)
+			return
+		}
+		instantTask, tErr := db.GetInstantTask(tid)
 		if(tErr != nil){
 			handleError(w, r, tErr)
 			return
@@ -1164,7 +1182,7 @@ func updateHooks(w http.ResponseWriter, token string) (error){
 
 
 
-    tasks, err := db.GetRunningScheduledTasks(token)
+    tasks, err := db.GetRunningEventTasks(token)
     if(err != nil){
         return err
     }

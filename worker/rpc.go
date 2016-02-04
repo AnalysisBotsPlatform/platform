@@ -66,7 +66,7 @@ func NewWorkerAPI() *WorkerAPI {
 func (api *WorkerAPI) assignTask(task *db.Task) {
 	api.guard.Lock()
 	defer api.guard.Unlock()
-    
+
     parentTask, err := db.GetParentTask(task.Id)
     if(err != nil){
         // TODO error handling
@@ -94,13 +94,13 @@ func (api *WorkerAPI) cancelTask(tid int64) {
 
 	defer func() {
 		recover()
-		db.UpdateTaskStatus(tid, db.Cancelled)
+		db.UpdateTaskStatus(tid, db.Canceled)
 	}()
 	if cancel, ok := api.running_workers[tid]; ok {
 		cancel <- true
 		delete(api.running_workers, tid)
 	}
-	db.UpdateTaskStatus(tid, db.Cancelled)
+	db.UpdateTaskStatus(tid, db.Canceled)
 }
 
 // TODO document this
@@ -180,8 +180,8 @@ func (api *WorkerAPI) GetTask(worker_token string, task *Task) error {
 		api.guard.Lock()
 	}
 
-    
-// TODO fill this    
+
+// TODO fill this
 	task.Id = pending.Id
 //	task.Project = pending.Project.Name
 //	task.Bot = pending.Bot.Name
