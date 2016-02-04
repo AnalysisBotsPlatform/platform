@@ -112,6 +112,19 @@ func UpdateUser(data interface{}, token string) error {
 	return nil
 }
 
+// Returns the users id specified by the users token
+func GetUserId(userToken string) (int64, error) {
+	var userId int64
+	if err := db.QueryRow("SELECT id FROM users WHERE token=$1", userToken).Scan(&userId); err != nil {
+		if err == sql.ErrNoRows {
+			userError := errors.New("Error GetUserId: The user with this token does not exist!")
+			return 0, userError
+		}
+		return 0, err
+	}
+	return userId, nil
+}
+
 // This function returns an User from the information provided in
 // the database and the users' token
 func GetUser(token string) (*User, error) {
@@ -529,14 +542,11 @@ func GetWorker(token string) (*Worker, error) {
 	return &worker, nil
 }
 
-// TODO implement this
-
 // Tasks
 //########################################################
-func GetParentTask(tid int64) (*GroupTask, error){
-	return nil, nil
-}
-
+//
+// TODO documentation
+//
 func GetTask(tid int64, user_token string) (*Task, error) {
 	// declarations
 	var gid 									sql.NullInt64
@@ -584,8 +594,9 @@ func GetTask(tid int64, user_token string) (*Task, error) {
 	}
 	return &task, nil
 }
-
-
+//
+// TODO documentation
+//
 func UpdateTaskStatus(tid int64, new_status int) error {
 	var err error
 	if new_status == Running {
@@ -599,8 +610,9 @@ func UpdateTaskStatus(tid int64, new_status int) error {
 	}
 	return err
 }
-
-
+//
+// TODO documentation
+//
 func GetPendingTask(uid int64, shared bool) (*Task, error) {
 	//declarations
 	rows, err := db.Query("SELECT tasks.id, tasks.uid, tasks.status, "+
@@ -662,26 +674,100 @@ func GetPendingTask(uid int64, shared bool) (*Task, error) {
 
 	return nil, nil
 }
-
-
+//
+// TODO documentation
+//
 func CreateNewChildTask(gtid int64)(*Task, error){
-	return nil, nil
-}
+	var workerToken sql.NullString
+	var startTime time.Time = time.Now()
 
+	// get worker token
+	if err := db.QueryRow("SELECT worker_token FROM users"+
+	" INNER JOIN group_tasks ON group_tasks.uid=users.id"+
+	" WHERE group_tasks.id=$1", gtid).Scan(&workerToken); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	// create Task
+	task := Task {
+		Gid:					gtid,
+		Start_time:  	startTime,
+		Status:      	Running,
+		Exit_status: 	-1,
+		Output:      	"",
+	}
+	// get Worker
+	if workerToken.Valid {
+		worker, err := GetWorker(workerToken.String)
+		if err != nil {
+			return nil, err
+		}
+		// set worker
+		task.Worker = worker
+	}
+	// insert into db
+	res, err := db.Exec("INSERT INTO tasks (gid, worker_token, start_time, status, exit_status, output)"+
+	" VALUES ($1, $2, $3, $4, $5, $6)", gtid, workerToken, startTime, Running, -1, "")
+	if err != nil {
+		return nil, err
+	}
+	// get insertion id
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	task.Id = id
+
+	return &task, nil
+}
+//
+// TODO documentation
+//
 func UpdateTaskResult(tid int64, output string, exit_code int) error {
 	new_status := Succeeded
 	if exit_code != 0 {
 		new_status = Failed
 	}
-	_, err := db.Exec("UPDATE tasks SET status=$1, end_time=now(), output=$2, "+
-		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid)
+	_, err := db.Exec("UPDATE tasks SET status=$1, end_time=now(), output=$2,"+
+		" exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid)
 	return err
 }
-
+//
+// TODO documentation
+//
 func GetRunningChildren(gtid int64)([]*Task, error){
-	return nil, nil
-}
+	var tasks []*Task
 
+	rows, err := db.Query("SELECT tasks.id, users.token FROM tasks"+
+		" INNER JOIN (users INNER JOIN group_tasks ON users.id=group_tasks.uid)"+
+		" ON tasks.gid=group_tasks.id", gtid, Running)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tid int64
+		var user_token string
+		if err := rows.Scan(&tid, &user_token); err != nil {
+			return nil, err
+		}
+		task, err := GetTask(tid, user_token)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, err
+}
+//
+// TODO documentation
+//
 func GetTimedOverTasks(maxseconds int64) ([]int64, error) {
 	var starttime pq.NullTime
 	var tid 			int64
@@ -718,87 +804,569 @@ func GetTimedOverTasks(maxseconds int64) ([]int64, error) {
 
 // ScheduledTask
 //########################################################
+//
+// TODO documentation
+//
 func CreateScheduledTask(token string, pid string, bid string, name string, next time.Time, cron_exp string)(*ScheduledTask, error){
-	return nil, nil
+	var gid int64
+
+	userId, err := GetUserId(token)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.QueryRow("SELECT id FROM group_tasks WHERE uid=$1 AND pid=$2 AND bid=$3",
+		 userId, pid, bid).Scan(&gid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	res, err := db.Exec("INSERT INTO schedule_tasks (name, gid, status, next, cron)"+
+	" VALUES ($1, $2, $3, $4, $5)", name, gid, Active, next, cron_exp)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return GetScheduledTask(id)
 }
+//
+// TODO documentation
+//
 func GetScheduledTask(stid int64) (*ScheduledTask, error){
-	return nil, nil
-}
+	var gid				sql.NullInt64
+	var name			sql.NullString
+	var status		sql.NullInt64
+	var next 			pq.NullTime
+	var cron			sql.NullString
 
+	var token string
+	var pid 			int64
+	var bid				int64
+
+	task := ScheduledTask{}
+
+	if err := db.QueryRow("SELECT * FROM schedule_tasks WHERE id=$1", stid).
+		Scan(&task.Id, &name, &gid, &status, &next, &cron); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if gid.Valid {
+		task.Gid = gid.Int64
+	}
+
+	if err := db.QueryRow("SELECT token, pid, bid FROM group_tasks"+
+	" INNER JOIN users ON users.id=group_tasks.uid"+
+	" WHERE group_tasks.id=$1", gid).Scan(&token, &pid, &bid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	user, err := GetUser(token)
+	if err != nil {
+		return nil, err
+	}
+	task.User = user
+
+	project, err := GetProject(strconv.FormatInt(pid, 10), token)
+	if err != nil {
+		return nil, err
+	}
+	task.Project = project
+
+	bot, err := GetBot(strconv.FormatInt(bid, 10))
+	if err != nil {
+		return nil, err
+	}
+	task.Bot = bot
+
+	if name.Valid {
+		task.Name = name.String
+	}
+	if status.Valid {
+		task.Status = status.Int64
+	}
+	if next.Valid {
+		task.Next = next.Time
+	}
+	if next.Valid {
+		task.Cron = cron.String
+	}
+
+	return &task, nil
+}
+//
+// TODO documentation
+//
 func IsScheduledTask(tid string)(bool, error){
-	return false, nil
+	i, err := strconv.ParseInt(tid, 10, 64)
+	if err != nil {
+		return false, err
+	}
+	if err := db.QueryRow("SELECT TOP 1 id FROM schedule_tasks WHERE id=$1", i); err != nil {
+		return false, nil
+	}
+	return true, nil
 }
-
+//
+// TODO documentation
+//
 func GetScheduledTasks(token string)([]*ScheduledTask, error){
-	return nil, nil
-}
+	var tasks []*ScheduledTask
 
+	userId, err := GetUserId(token)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := db.Query("SELECT id FROM schedule_tasks INNER JOIN group_tasks"+
+	" ON group_tasks.id=schedule_tasks.gid WHERE group_tasks.uid=$1", userId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return tasks, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tid int64
+		if err := rows.Scan(&tid); err != nil {
+			return nil, err
+		}
+		task, err := GetScheduledTask(tid)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, nil
+}
+//
+// TODO documentation
+//
 func UpdateScheduledTaskStatus(stid int64, status int) error{
+	if _, err := db.Exec("UPDATE schedule_tasks SET status=$1 WHERE id=$2", status, stid); err != nil {
+		return err
+	}
 	return nil
 }
-
+//
+// TODO documentation
+//
 func UpdateNextScheduleTime(stid int64, next time.Time) error{
+	if _, err := db.Exec("UPDATE schedule_tasks SET next=$1 WHERE id=$2", next, stid); err != nil {
+		return err
+	}
 	return nil
 }
 //########################################################
 
 // OneTimeTask
 //########################################################
+//
+// TODO documentation
+//
 func CreateOneTimeTask(token string, pid string, bid string, name string, exec_time time.Time)(*OneTimeTask, error){
-	return nil, nil
-}
+	var gid int64
 
+	userId, err := GetUserId(token)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.QueryRow("SELECT id FROM group_tasks WHERE uid=$1 AND pid=$2 AND bid=$3",
+		 userId, pid, bid).Scan(&gid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	res, err := db.Exec("INSERT INTO onetime_tasks (gid, name, status, exec_time)"+
+	" VALUES ($1, $2, $3, $4)", gid, name, Active, exec_time)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return GetOneTimeTask(id)
+}
+//
+// TODO documentation
+//
 func GetOneTimeTask(otid int64) (*OneTimeTask, error){
-	return nil, nil
-}
+	var gid				sql.NullInt64
+	var name			sql.NullString
+	var status		sql.NullInt64
+	var exec_time pq.NullTime
 
+	var token 		string
+	var pid 			int64
+	var bid				int64
+
+	task := OneTimeTask{}
+
+	if err := db.QueryRow("SELECT * FROM onetime_tasks WHERE id=$1", otid).
+		Scan(&task.Id, &gid, &name, &status, &exec_time); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if gid.Valid {
+		task.Gid = gid.Int64
+	}
+
+	if err := db.QueryRow("SELECT token, pid, bid FROM group_tasks"+
+	" INNER JOIN users ON users.id=group_tasks.uid"+
+	" WHERE group_tasks.id=$1", gid).Scan(&token, &pid, &bid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	user, err := GetUser(token)
+	if err != nil {
+		return nil, err
+	}
+	task.User = user
+
+	project, err := GetProject(strconv.FormatInt(pid, 10), token)
+	if err != nil {
+		return nil, err
+	}
+	task.Project = project
+
+	bot, err := GetBot(strconv.FormatInt(bid, 10))
+	if err != nil {
+		return nil, err
+	}
+	task.Bot = bot
+
+	if name.Valid {
+		task.Name = name.String
+	}
+	if status.Valid {
+		task.Status = status.Int64
+	}
+	if exec_time.Valid {
+		task.Exec_time = exec_time.Time
+	}
+
+	return &task, nil
+}
+//
+// TODO documentation
+//
 func IsOneTimeTask(tid string)(bool, error){
-	return false, nil
+	i, err := strconv.ParseInt(tid, 10, 64)
+	if err != nil {
+		return false, err
+	}
+	if err := db.QueryRow("SELECT TOP 1 id FROM onetime_tasks WHERE id=$1", i); err != nil {
+		return false, nil
+	}
+	return true, nil
 }
-
+// NOTE DONE
 func UpdateOneTimeTaskStatus(otid int64, status int) error{
+	if _, err := db.Exec("UPDATE onetime_tasks SET status=$1 WHERE id=$2", status, otid); err != nil {
+		return err
+	}
 	return nil
 }
 //########################################################
 
 // InstantTask
 //########################################################
-func CreateNewInstantTask(token string, pid string, bid string, name string)(*InstantTask, error){
-	return nil, nil
-}
+//
+// TODO documentation
+//
+func CreateNewInstantTask(token string, pid string, bid string)(*InstantTask, error){
+	var gid int64
 
+	userId, err := GetUserId(token)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.QueryRow("SELECT id FROM group_tasks WHERE uid=$1, pid=$2, bid=$3", userId, pid, bid).
+	Scan(&gid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	res, err := db.Exec("INSERT INTO instant_tasks (gid) VALUES ($1)", gid)
+	if err != nil {
+		return nil, err
+	}
+
+	itid, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return GetInstantTask(itid)
+}
+//
+// TODO documentation
+//
 func GetInstantTask(itid int64)(*InstantTask, error){
-	return nil, nil
-}
+	var gid				sql.NullInt64
 
+	var token 		string
+	var pid 			int64
+	var bid				int64
+
+	task := InstantTask{}
+
+	if err := db.QueryRow("SELECT * FROM instant_tasks WHERE id=$1", itid).
+		Scan(&task.Id, &gid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if gid.Valid {
+		task.Gid = gid.Int64
+	}
+
+	if err := db.QueryRow("SELECT token, pid, bid FROM group_tasks"+
+	" INNER JOIN users ON users.id=group_tasks.uid"+
+	" WHERE group_tasks.id=$1", gid).Scan(&token, &pid, &bid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	user, err := GetUser(token)
+	if err != nil {
+		return nil, err
+	}
+	task.User = user
+
+	project, err := GetProject(strconv.FormatInt(pid, 10), token)
+	if err != nil {
+		return nil, err
+	}
+	task.Project = project
+
+	bot, err := GetBot(strconv.FormatInt(bid, 10))
+	if err != nil {
+		return nil, err
+	}
+	task.Bot = bot
+
+	return &task, nil
+}
+//
+// TODO documentation
+//
 func IsInstantTask(tid string)(bool, error){
-	return false, nil
+	i, err := strconv.ParseInt(tid, 10, 64)
+	if err != nil {
+		return false, err
+	}
+	if err := db.QueryRow("SELECT TOP 1 id FROM instant_tasks WHERE id=$1", i); err != nil {
+		return false, nil
+	}
+	return true, nil
 }
 
 //########################################################
 
 // EventTask
 //########################################################
+//
+// TODO documentation
+// NOTE WHERE DO I GET THE HOOK ID ?
 func CreateNewEventTask(token string, pid string, bid string, name string, event int64)(*EventTask, error){
-	return nil, nil
+	var gid int64
+
+	userId, err := GetUserId(token)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.QueryRow("SELECT id FROM group_tasks WHERE uid=$1, pid=$2, bid=$3", userId, pid, bid).
+	Scan(&gid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	res, err := db.Exec("INSERT INTO event_tasks (name, gid, status, event)"+
+	" VALUES ($1, $2, $3, $4)", name, gid, Active, event)
+	if err != nil {
+		return nil, err
+	}
+
+	etid, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	return GetEventTask(etid)
 }
-func UpdateEventTaskStatus(etid int64, status int) error{
+//
+// TODO documentation
+//
+func UpdateEventTaskStatus(etid int64, status int) error {
+	if _, err := db.Exec("UPDATE event_tasks SET status=$1 WHERE id=$2", status, etid); err != nil {
+		return err
+	}
 	return nil
 }
-
+// TODO
 func GetRunningEventTasks(token string)([]*EventTask, error){
-	return nil, nil
-}
+	var tasks []*EventTask
 
+	userId, err := GetUserId(token)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := db.Query("SELECT id FROM event_tasks INNER JOIN group_tasks"+
+	" ON group_tasks.id=event_tasks.gid WHERE group_tasks.uid=$1 AND event_tasks.status=$2",
+	 userId, Running)
+ 	if err != nil {
+		if err == sql.ErrNoRows {
+			return tasks, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tid int64
+		if err := rows.Scan(&tid); err != nil {
+			return nil, err
+		}
+		task, err := GetEventTask(tid)
+		if err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, nil
+}
+//
+// TODO documentation
+//
 func GetEventTask(etid int64)(*EventTask, error){
-	return nil, nil
-}
+	var gid				sql.NullInt64
+	var name			sql.NullString
+	var status		sql.NullInt64
+	var event 		sql.NullInt64
+	var hookId		sql.NullInt64
 
+	var token 		string
+	var pid 			int64
+	var bid				int64
+
+	task := EventTask{}
+
+	if err := db.QueryRow("SELECT * FROM schedule_tasks WHERE id=$1", etid).
+		Scan(&task.Id, &name, &gid, &status, &event, &hookId); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if gid.Valid {
+		task.Gid = gid.Int64
+	}
+
+	if err := db.QueryRow("SELECT token, pid, bid FROM group_tasks"+
+	" INNER JOIN users ON users.id=group_tasks.uid"+
+	" WHERE group_tasks.id=$1", gid).Scan(&token, &pid, &bid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	user, err := GetUser(token)
+	if err != nil {
+		return nil, err
+	}
+	task.User = user
+
+	project, err := GetProject(strconv.FormatInt(pid, 10), token)
+	if err != nil {
+		return nil, err
+	}
+	task.Project = project
+
+	bot, err := GetBot(strconv.FormatInt(bid, 10))
+	if err != nil {
+		return nil, err
+	}
+	task.Bot = bot
+
+	if name.Valid {
+		task.Name = name.String
+	}
+	if status.Valid {
+		task.Status = status.Int64
+	}
+	if event.Valid {
+		task.Event = event.Int64
+	}
+	if hookId.Valid {
+		task.HookId = hookId.Int64
+	}
+
+	return &task, nil
+}
+//
+// TODO documentation
+//
 func IsEventTask(tid string)(bool, error){
-	return false, nil
+	i, err := strconv.ParseInt(tid, 10, 64)
+	if err != nil {
+		return false, err
+	}
+	if err := db.QueryRow("SELECT TOP 1 id FROM event_tasks WHERE id=$1", i); err != nil {
+		return false, nil
+	}
+	return true, nil
 }
-
+//
+// TODO documentation
+//
 func GetHookId(etid int64)(int64, error){
-	return 0, nil
+	var hookId int64
+	if err := db.QueryRow("SELECT hook_id FROM event_tasks WHERE id=$1", etid).Scan(&hookId); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return hookId, nil
 }
 //########################################################

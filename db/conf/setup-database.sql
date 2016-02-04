@@ -55,7 +55,7 @@ CREATE TABLE members(
 	PRIMARY KEY (uid, pid)
 );
 
-CREATE TABLE task_groups(
+CREATE TABLE group_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	uid integer REFERENCES users(id) NOT NULL,
 	pid integer REFERENCES projects(id) NOT NULL,
@@ -85,7 +85,7 @@ CREATE TABLE schedule_tasks(
 CREATE TABLE onetime_tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	gid integer REFERENCES task_groups(id) NOT NULL,
-    name varchar(50) NOT NULL CHECK (name <> ''),
+  name varchar(50) NOT NULL CHECK (name <> ''),
 	status integer NOT NULL,
 	exec_time timestamp
 );

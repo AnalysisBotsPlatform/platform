@@ -116,10 +116,10 @@ type Member struct {
 }
 
 type GroupTask struct{
-	Id 		int64
-	User	User
-	Project	Project
-	Bot		Bot
+	Id 				int64
+	User			*User
+	Project		*Project
+	Bot				*Bot
 }
 
 // A task is a bot's execution on a project
@@ -153,8 +153,8 @@ type OneTimeTask struct {
 	User 					*User
 	Project				*Project
 	Bot						*Bot
-    Name                string
-	Status			int64
+  Name          string
+	Status				int64
 	Exec_time			time.Time
 }
 
