@@ -803,12 +803,11 @@ func UpdateTaskStatus(tid int64, new_status int64) {
 	var dummy string
 
 	if new_status == Running {
-		db.QueryRow("UPDATE tasks SET status=$1, "+
-			"start_time=now()::timestamp(0) WHERE id=$2", new_status, tid).
-			Scan(&dummy)
+		db.QueryRow("UPDATE tasks SET status=$1, start_time=now() WHERE id=$2",
+			new_status, tid).Scan(&dummy)
 	} else if new_status == Canceled {
-		db.QueryRow("UPDATE tasks SET status=$1, end_time=now()::timestamp(0) "+
-			"WHERE id=$2", new_status, tid).Scan(&dummy)
+		db.QueryRow("UPDATE tasks SET status=$1, end_time=now() WHERE id=$2",
+			new_status, tid).Scan(&dummy)
 	} else {
 		db.QueryRow("UPDATE tasks SET status=$1 WHERE id=$2", new_status, tid).
 			Scan(&dummy)

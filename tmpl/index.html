@@ -85,7 +85,7 @@
                                             <td>{{.Project.Name}}</td>
                                             <td>{{.Bot.Name}}</td>
                                             <td>{{.StatusString}}</td>
-                                            <td>{{ if .End_time }}{{.End_time}}{{ else }}{{ if .Start_time }}{{.Start_time}}{{ else }}None{{ end }}{{ end }}</td>
+                                            <td>{{ if .End_time }}{{.End_time.Format "Mon Jan _2 15:04:05 2006"}}{{ else }}{{ if .Start_time }}{{.Start_time.Format "Mon Jan _2 15:04:05 2006"}}{{ else }}--{{ end }}{{ end }}</td>
                                         </tr>
                                         {{ end }}
                                     </tbody>

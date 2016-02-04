@@ -101,7 +101,7 @@
                                                         <tbody>
                                                             <tr>
                                                                 <td>Last Access</td>
-                                                                <td>{{ if .API_statistics.Was_accessed }}{{.API_statistics.Last_access}}{{ else }}<i>Never accessed.</i>{{ end }}</td>
+                                                                <td>{{ if .API_statistics.Was_accessed }}{{.API_statistics.Last_access.Format "Mon Jan _2 15:04:05 2006" }}{{ else }}<i>Never accessed.</i>{{ end }}</td>
                                                             </tr>
                                                             <tr>
                                                                 <td>Remaining Accesses (Interval: {{.API_statistics.Interval}})</td>
@@ -212,7 +212,7 @@
                                                                 <td>{{.Id}}</td>
                                                                 <td><pre>{{.Token}}</pre></td>
                                                                 <td>{{.Name}}</td>
-                                                                <td>{{.Last_contact}}</td>
+                                                                <td>{{.Last_contact.Format "Mon Jan _2 15:04:05 2006"}}</td>
                                                                 <td>{{ if .Active }}Yes{{ else }}No{{ end }}</td>
                                                                 <td>{{ if .Shared }}Yes{{ else }}No{{ end }}</td>
                                                                 <td><a href="/user/worker/deregister?token={{.Token}}"><button type="button" class="btn btn-success">Deregister</button></a></td>
