@@ -1180,7 +1180,7 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 // TODO document this
 func updateHooks(w http.ResponseWriter, token string) (error){
 
-
+	
 
     tasks, err := db.GetRunningEventTasks(token)
     if(err != nil){
