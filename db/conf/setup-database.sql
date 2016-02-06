@@ -70,7 +70,8 @@ CREATE TABLE tasks(
 	end_time timestamp,
 	status integer NOT NULL,
 	exit_status integer,
-	output text
+	output text,
+	patch varchar(100) NOT NULL
 );
 
 CREATE TABLE members(

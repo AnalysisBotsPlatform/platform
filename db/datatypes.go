@@ -11,6 +11,7 @@ const Token_length = 32
 // Statuses of a task
 const (
 	Pending   = iota
+	Scheduled = iota
 	Running   = iota
 	Canceled  = iota
 	Succeeded = iota
@@ -88,6 +89,7 @@ type Task struct {
 	Status      int64
 	Exit_status int64
 	Output      string
+	Patch       string
 }
 
 // A worker executes tasks
@@ -105,6 +107,8 @@ func (t *Task) StatusString() string {
 	switch {
 	case t.Status == Pending:
 		return "Pending"
+	case t.Status == Scheduled:
+		return "Scheduled"
 	case t.Status == Running:
 		return "Running"
 	case t.Status == Canceled:
@@ -116,4 +120,28 @@ func (t *Task) StatusString() string {
 	default:
 		return "Ups! This should not happen ..."
 	}
+}
+
+func (t *Task) IsPending() bool {
+	return t.Status == Pending
+}
+
+func (t *Task) IsScheduled() bool {
+	return t.Status == Scheduled
+}
+
+func (t *Task) IsRunning() bool {
+	return t.Status == Running
+}
+
+func (t *Task) IsCanceled() bool {
+	return t.Status == Canceled
+}
+
+func (t *Task) IsSucceeded() bool {
+	return t.Status == Succeeded
+}
+
+func (t *Task) IsFailed() bool {
+	return t.Status == Failed
 }

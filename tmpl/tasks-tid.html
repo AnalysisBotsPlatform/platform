@@ -43,10 +43,18 @@
                                                             <td>End time</td>
                                                             <td>{{ if .Task.End_time }}{{.Task.End_time.Format "Mon Jan _2 15:04:05 2006"}}{{ else }}--{{ end }}</td>
                                                         </tr>
-                                                        {{ if or (eq .Task.Status 3) (eq .Task.Status 4) }}
+                                                        {{ if or .Task.IsSucceeded .Task.IsFailed }}
                                                         <tr>
                                                             <td>Exit code</td>
                                                             <td>{{.Task.Exit_status}}</td>
+                                                        </tr>
+                                                        {{ end }}
+                                                        <tr>
+                                                            {{ if ne .Task.Patch "" }}
+                                                            <td>Git Patch</td>
+                                                            <td>
+                                                                <a href="/cache/patches/{{.Task.Patch}}" download><button type="button" class="btn btn-success">Download</button>
+                                                            </td>
                                                         </tr>
                                                         {{ end }}
                                                     </tbody>
@@ -54,7 +62,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    {{ if or (eq .Task.Status 3) (eq .Task.Status 4) }}
+                                    {{ if or .Task.IsSucceeded .Task.IsFailed }}
                                     <div class="jumbotron">
                                         <p class="lead" style="padding-left: 10px">
                                         {{.Output}}

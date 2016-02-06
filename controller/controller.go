@@ -204,7 +204,7 @@ func Start() {
 				return
 			}
 		} else {
-			if err := worker.Init(worker_port); err != nil {
+			if err := worker.Init(worker_port, cache_path); err != nil {
 				fmt.Println(err)
 				return
 			}
@@ -265,6 +265,8 @@ func initRoutes() (rootRouter *mux.Router) {
 		makeHandler(makeTokenHandler(handleUserRevokeAPIToken)))
 	rootRouter.HandleFunc("/user/worker/deregister",
 		makeHandler(makeTokenHandler(handleUserDegegisterWorker)))
+	rootRouter.HandleFunc("/cache/patches/{patch:.*\\.patch}",
+		makeHandler(makeTokenHandler(handlePatchDownload)))
 
 	// bots
 	botsRouter.HandleFunc("/", makeHandler(makeTokenHandler(handleBots)))
@@ -720,6 +722,24 @@ func handleUserDegegisterWorker(w http.ResponseWriter, r *http.Request,
 	}
 
 	http.Redirect(w, r, "/user", http.StatusFound)
+}
+
+// The handler verifies that the logged in user has access to the requested
+// patch file and if he has the file content is sent back.
+func handlePatchDownload(w http.ResponseWriter, r *http.Request,
+	vars map[string]string, session *sessions.Session, token string) {
+	file_name, err := db.GetPatchFileName(token, vars["patch"])
+	if err != nil {
+		handleError(w, r, err)
+	} else {
+		file_path := fmt.Sprintf("%s/%s", worker.GetPatchPath(), file_name)
+		in, err := ioutil.ReadFile(file_path)
+		if err != nil {
+			handleError(w, r, err)
+		} else {
+			w.Write(in)
+		}
+	}
 }
 
 // The handler requests information about all Bots from the database. If an

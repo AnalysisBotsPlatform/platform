@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/AnalysisBotsPlatform/platform/db"
+	"os"
+	"strings"
 	"sync"
 )
 
@@ -30,6 +32,7 @@ type Task struct {
 	Project  string
 	Bot      string
 	GH_token string
+	Patch    bool
 }
 
 // Payload for returning task results.
@@ -38,6 +41,7 @@ type Result struct {
 	Stdout      string
 	Stderr      string
 	Exit_status int
+	Patch       string
 }
 
 // Enable a worker to wait for a new task by adding a channel that delivers the
@@ -211,11 +215,7 @@ func (api *WorkerAPI) GetTask(worker_token string, task *Task) error {
 		return err
 	}
 
-	var ok bool
-	if pending != nil {
-		_, ok = api.running_workers[pending.Id]
-	}
-	if pending == nil || ok {
+	if pending == nil {
 		waiting := api.addAvailableWorker(worker)
 		api.guard.Unlock()
 		pending = <-waiting.task_assignment
@@ -229,7 +229,13 @@ func (api *WorkerAPI) GetTask(worker_token string, task *Task) error {
 	task.Project = pending.Project.Name
 	task.Bot = pending.Bot.Name
 	task.GH_token = pending.User.Token
+	for _, tag := range pending.Bot.Tags {
+		if strings.ToLower(tag) == "git patch" {
+			task.Patch = true
+		}
+	}
 	api.running_workers[task.Id] = make(chan bool, 1)
+	db.UpdateTaskStatus(task.Id, db.Scheduled)
 
 	return nil
 }
@@ -279,9 +285,26 @@ func (api *WorkerAPI) PublishTaskResult(result Result, ack *bool) error {
 
 	output := fmt.Sprintf("Stdout:\n%s\nStderr:\n%s", result.Stdout,
 		result.Stderr)
-	db.UpdateTaskResult(result.Tid, output, result.Exit_status)
+	file_name := db.UpdateTaskResult(result.Tid, output, result.Exit_status,
+		result.Patch != "")
 	cancel <- false
 	*ack = true
+
+	if result.Patch != "" {
+		file_path := fmt.Sprintf("%s/%s", GetPatchPath(), file_name)
+		file, err := os.Create(file_path)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		defer file.Close()
+
+		_, err = file.WriteString(result.Patch)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+	}
 
 	return nil
 }

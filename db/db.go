@@ -603,7 +603,8 @@ func GetBots() ([]*Bot, error) {
 			bot.Description = description.String
 		}
 		if tags.Valid {
-			bot.Tags = strings.Split(tags.String[1:len(tags.String)-1], ",")
+			bot.Tags = strings.Split(strings.Replace(
+				tags.String[1:len(tags.String)-1], "\"", "", -1), ",")
 		}
 		if fs_path.Valid {
 			bot.Fs_path = fs_path.String
@@ -631,7 +632,8 @@ func GetBot(bid string) (*Bot, error) {
 		bot.Description = description.String
 	}
 	if tags.Valid {
-		bot.Tags = strings.Split(tags.String[1:len(tags.String)-1], ",")
+		bot.Tags = strings.Split(strings.Replace(
+			tags.String[1:len(tags.String)-1], "\"", "", -1), ",")
 	}
 	if fs_path.Valid {
 		bot.Fs_path = fs_path.String
@@ -715,7 +717,7 @@ func GetTask(tid string, token string) (*Task, error) {
 	// fetch task entry for tid
 	if err := db.QueryRow("SELECT * FROM tasks WHERE id=$1", tid).
 		Scan(&task.Id, &uid, &pid, &bid, &start_time, &end_time, &task.Status,
-		&exit_status, &output); err != nil {
+		&exit_status, &output, &task.Patch); err != nil {
 		return nil, err
 	}
 
@@ -784,12 +786,13 @@ func CreateNewTask(token string, pid string, bid string) (*Task, error) {
 		Status:      Pending,
 		Exit_status: -1,
 		Output:      "",
+		Patch:       "",
 	}
 
 	// Insert into database
 	if err := db.QueryRow("INSERT INTO tasks"+
-		" (uid, pid, bid, status, exit_status, output)"+
-		" VALUES ($1, $2, $3, $4, $5, $6) RETURNING id ", user.Id, project.Id,
+		" (uid, pid, bid, status, exit_status, output, patch)"+
+		" VALUES ($1, $2, $3, $4, $5, $6, '') RETURNING id ", user.Id, project.Id,
 		bot.Id, task.Status, task.Exit_status, task.Output).
 		Scan(&task.Id); err != nil {
 		return nil, err
@@ -814,16 +817,43 @@ func UpdateTaskStatus(tid int64, new_status int64) {
 	}
 }
 
-// This function updates the tasks' result with the given output
-func UpdateTaskResult(tid int64, output string, exit_code int) {
+// This function updates the tasks' result with the given output and returns a
+// non-existing file name if requested.
+func UpdateTaskResult(tid int64, output string, exit_code int,
+	gen_file_name bool) string {
 	new_status := Succeeded
 	if exit_code != 0 {
 		new_status = Failed
 	}
-	var dummy string
+
+	var file_name, dummy string
+
+	if gen_file_name {
+		file_name = nonExistingRandString(Token_length,
+			"SELECT 42 FROM tasks WHERE patch = $1 || '.patch'") + ".patch"
+	}
+
 	db.QueryRow("UPDATE tasks SET status=$1, end_time=now(), output=$2, "+
-		"exit_status=$3 WHERE id=$4", new_status, output, exit_code, tid).
-		Scan(&dummy)
+		"exit_status=$3, patch=$4 WHERE id=$5", new_status, output, exit_code,
+		file_name, tid).Scan(&dummy)
+
+	return file_name
+}
+
+// Returns the file name for the given patch file. Fails if the user does not
+// have access to the file.
+func GetPatchFileName(token, patch_file string) (string, error) {
+	// declarations
+	var file_name string
+
+	// fetch file name
+	if err := db.QueryRow("SELECT patch FROM tasks "+
+		"WHERE uid = (SELECT id FROM users WHERE token = $1) AND patch = $2",
+		token, patch_file).Scan(&file_name); err != nil {
+		return "", err
+	}
+
+	return file_name, nil
 }
 
 // This function returns all tasks which succeeded the 'maxseconds' duration
@@ -950,10 +980,8 @@ func CreateWorker(user_token, name string, shared bool) (string, error) {
 // returned.
 func SetWorkerActive(token string) error {
 	var dummy string
-	db.QueryRow("UPDATE workers SET active=true, last_contact=now() "+
-		"WHERE token=$1", token).Scan(&dummy)
-
-	return nil
+	return db.QueryRow("UPDATE workers SET active=true, last_contact=now() "+
+		"WHERE token=$1 RETURNING 42", token).Scan(&dummy)
 }
 
 // Sets the given worker inactive, i.e. the `active` flag is unset and the
@@ -961,10 +989,8 @@ func SetWorkerActive(token string) error {
 // returned.
 func SetWorkerInactive(token string) error {
 	var dummy string
-	db.QueryRow("UPDATE workers SET active=false, last_contact=now() "+
-		"WHERE token=$1", token).Scan(&dummy)
-
-	return nil
+	return db.QueryRow("UPDATE workers SET active=false, last_contact=now() "+
+		"WHERE token=$1 RETURNING 42", token).Scan(&dummy)
 }
 
 // Returns the worker that corresponds to the given token. In case the token is

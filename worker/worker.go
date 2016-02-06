@@ -6,17 +6,24 @@ import (
 	"github.com/AnalysisBotsPlatform/platform/db"
 	"net"
 	"net/rpc"
+	"os"
 	"strconv"
 )
 
 // Maximal duration in seconds for each task.
 const max_task_time int64 = 60
 
+// Cache subdirectory where Git patches are located.
+const patches_directory = "patches"
+
+// Absolute path to patch files directory.
+var patches_path string
+
 // WorkerAPI instance used to interact with the workers.
 var api *WorkerAPI
 
 // Initialization of the worker. Sets up the RPC infrastructure.
-func Init(port string) error {
+func Init(port, cache_path string) error {
 	api = NewWorkerAPI()
 	rpc.Register(api)
 
@@ -27,7 +34,22 @@ func Init(port string) error {
 
 	go rpc.Accept(listener)
 
+	patches_path = fmt.Sprintf("%s/%s", cache_path, patches_directory)
+	if _, err := os.Stat(patches_path); os.IsNotExist(err) {
+		fmt.Println("Patch cache directory does not exist!")
+		fmt.Printf("Create patch cache directory %s\n", patches_path)
+		if err := os.MkdirAll(patches_path, 0755); err != nil {
+			fmt.Println("Patch cache directory cannot be created!")
+			return err
+		}
+	}
+
 	return nil
+}
+
+// Returns the path to the patch directory
+func GetPatchPath() string {
+	return patches_path
 }
 
 // Creates a new task. This includes the following steps:

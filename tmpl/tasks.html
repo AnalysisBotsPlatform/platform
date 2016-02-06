@@ -38,11 +38,11 @@
                                                     <td>
                                                         <a href="/tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button>
                                                         </a>
-                                                        {{ if or (eq .Status 0) (eq .Status 1) }}
+                                                        {{ if or .IsPending (or .IsScheduled .IsRunning) }}
                                                         <a href="/tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button>
                                                         </a>
                                                         {{ end }}
-                                                        {{ if or (eq .Status 2) (or (eq .Status 3) (eq .Status 4)) }}
+                                                        {{ if or .IsCanceled (or .IsSucceeded .IsFailed) }}
                                                         <a href="/bots/{{.Bot.Id}}/{{.Project.Id}}"><button type="button" class="btn btn-success">Rerun</button>
                                                         </a>
                                                         {{ end }}
