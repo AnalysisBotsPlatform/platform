@@ -1116,7 +1116,7 @@ func UpdateOneTimeTaskStatus(otid int64, status int) error{
 // TODO documentation
 //
 func CreateNewInstantTask(token string, pid string, bid string)(*InstantTask, error){
-    var gtid int64
+    var gid int64
     
     projectId, pErr := strconv.ParseInt(pid, 10, 64)
     if(pErr != nil){
@@ -1128,31 +1128,36 @@ func CreateNewInstantTask(token string, pid string, bid string)(*InstantTask, er
         return nil, bErr
     }
 
+
 	userId, err := GetUserId(token)
 	if err != nil {
 		return nil, err
 	}
 
 
-    sErr := db.QueryRow("INSERT INTO group_tasks (uid, pid, bid) VALUES ($1, $2, $3) RETURNING id", userId, projectId, botId).Scan(&gtid)
+    
+	sErr := db.QueryRow("INSERT INTO group_tasks (uid, pid, bid) VALUES ($1, $2, $3) RETURNING id", userId, projectId, botId).Scan(&gid)
     if(sErr != nil){
         return nil, sErr
     }
 
-    _, iErr := db.Exec("INSERT INTO instant_tasks (gid) VALUES ($1)", gtid)
-    if(iErr != nil){
-        return nil, iErr
-    }
-	
 
-	return GetInstantTask(gtid)
+
+	_, err = db.Exec("INSERT INTO instant_tasks (id) VALUES ($1)", gid)
+	if err != nil {
+		return nil, err
+	}
+
+
+	return GetInstantTask(gid)
+
 }
 //
 // TODO documentation
 //
 func GetInstantTask(itid int64)(*InstantTask, error){
-	
-	var token 		string
+
+	var token 		    string
 	var pid 			int64
 	var bid				int64
 
@@ -1202,7 +1207,7 @@ func IsInstantTask(tid string)(bool, error){
 	if err != nil {
 		return false, err
 	}
-	if err := db.QueryRow("SELECT TOP 1 id FROM instant_tasks WHERE id=$1", i); err != nil {
+	if err := db.QueryRow("SELECT id FROM instant_tasks WHERE id=$1", i); err != nil {
 		return false, nil
 	}
 	return true, nil

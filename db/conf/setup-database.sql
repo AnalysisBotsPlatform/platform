@@ -108,7 +108,7 @@ ALTER TABLE workers OWNER TO :db_user;
 ALTER TABLE members OWNER TO :db_user;
 ALTER TABLE group_tasks OWNER TO :db_user;
 ALTER TABLE tasks OWNER TO :db_user;
-ALTER TABLE scheduled_tasks OWNER TO :db_user;
+ALTER TABLE schedule_tasks OWNER TO :db_user;
 ALTER TABLE onetime_tasks OWNER TO :db_user;
 ALTER TABLE instant_tasks OWNER TO :db_user;
 ALTER TABLE event_tasks OWNER TO :db_user;
