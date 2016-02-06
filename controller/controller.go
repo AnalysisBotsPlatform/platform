@@ -1032,17 +1032,19 @@ func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
                           vars map[string]string, session *sessions.Session, token string){
 
 
-    instantTask, err := db.CreateNewInstantTask(token,
-                                              vars["pid"], vars["bid"], r.FormValue("name"))
+    instantTask, err := db.CreateNewInstantTask(token, vars["pid"], vars["bid"])
 
     if(err != nil){
         handleError(w, r, err)
+        return
     }else{
         http.Redirect(w, r, fmt.Sprintf("/tasks"),
                       http.StatusFound)
     }
+    
+    tid := instantTask.Id
 
-    worker.CreateNewTask(instantTask.Id)
+    worker.CreateNewTask(tid)
 
 
 }
@@ -1182,7 +1184,7 @@ func updateHooks(w http.ResponseWriter, token string) (error){
 
 	
 
-    tasks, err := db.GetRunningEventTasks(token)
+    tasks, err := db.GetActiveEventTasks(token)
     if(err != nil){
         return err
     }

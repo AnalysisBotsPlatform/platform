@@ -64,7 +64,7 @@ CREATE TABLE group_tasks(
 
 CREATE TABLE tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
-	gid integer REFERENCES task_groups(id) NOT NULL,
+	gid integer REFERENCES group_tasks(id) NOT NULL,
 	worker_token varchar(50) NOT NULL UNIQUE CHECK (worker_token <> ''),
 	start_time timestamp,
 	end_time timestamp,
@@ -74,31 +74,27 @@ CREATE TABLE tasks(
 );
 
 CREATE TABLE schedule_tasks(
-	id SERIAL PRIMARY KEY NOT NULL,
+	id integer UNIQUE REFERENCES group_tasks(id) NOT NULL,
 	name varchar(50) NOT NULL CHECK (name <> ''),
-	gid integer REFERENCES task_groups(id) NOT NULL,
 	status integer NOT NULL,
 	next timestamp,
 	cron varchar(100) NOT NULL CHECK (cron <> '')
 );
 
 CREATE TABLE onetime_tasks(
-	id SERIAL PRIMARY KEY NOT NULL,
-	gid integer REFERENCES task_groups(id) NOT NULL,
-  name varchar(50) NOT NULL CHECK (name <> ''),
+	id integer UNIQUE REFERENCES group_tasks(id) NOT NULL,
+	name varchar(50) NOT NULL CHECK (name <> ''),
 	status integer NOT NULL,
 	exec_time timestamp
 );
 
 CREATE TABLE instant_tasks(
-	id SERIAL PRIMARY KEY NOT NULL,
-	gid integer REFERENCES task_groups(id) NOT NULL
+	id integer UNIQUE REFERENCES group_tasks(id) NOT NULL
 );
 
 CREATE TABLE event_tasks(
-	id SERIAL PRIMARY KEY NOT NULL,
+	id integer UNIQUE REFERENCES group_tasks(id) NOT NULL,
 	name varchar(50) NOT NULL CHECK (name <> ''),
-	gid integer REFERENCES task_groups(id) NOT NULL,
 	status integer NOT NULL,
 	event integer NOT NULL,
 	hook_id integer NOT NULL
@@ -110,7 +106,7 @@ ALTER TABLE bots OWNER TO :db_user;
 ALTER TABLE projects OWNER TO :db_user;
 ALTER TABLE workers OWNER TO :db_user;
 ALTER TABLE members OWNER TO :db_user;
-ALTER TABLE task_groups OWNER TO :db_user;
+ALTER TABLE group_tasks OWNER TO :db_user;
 ALTER TABLE tasks OWNER TO :db_user;
 ALTER TABLE scheduled_tasks OWNER TO :db_user;
 ALTER TABLE onetime_tasks OWNER TO :db_user;

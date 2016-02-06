@@ -115,12 +115,7 @@ type Member struct {
 	Project *Project
 }
 
-type GroupTask struct{
-	Id 				int64
-	User			*User
-	Project		*Project
-	Bot				*Bot
-}
+
 
 // A task is a bot's execution on a project
 type Task struct {
@@ -136,8 +131,7 @@ type Task struct {
 
 
 type ScheduledTask struct {
-	Id          	int64
-	Gid						int64
+	Id						int64
 	User 					*User
 	Project				*Project
 	Bot						*Bot
@@ -148,8 +142,7 @@ type ScheduledTask struct {
 }
 
 type OneTimeTask struct {
-	Id          	int64
-	Gid						int64
+	Id						int64
 	User 					*User
 	Project				*Project
 	Bot						*Bot
@@ -159,16 +152,14 @@ type OneTimeTask struct {
 }
 
 type InstantTask struct {
-	Id          	int64
-	Gid						int64
+	Id						int64
 	User 					*User
 	Project				*Project
 	Bot						*Bot
 }
 
 type EventTask struct {
-	Id          	int64
-	Gid						int64
+	Id						int64
 	User 					*User
 	Project				*Project
 	Bot						*Bot
