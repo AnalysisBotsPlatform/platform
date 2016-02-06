@@ -685,9 +685,7 @@ func CreateNewChildTask(gtid int64)(*Task, error){
 	if err := db.QueryRow("SELECT worker_token FROM users"+
 	" INNER JOIN group_tasks ON group_tasks.uid=users.id"+
 	" WHERE group_tasks.id=$1", gtid).Scan(&workerToken); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
+		
 		return nil, err
 	}
 	// create Task
@@ -944,7 +942,7 @@ func GetScheduledTasks(token string)([]*ScheduledTask, error){
 		return nil, err
 	}
 
-	rows, err := db.Query("SELECT id FROM schedule_tasks INNER JOIN group_tasks"+
+	rows, err := db.Query("SELECT group_tasks.id FROM schedule_tasks INNER JOIN group_tasks"+
 	" ON group_tasks.id=schedule_tasks.id WHERE group_tasks.uid=$1", userId)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1269,8 +1267,8 @@ func GetActiveEventTasks(token string)([]*EventTask, error){
 		return nil, err
 	}
 
-	rows, err := db.Query("SELECT id FROM event_tasks INNER JOIN group_tasks"+
-	" ON group_tasks.id=event_tasks.gid WHERE group_tasks.uid=$1 AND event_tasks.status=$2",
+	rows, err := db.Query("SELECT group_tasks.id FROM event_tasks INNER JOIN group_tasks"+
+	" ON group_tasks.id=event_tasks.id WHERE group_tasks.uid=$1 AND event_tasks.status=$2",
 	 userId, Active)
  	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1308,12 +1306,12 @@ func GetEventTask(etid int64)(*EventTask, error){
 	var bid				int64
 
 	task := EventTask{}
+    
+    fmt.Println("Get Event Task")
 
-	if err := db.QueryRow("SELECT * FROM schedule_tasks WHERE id=$1", etid).
+	if err := db.QueryRow("SELECT * FROM event_tasks WHERE id=$1", etid).
 		Scan(&task.Id, &name, &status, &event, &hookId); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
+            fmt.Println("Error Get Event Task 1")
 		return nil, err
 	}
 
@@ -1321,9 +1319,7 @@ func GetEventTask(etid int64)(*EventTask, error){
 	if err := db.QueryRow("SELECT token, pid, bid FROM group_tasks"+
 	" INNER JOIN users ON users.id=group_tasks.uid"+
 	" WHERE group_tasks.id=$1", task.Id).Scan(&token, &pid, &bid); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
+        fmt.Println("Error Get Event Task 2")
 		return nil, err
 	}
 
@@ -1344,6 +1340,8 @@ func GetEventTask(etid int64)(*EventTask, error){
 		return nil, err
 	}
 	task.Bot = bot
+    
+    fmt.Println("Get Event Task: Retrieved user, project, bot")
 
 	if name.Valid {
 		task.Name = name.String
@@ -1382,5 +1380,12 @@ func GetHookId(etid int64)(int64, error){
 		return 0, err
 	}
 	return hookId, nil
+}
+
+func SetHookId(etid int64, hook_id int64)(error){
+    if _, err := db.Exec("UPDATE event_tasks SET hook_id=$1 WHERE id=$2", hook_id, etid); err != nil {
+		return err
+	}
+	return nil
 }
 //########################################################

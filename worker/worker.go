@@ -52,7 +52,7 @@ func CreateNewTask(parentTaskId int64) error{
 
     newTask, tErr := db.CreateNewChildTask(parentTaskId)
     if(tErr != nil){
-        // TODO error handling
+        fmt.Printf("\tError Create Task for Parent Task (%d): %s\n", parentTaskId, tErr.Error())
         return tErr
     }
     api.assignTask(newTask)
@@ -159,6 +159,7 @@ func StopPeriodRunners(){
 }
 
 func runScheduledTask(stid int64, cancelChan chan bool){
+    fmt.Printf("New Scheduled Task Runner (id: %d)\n", stid)
 	for{
 		scheduledTask, err := db.GetScheduledTask(stid)
 		if(err != nil){
@@ -174,28 +175,35 @@ func runScheduledTask(stid int64, cancelChan chan bool){
 		}
 		select{
 		case <- time.After(sleepTime):
+            fmt.Printf("\tExecute Scheduled Task: %d\n", stid)
 			CreateNewTask(stid)
 		case <- cancelChan:
 			db.UpdateScheduledTaskStatus(stid, db.Complete)
 			return;
 		case <- pauseChan:
+            fmt.Printf("\t(id: %d) Pause Execution", stid)
 			return;
 		}
 	}
 }
 
 func runOneTimeTask(otid int64, cancelChan chan bool){
+    fmt.Printf("New One Time Task Runner (id: %d)\n", otid)
 	oneTimeTask, err := db.GetOneTimeTask(otid)
 	if(err != nil){
-		// TODO error handling
+        fmt.Printf("\t(id: %d) Error during retrieving Task from db: %s", otid, err.Error())
 		return;
 	}
+    duration := oneTimeTask.Exec_time.Sub(time.Now().UTC())
+    fmt.Printf("\t(id: %d) Sleep for \"%d\" nanosec (time: %s)", otid, duration, time.Now().UTC().String())
 	select{
-	case <- time.After(oneTimeTask.Exec_time.Sub(time.Now())):
+        case <- time.After(duration):
+        fmt.Printf("\tExecute One Time Task: %d\n", otid)
 		CreateNewTask(otid)
 	case <- cancelChan:
 		return;
 	case <- pauseChan:
+        fmt.Printf("\t(id: %d) Pause Execution", otid)
 		return;
 	}
 }

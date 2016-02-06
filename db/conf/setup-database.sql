@@ -97,7 +97,7 @@ CREATE TABLE event_tasks(
 	name varchar(50) NOT NULL CHECK (name <> ''),
 	status integer NOT NULL,
 	event integer NOT NULL,
-	hook_id integer NOT NULL
+	hook_id integer 
 );
 
 -- Transfer ownership to the newly created user.
