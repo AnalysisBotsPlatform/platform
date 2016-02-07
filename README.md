@@ -71,6 +71,7 @@ explanation but here is a more thorough description:
 | `SESSION_ENC`   | Random string used to encrypt the session                     |
 | `CACHE_PATH`    | File system path where the platform may store files           |
 | `ADMIN_USER`    | GitHub user name of the person who administrates the platform |
+| `APP_PORT`      | Port where the application is reachable                       |
 | `WORKER_PORT`   | Port where the communication interface for workers is exposed |
 | `DB_HOST`       | Host name where the PostgreSQL database is located            |
 | `DB_USER`       | User that is used to access the PostgreSQL database           |
@@ -81,13 +82,13 @@ The values for the `CLIENT_*` variables can be found under the Applications
 Settings page on http://github.com. In case you have not already created an
 application for the Analysis Bot Platform you can just go on and create a new
 one. Type in any name you like, for example "Analysis Bots Platform for GitHub"
-and enter `http://localhost:8080` for both the Homepage URL and the
+and enter `http://localhost:$APP_PORT` for both the Homepage URL and the
 Authorization callback URL if you want to run the platform locally or an
 existing URL under which the application is accessible. If you run it on a
 web server you can make it accessible using a `.htaccess` file for example. Just
-rewrite accesses to the platform so that they use port 8080. API accesses (i.e.
-accesses to `<URL you chose>/api/*`) should by rewritten to use the port you
-specified in `WORKER_PORT`.
+rewrite accesses to the platform so that they use port `APP_PORT`. API accesses
+(i.e.  accesses to `<URL you chose>/api/*`) should by rewritten to use the port
+you specified in `WORKER_PORT`.
 
 You can use
 ```shell
@@ -140,12 +141,12 @@ Now you can run
 ```shell
 go run main.go
 ```
-and an instance of the platform should be reachable on port 8080.
+and an instance of the platform should be reachable on port `APP_PORT`.
 
-Try it out by visiting [http://localhost:8080](http://localhost:8080) with your
-web browser if you run the platform on your local machine or by visiting the URL
-you used during the installation. Congratulations, you successfully installed
-and started your own instance of the Analysis Bots Platform for GitHub!
+Try it out by visiting `http://localhost:$APP_PORT` with your web browser if you
+run the platform on your local machine or by visiting the URL you used during
+the installation. Congratulations, you successfully installed and started your
+own instance of the Analysis Bots Platform for GitHub!
 
 
 # FAQ

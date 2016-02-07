@@ -63,6 +63,11 @@ const admin_user_var = "ADMIN_USER"
 
 var admin_user = os.Getenv(admin_user_var)
 
+// Application access
+const application_port_var = "APP_PORT"
+
+var application_port = os.Getenv(application_port_var)
+
 // Worker service
 const worker_port_var = "WORKER_PORT"
 
@@ -131,6 +136,8 @@ var error_map = make(map[string]interface{})
 //
 // - WORKER_PORT: Port where all worker related communication takes place.
 //
+// - APP_PORT: Port where the application is accessible.
+//
 // In case some of the variables are missing a corresponding message is prompted
 // to the standard output and the function terminates without any further
 // action.
@@ -149,7 +156,7 @@ var error_map = make(map[string]interface{})
 // is closed and the system exits with the status code 0.
 //
 // Finally, the `ListenAndServe` function of the http package is called in order
-// to listen on port 8080 for incoming http requests. The router used to
+// to listen on port APP_PORT for incoming http requests. The router used to
 // demultiplex paths and calling the respective handlers is created by the
 // `initRoutes` call.
 func Start() {
@@ -165,14 +172,15 @@ func Start() {
 	_, cache := os.LookupEnv(cache_path_var)
 	_, admin := os.LookupEnv(admin_user_var)
 	_, wport := os.LookupEnv(worker_port_var)
+	_, aport := os.LookupEnv(application_port_var)
 	if !id || !secret || !auth || !enc || !host || !user || !pass || !name ||
-		!cache || !admin || !wport {
+		!cache || !admin || !wport || !aport {
 		fmt.Printf("Application settings missing!\n"+
-			"Please set the %s, %s, %s, %s, %s, %s, %s, %s, %s, %s and %s "+
+			"Please set the %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s and %s "+
 			"environment variables.\n", app_id_var, app_secret_var,
 			session_auth_var, session_enc_var, db_host_var, db_user_var,
 			db_pass_var, db_name_var, cache_path_var, admin_user_var,
-			worker_port_var)
+			worker_port_var, application_port_var)
 		return
 	}
 
@@ -229,8 +237,9 @@ func Start() {
 		os.Exit(0)
 	}()
 
-	// listen on port 8080 to handle http requests
-	if err := http.ListenAndServe(":8080", initRoutes()); err != nil {
+	// listen on port APP_PORT to handle http requests
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", application_port),
+		initRoutes()); err != nil {
 		fmt.Println("Controller listen failed:")
 		fmt.Println(err)
 	}
