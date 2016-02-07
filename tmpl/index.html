@@ -76,6 +76,7 @@
                                             <th>Bot Name</th>
                                             <th>Status</th>
                                             <th>Last Update At</th>
+                                            <th>Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -86,6 +87,7 @@
                                             <td>{{.Bot.Name}}</td>
                                             <td>{{.StatusString}}</td>
                                             <td>{{ if .End_time }}{{.End_time.Format "Mon Jan _2 15:04:05 2006"}}{{ else }}{{ if .Start_time }}{{.Start_time.Format "Mon Jan _2 15:04:05 2006"}}{{ else }}--{{ end }}{{ end }}</td>
+                                            <td><a href="/tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a></td>
                                         </tr>
                                         {{ end }}
                                     </tbody>

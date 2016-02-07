@@ -49,11 +49,19 @@
                                                             <td>{{.Task.Exit_status}}</td>
                                                         </tr>
                                                         {{ end }}
+                                                        {{ if ne .Task.Patch "" }}
                                                         <tr>
-                                                            {{ if ne .Task.Patch "" }}
                                                             <td>Git Patch</td>
                                                             <td>
                                                                 <a href="/cache/patches/{{.Task.Patch}}" download><button type="button" class="btn btn-success">Download</button>
+                                                                </a>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>GitHub Pull Request</td>
+                                                            <td>
+                                                                <a href="/newpullrequest/{{.Task.Id}}"><button type="button" class="btn btn-success">Create New Pull Request</button>
+                                                                </a>
                                                             </td>
                                                         </tr>
                                                         {{ end }}

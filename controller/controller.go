@@ -203,11 +203,10 @@ func Start() {
 				fmt.Println(err)
 				return
 			}
-		} else {
-			if err := worker.Init(worker_port, cache_path); err != nil {
-				fmt.Println(err)
-				return
-			}
+		}
+		if err := worker.Init(worker_port, cache_path); err != nil {
+			fmt.Println(err)
+			return
 		}
 	}
 
@@ -267,6 +266,8 @@ func initRoutes() (rootRouter *mux.Router) {
 		makeHandler(makeTokenHandler(handleUserDegegisterWorker)))
 	rootRouter.HandleFunc("/cache/patches/{patch:.*\\.patch}",
 		makeHandler(makeTokenHandler(handlePatchDownload)))
+	rootRouter.HandleFunc(fmt.Sprintf("/newpullrequest/{tid:.%s}", id_regex),
+		makeHandler(makeTokenHandler(handlePullRequestNew)))
 
 	// bots
 	botsRouter.HandleFunc("/", makeHandler(makeTokenHandler(handleBots)))
@@ -383,16 +384,19 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
 // The function sends a request `req_url` to GitHub. After receiving a
 // successful response the result data in JSON format is decoded and returned.
 // In case of an unexpected error, the error is returned.
-func authGitHubRequest(w http.ResponseWriter, req_url string,
-	token string) (interface{}, error) {
-	// set up request parameters
-	data := url.Values{}
+func authGitHubRequest(method, req_url string, token string,
+	payload map[string]string, expected_status int) (interface{}, error) {
+	// set up request payload
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
 
 	// set up request
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET",
+	req, _ := http.NewRequest(method,
 		fmt.Sprintf("https://api.github.com/%s", req_url),
-		bytes.NewBufferString(data.Encode()))
+		bytes.NewBuffer(data))
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
 
 	// do request
@@ -403,7 +407,7 @@ func authGitHubRequest(w http.ResponseWriter, req_url string,
 	defer response.Body.Close()
 
 	// read response
-	if response.StatusCode != http.StatusOK {
+	if response.StatusCode != expected_status {
 		return nil, errors.New("Bad request!")
 	}
 	body, err := ioutil.ReadAll(response.Body)
@@ -564,7 +568,8 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 		// store access token and user information
 		token := resp_data["access_token"].(string)
 		session.Values["token"] = token
-		user_resp, err := authGitHubRequest(w, "user", token)
+		user_resp, err := authGitHubRequest("GET", "user", token,
+			make(map[string]string), http.StatusOK)
 		if err != nil {
 			session.Options.MaxAge = -1
 		} else {
@@ -742,6 +747,79 @@ func handlePatchDownload(w http.ResponseWriter, r *http.Request,
 	}
 }
 
+// The handler applies the Git patch to the project if applicable. This involves
+// the following steps:
+// - Verify that the user is allowed to perform this action.
+// - Request the current commit ID the master branch of the project references.
+// - Create a new branch pointing the this commit ID.
+// - Pull the new branch and apply the patch.
+// - Upload the changes.
+// - Create a pull request on GitHub.
+func handlePullRequestNew(w http.ResponseWriter, r *http.Request,
+	vars map[string]string, session *sessions.Session, token string) {
+	// verify user has access to requested task
+	task, err := db.GetTask(vars["tid"], token)
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	// request master branch information
+	ref_response, err := authGitHubRequest("GET",
+		fmt.Sprintf("repos/%s/git/refs/heads/master", task.Project.Name), token,
+		make(map[string]string), http.StatusOK)
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+	master := ref_response.(map[string]interface{})
+	object := master["object"].(map[string]interface{})
+	sha := object["sha"].(string)
+
+	// create new branch to put the changes on
+	branch_name := fmt.Sprintf("analysisbots_task_%d", task.Id)
+	new_ref_payload := make(map[string]string)
+	new_ref_payload["ref"] = fmt.Sprintf("refs/heads/%s", branch_name)
+	new_ref_payload["sha"] = sha
+	new_ref_response, err := authGitHubRequest("POST",
+		fmt.Sprintf("repos/%s/git/refs", task.Project.Name), token,
+		new_ref_payload, http.StatusCreated)
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+	new_ref := new_ref_response.(map[string]interface{})
+	new_ref_object := new_ref["object"].(map[string]interface{})
+	new_ref_sha := new_ref_object["sha"].(string)
+	if sha != new_ref_sha {
+		handleError(w, r, fmt.Errorf("New sha value does not match old one!"))
+		return
+	}
+
+	// commit the changes
+	if err := worker.CommitPatch(task, branch_name); err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	// create pull request
+	pullreq_payload := make(map[string]string)
+	pullreq_payload["title"] = fmt.Sprintf("[AUTO] Analysis Bots Action #%d",
+		task.Id)
+	pullreq_payload["head"] = branch_name
+	pullreq_payload["base"] = "master"
+	pullreq_payload["body"] = "Please pull this in!"
+	_, err = authGitHubRequest("POST",
+		fmt.Sprintf("repos/%s/pulls", task.Project.Name), token,
+		pullreq_payload, http.StatusCreated)
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/tasks/%d", task.Id), http.StatusFound)
+}
+
 // The handler requests information about all Bots from the database. If an
 // error occurs the `handleError` function is called else `renderTemplate` with
 // the template "bots" and the retrieved data.
@@ -819,7 +897,8 @@ func handleBotsBidNewtask(w http.ResponseWriter, r *http.Request,
 		handleError(w, r, errBot)
 		return
 	}
-	response, err := authGitHubRequest(w, "user/repos", token)
+	response, err := authGitHubRequest("GET", "user/repos", token,
+		make(map[string]string), http.StatusOK)
 	if err != nil {
 		session.Options.MaxAge = -1
 		session.Save(r, w)
@@ -846,7 +925,8 @@ func handleBotsBidNewtask(w http.ResponseWriter, r *http.Request,
 // with the "projects" template and the data from the database is called.
 func handleProjects(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
-	response, err := authGitHubRequest(w, "user/repos", token)
+	response, err := authGitHubRequest("GET", "user/repos", token,
+		make(map[string]string), http.StatusOK)
 	if err != nil {
 		session.Options.MaxAge = -1
 		session.Save(r, w)
@@ -1022,7 +1102,8 @@ func handleAPIGetProjects(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	}
-	response, err := authGitHubRequest(w, "user/repos", user_token)
+	response, err := authGitHubRequest("GET", "user/repos", user_token,
+		make(map[string]string), http.StatusOK)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	} else {
