@@ -721,6 +721,7 @@ func handleUserDegegisterWorker(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	worker.DeleteWorker(worker_token)
 	if err := db.DeleteWorker(token, worker_token); err != nil {
 		handleError(w, r, err)
 		return

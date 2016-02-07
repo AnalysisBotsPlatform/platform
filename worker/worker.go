@@ -106,6 +106,13 @@ func Cancle(tid string) error {
 	return nil
 }
 
+// Perform unregister action for worker. This continues a potentially blocked
+// execution of GetTask.
+func DeleteWorker(worker_token string) {
+	var ack bool
+	api.UnregisterWorker(worker_token, &ack)
+}
+
 // This function cancles all tasks which succeeded the 'max_task_time'
 func CancleTimedOverTasks() {
 	tasks, _ := db.GetTimedOverTasks(max_task_time)
