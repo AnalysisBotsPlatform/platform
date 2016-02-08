@@ -5,7 +5,7 @@ var weekday = -1;
 var name = "-";
 var url = "/{basis}/{name}";
 var chosen_tab = 1;
-var event_id = null;
+var event_id = -1;
 var schedule = false;
 var periodic_sel = -1;
 
@@ -71,22 +71,24 @@ $("#schedule").click(function(){
         url = "/{basis}/{name}";
         exec_basis = 4;
     }
-    $("#is_scheduled").val(schedule);
+    if(!schedule){
+        $("#time").removeAttr('name');
+        $("#type").removeAttr('name');
+        $("#name").removeAttr('name');
+        $("#cron").removeAttr('name');
+    }
 });
 
 $("#datetimepicker1").on("dp.change", function(old_date) {
     time = Math.round(old_date.timeStamp / 1000);
-    $("#time").val(time);   
 });
 
 $("#datetimepicker2").on("dp.change", function(old_date) {
-    time = Math.round(old_date.timeStamp / 1000);  
-    $("#time").val(time);   
+    time = Math.round(old_date.timeStamp / 1000);
 });
 
 $("#datetimepicker3").on("dp.change", function(old_date) {
     time = Math.round(old_date.timeStamp / 1000);
-    $("#time").val(time);   
 });
 
 $("#name").change(function() {
@@ -117,42 +119,77 @@ $("#weekday-sel").change(function() {
 });
 
 $("#name-tab1").change(function() {
-    $("#name-tab2").val($("#name-tab1").val());
-    $("#name-tab3").val($("#name-tab1").val());
-    $("#task-name").val($("#name-tab2").val());
+    var n = $("#name-tab1").val();
+    $("#name-tab2").val(n);
+    $("#name-tab3").val(n);
+    $('#name').attr('name', 'name');
+    $('#name').val(n);
 });
 
 $("#name-tab2").change(function() {
-    $("#name-tab1").val($("#name-tab2").val());
-    $("#name-tab3").val($("#name-tab2").val());
-    $("#task-name").val($("#name-tab2").val());
+    var n = $("#name-tab2").val();
+    $("#name-tab1").val(n);
+    $("#name-tab3").val(n);
+    $('#name').attr('name', 'name');
+    $('#name').val(n);
 });
 
 $("#name-tab3").change(function() {
-    $("#name-tab1").val($("#name-tab3").val());
-    $("#name-tab2").val($("#name-tab3").val());
-    $("#task-name").val($("#name-tab2").val());
+    var n = $("#name-tab3").val();
+    $("#name-tab1").val(n);
+    $("#name-tab2").val(n);
+    $('#name').attr('name', 'name');
+    $('#name').val(n);
 });
 
 $(".full_url").click(function() {
     var base_url = $(this).attr('href');
+    var cron = "";
     if(schedule){
         if(chosen_tab == 1){
             if(periodic_sel == -1){
                 alert("Please select the type of periodicity.");
                 return false;
             }
+            if(periodic_sel == 0){
+                cron = "0_*/"+hour+"_*_*_*";
+            } else if(periodic_sel == 1){
+                var date = new Date(time * 1000);
+                cron = date.getMinutes()+"_"+date.getHours()+"_*_*_*";
+            } else if(periodic_sel == 2){
+                var date = new Date(time * 1000);
+                cron = date.getMinutes()+"_"+date.getHours()+"_*_*_"+weekday;
+            }
+            $('#cron').attr('name', 'cron');
+            $('#cron').val(cron);
+
+            $('#time').removeAttr('name');
+            $('#type').removeAttr('name');
         } else if(chosen_tab == 3){
             exec_basis = 3;
+            $('#time').attr('name', 'time');
+            $("#time").val(time);
+
+            $('#cron').removeAttr('name');
+            $('#type').removeAttr('name');
         } else if(chosen_tab == 2){
             exec_basis = 5;
-            if(event_id == null){
+            if(event_id == -1){
                 alert("Please select an event.");
                 return false;
             }
+            $('#type').attr('name', 'type');
+            $("#type").val(event_id);
+
+            $('#time').removeAttr('name');
+            $('#cron').removeAttr('name');
         }
     } else {
         exec_basis = 4;
+        $('#name').removeAttr('name');
+        $('#time').removeAttr('name');
+        $('#type').removeAttr('name');
+        $('#cron').removeAttr('name');
     }
     $("#new-task-form").attr("action", base_url);    
     $("#execution_type").val(exec_basis+"");

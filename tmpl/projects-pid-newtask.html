@@ -44,12 +44,10 @@
                                             <div class="form-group">
                                                 <input type="checkbox" id="schedule" value="true">
                                                 <label>Schedule the bot</label>
-                                                <input type="hidden" name="is_scheduled" id="is_scheduled" value="false">
-                                                <input type="hidden" name="execution_type" id="execution_type">
-                                                <input type="hidden" name="time" id="time">
-                                                <input type="hidden" name="pid" id="pid">
-                                                <input type="hidden" name="bid" id="bid">
-                                                <input type="hidden" name="task_name" id="task-name">
+                                                <input type="hidden" id="time">
+                                                <input type="hidden" id="type">
+                                                <input type="hidden" id="name">
+                                                <input type="hidden" id="cron">
                                             </div>
                                             <div id="schedule-div" style="display:none;">
                                                 <ul class="nav nav-tabs" style="margin-bottom: 15px;">
@@ -61,11 +59,11 @@
                                                     <div class="tab-pane fade" id="periodic" style="margin-left:30px;margin-right:30px;">
                                                     	<div class="form-group">
                                                             <label>Name</label>
-                                                            <input type="text" class="form-control" id="name-tab1">
+                                                            <input type="text" class="form-control" id="name-tab1" placeholder="Optional name">
                                                         </div>  
                                                         <div class="form-group">
                                                             <label>Run Type</label>
-                                                            <select class="form-control" id="basis" name="periodicity">
+                                                            <select class="form-control" id="basis">
                                                                 <option value="-1">Select</option>
                                                                 <option value="0">Hourly</option>
                                                                 <option value="1">Daily</option>
@@ -75,7 +73,7 @@
                                                         <div class="form-group dynamic-run run-hourly">
                                                             <div id="run-hourly">
                                                                 <label>Every (hour/s)</label>
-                                                                <input type="number" class="form-control numberpicker-input" id="numberpicker-input" max="23" min="1" value="1" name="hour" />
+                                                                <input type="number" class="form-control numberpicker-input" id="numberpicker-input" max="23" min="1" value="1"/>
                                                             </div>
                                                         </div>
                                                         <div class="form-group dynamic-run run-daily">
@@ -89,7 +87,7 @@
                                                         </div>                                                
                                                         <div class="form-group dynamic-run run-weekly">
                                                             <label>Week Day</label>
-                                                            <select class="form-control" id="weekday-sel" name="weekday" >
+                                                            <select class="form-control" id="weekday-sel">
                                                                 <option value="1">Monday</option>
                                                                 <option value="2">Tuesday</option>
                                                                 <option value="3">Wednesday</option>
@@ -112,7 +110,7 @@
                                                     <div class="tab-pane fade in active" id="one-time-tasks" style="margin-left:30px;margin-right:30px;">
                                                     	<div class="form-group">
                                                             <label>Name</label>
-                                                            <input type="text" class="form-control" id="name-tab1">
+                                                            <input type="text" class="form-control" id="name-tab2" placeholder="Optional name">
                                                         </div>  
                                                         <div class="form-group">
                                                             <label>Run At</label>
@@ -127,10 +125,10 @@
                                                     <div class="tab-pane fade in active" id="event-driven" style="margin-left:30px;margin-right:30px;">
                                                     	<div class="form-group">
                                                             <label>Name</label>
-                                                            <input type="text" class="form-control" id="name-tab1">
+                                                            <input type="text" class="form-control" id="name-tab3" placeholder="Optional name">
                                                         </div>  
                                                         <label>Event</label>
-                                                        <select class="form-control" id="event-id" name="event_id" >
+                                                        <select class="form-control" id="event-id">
                                                             <option value="-1">Select Event</option>
                                                             <option value="push">Push</option>
                                                             <option value="pull_request">Pull Request</option>
