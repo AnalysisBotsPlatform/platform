@@ -65,8 +65,10 @@ var admin_user = os.Getenv(admin_user_var)
 
 // Application access
 const application_port_var = "APP_PORT"
+const application_subdirectory_var = "APP_SUBDIR"
 
 var application_port = os.Getenv(application_port_var)
+var application_subdirectory = os.Getenv(application_subdirectory_var)
 
 // Worker service
 const worker_port_var = "WORKER_PORT"
@@ -138,6 +140,8 @@ var error_map = make(map[string]interface{})
 //
 // - APP_PORT: Port where the application is accessible.
 //
+// - APP_SUBDIR: Subdirectory where the application is reachable.
+//
 // In case some of the variables are missing a corresponding message is prompted
 // to the standard output and the function terminates without any further
 // action.
@@ -173,20 +177,28 @@ func Start() {
 	_, admin := os.LookupEnv(admin_user_var)
 	_, wport := os.LookupEnv(worker_port_var)
 	_, aport := os.LookupEnv(application_port_var)
+	_, subdir := os.LookupEnv(application_subdirectory_var)
 	if !id || !secret || !auth || !enc || !host || !user || !pass || !name ||
-		!cache || !admin || !wport || !aport {
+		!cache || !admin || !wport || !aport || !subdir {
 		fmt.Printf("Application settings missing!\n"+
-			"Please set the %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s and %s "+
-			"environment variables.\n", app_id_var, app_secret_var,
+			"Please set the %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s "+
+			"and %s environment variables.\n", app_id_var, app_secret_var,
 			session_auth_var, session_enc_var, db_host_var, db_user_var,
 			db_pass_var, db_name_var, cache_path_var, admin_user_var,
-			worker_port_var, application_port_var)
+			worker_port_var, application_port_var, application_subdirectory_var)
 		return
 	}
 
 	// session encryption string has length of 32?
 	if len(session_enc) != 32 {
 		fmt.Println("The session encryption string has not a length of 32!")
+		return
+	}
+
+	// ensure that application_subdirectory starts and ends with /
+	if application_subdirectory[0] != '/' ||
+		application_subdirectory[len(application_subdirectory)-1] != '/' {
+		fmt.Println("The applications subdirectory should start and end with /")
 		return
 	}
 
@@ -253,29 +265,44 @@ func Start() {
 func initRoutes() (rootRouter *mux.Router) {
 	// declare routers
 	rootRouter = mux.NewRouter()
-	botsRouter := rootRouter.PathPrefix("/bots").Subrouter()
-	projectsRouter := rootRouter.PathPrefix("/projects").Subrouter()
-	tasksRouter := rootRouter.PathPrefix("/tasks").Subrouter()
-	apiRouter := rootRouter.PathPrefix("/api").Subrouter()
+	botsRouter := rootRouter.PathPrefix(fmt.Sprintf("%sbots",
+		application_subdirectory)).Subrouter()
+	projectsRouter := rootRouter.PathPrefix(fmt.Sprintf("%sprojects",
+		application_subdirectory)).Subrouter()
+	tasksRouter := rootRouter.PathPrefix(fmt.Sprintf("%stasks",
+		application_subdirectory)).Subrouter()
+	apiRouter := rootRouter.PathPrefix(fmt.Sprintf("%sapi",
+		application_subdirectory)).Subrouter()
 
 	// register handlers for http requests
 
 	// root
-	rootRouter.HandleFunc("/", makeHandler(handleAuth)).Queries("code", "")
-	rootRouter.HandleFunc("/", makeHandler(handleRoot))
-	rootRouter.HandleFunc("/{file:.*\\.js}", makeHandler(handleJavaScripts))
-	rootRouter.HandleFunc("/login", makeHandler(handleLogin))
-	rootRouter.HandleFunc("/logout", makeHandler(handleLogout))
-	rootRouter.HandleFunc("/user", makeHandler(makeTokenHandler(handleUser)))
-	rootRouter.HandleFunc("/user/api_token",
+	rootRouter.HandleFunc(fmt.Sprintf("%s", application_subdirectory),
+		makeHandler(handleAuth)).Queries("code", "")
+	rootRouter.HandleFunc(fmt.Sprintf("%s", application_subdirectory),
+		makeHandler(handleRoot))
+	rootRouter.HandleFunc(fmt.Sprintf("%s{file:.*\\.js}",
+		application_subdirectory), makeHandler(handleJavaScripts))
+	rootRouter.HandleFunc(fmt.Sprintf("%slogin", application_subdirectory),
+		makeHandler(handleLogin))
+	rootRouter.HandleFunc(fmt.Sprintf("%slogout", application_subdirectory),
+		makeHandler(handleLogout))
+	rootRouter.HandleFunc(fmt.Sprintf("%suser", application_subdirectory),
+		makeHandler(makeTokenHandler(handleUser)))
+	rootRouter.HandleFunc(fmt.Sprintf("%suser/api_token",
+		application_subdirectory),
 		makeHandler(makeTokenHandler(handleUserNewAPIToken))).Methods("POST")
-	rootRouter.HandleFunc("/user/api_token/revoke",
+	rootRouter.HandleFunc(fmt.Sprintf("%suser/api_token/revoke",
+		application_subdirectory),
 		makeHandler(makeTokenHandler(handleUserRevokeAPIToken)))
-	rootRouter.HandleFunc("/user/worker/deregister",
+	rootRouter.HandleFunc(fmt.Sprintf("%suser/worker/deregister",
+		application_subdirectory),
 		makeHandler(makeTokenHandler(handleUserDegegisterWorker)))
-	rootRouter.HandleFunc("/cache/patches/{patch:.*\\.patch}",
+	rootRouter.HandleFunc(fmt.Sprintf("%scache/patches/{patch:.*\\.patch}",
+		application_subdirectory),
 		makeHandler(makeTokenHandler(handlePatchDownload)))
-	rootRouter.HandleFunc(fmt.Sprintf("/newpullrequest/{tid:.%s}", id_regex),
+	rootRouter.HandleFunc(fmt.Sprintf("%snewpullrequest/{tid:.%s}",
+		application_subdirectory, id_regex),
 		makeHandler(makeTokenHandler(handlePullRequestNew)))
 
 	// bots

@@ -72,6 +72,7 @@ explanation but here is a more thorough description:
 | `CACHE_PATH`    | File system path where the platform may store files           |
 | `ADMIN_USER`    | GitHub user name of the person who administrates the platform |
 | `APP_PORT`      | Port where the application is reachable                       |
+| `APP_SUBDIR`    | URL path where the applications is reachable                  |
 | `WORKER_PORT`   | Port where the communication interface for workers is exposed |
 | `DB_HOST`       | Host name where the PostgreSQL database is located            |
 | `DB_USER`       | User that is used to access the PostgreSQL database           |
