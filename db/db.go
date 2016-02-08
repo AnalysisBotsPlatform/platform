@@ -996,7 +996,7 @@ func GetScheduledTaskIdsWithStatus(status int) ([]int64, error){
                           "ON group_tasks.id = schedule_tasks.id WHERE status = $1", status)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return tasks, nil
+			return ids, nil
 		}
 		return nil, err
 	}
@@ -1009,10 +1009,10 @@ func GetScheduledTaskIdsWithStatus(status int) ([]int64, error){
 			return nil, err
 		}
 		
-		ids = append(ids, id)
+		ids = append(ids, tid)
 	}
     
-	return id, nil
+	return ids, nil
 }
 
 
@@ -1152,7 +1152,7 @@ func GetOneTimeTaskIdsWithStatus(status int) ([]int64, error){
                           "ON group_tasks.id = onetime_tasks.id WHERE status = $1", status)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return tasks, nil
+			return ids, nil
 		}
 		return nil, err
 	}
@@ -1165,10 +1165,10 @@ func GetOneTimeTaskIdsWithStatus(status int) ([]int64, error){
 			return nil, err
 		}
 		
-		ids = append(ids, id)
+		ids = append(ids, tid)
 	}
     
-	return id, nil
+	return ids, nil
 }
 
 //########################################################
@@ -1373,11 +1373,9 @@ func GetEventTask(etid int64)(*EventTask, error){
 
 	task := EventTask{}
     
-    fmt.Println("Get Event Task")
 
 	if err := db.QueryRow("SELECT * FROM event_tasks WHERE id=$1", etid).
 		Scan(&task.Id, &name, &status, &event, &hookId); err != nil {
-            fmt.Println("Error Get Event Task 1")
 		return nil, err
 	}
 
@@ -1385,7 +1383,6 @@ func GetEventTask(etid int64)(*EventTask, error){
 	if err := db.QueryRow("SELECT token, pid, bid FROM group_tasks"+
 	" INNER JOIN users ON users.id=group_tasks.uid"+
 	" WHERE group_tasks.id=$1", task.Id).Scan(&token, &pid, &bid); err != nil {
-        fmt.Println("Error Get Event Task 2")
 		return nil, err
 	}
 
@@ -1407,7 +1404,6 @@ func GetEventTask(etid int64)(*EventTask, error){
 	}
 	task.Bot = bot
     
-    fmt.Println("Get Event Task: Retrieved user, project, bot")
 
 	if name.Valid {
 		task.Name = name.String

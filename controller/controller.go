@@ -929,7 +929,6 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
 func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string){
     
-    fmt.Println("Handle Event")
 
     hErr := updateHooks(w, token)
     if(hErr != nil){
@@ -945,18 +944,14 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 
     // TODO updated version
     eventTask, err := db.CreateNewEventTask(token, vars["pid"], vars["bid"], r.FormValue("name"), event)
-    fmt.Println("Event Task created in db")
     if err != nil{
-        fmt.Println("event Handler error 1")
         handleError(w, r, err)
     }else{
 
         project, projErr := db.GetProject(vars["pid"], token)
         if(projErr != nil){
-            fmt.Println("event Handler error 2")
             handleError(w, r, projErr)
         }else{
-            fmt.Println("Event Task prepare sending to GitHub")
             reqUrl := fmt.Sprintf("repos/%s/hooks", project.Name)
 
             hookConfig := WebhookConfig{
@@ -971,11 +966,9 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
                 Events: []string{"push"},
                 Config: hookConfig }
             
-            fmt.Printf("hook.name: %s\n", hook.Name)
 
             payloadMarshalled, marshErr := json.Marshal(hook)            
             if(marshErr != nil){
-                fmt.Println("event Handler error 3")
                 handleError(w, r, marshErr)
             }else{
                 type Config struct{
@@ -999,9 +992,7 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
                 var hookResponse HookResponse
                 
                 hErr := authGitHubRequestPost(w, reqUrl, token, payloadMarshalled, &hookResponse)
-                fmt.Println("Event sent to GitHub")
                 if(hErr != nil){
-                    fmt.Println("event Handler error 4")
                     handleError(w, r, hErr)
                     // TODO proper error handling
                     db.UpdateEventTaskStatus(eventTask.Id, db.Complete)
@@ -1015,7 +1006,6 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
                     }
                     http.Redirect(w, r, fmt.Sprintf("/tasks/"),
                               http.StatusFound)
-                    fmt.Println("Event registered successfully")
                 }
 
             }
@@ -1029,7 +1019,6 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 func handleTasksNewScheduled(w http.ResponseWriter, r *http.Request,
     vars map[string]string, session *sessions.Session, token string){
     
-    fmt.Println("Handle Scheduled")
 
     nextTime := cronexpr.MustParse(r.FormValue("cron")).Next(time.Now())
     if(nextTime.IsZero()){
@@ -1055,7 +1044,6 @@ func handleTasksNewScheduled(w http.ResponseWriter, r *http.Request,
 func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
                           vars map[string]string, session *sessions.Session, token string){
 
-    fmt.Println("Handle One Time")
     
     seconds, err := strconv.ParseInt(r.FormValue("time"), 10, 64)
     if(err != nil){
@@ -1082,13 +1070,11 @@ func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
 func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
                           vars map[string]string, session *sessions.Session, token string){
 
-    fmt.Println("Instant Task handler")
 
     instantTask, err := db.CreateNewInstantTask(token,
                                               vars["pid"], vars["bid"])
 
     if(err != nil){
-        fmt.Printf("Error Instant Task Handler: %s\n", err.Error())
         handleError(w, r, err)
     }else{
         http.Redirect(w, r, fmt.Sprintf("/tasks/"),
@@ -1104,7 +1090,6 @@ func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
 // TODO document this
 func handleWebhook(w http.ResponseWriter, r *http.Request){
     
-    fmt.Println("Handle Webhook")
     vars := mux.Vars(r)
     taskId := vars["tid"]
 
@@ -1123,7 +1108,6 @@ func handleWebhook(w http.ResponseWriter, r *http.Request){
         // TODO error handling
         return
     }
-    fmt.Println("\tBody unmarshalled")
 
     tid, iErr := strconv.ParseInt(taskId, 10, 64)
     if(iErr != nil ){
@@ -1137,14 +1121,13 @@ func handleWebhook(w http.ResponseWriter, r *http.Request){
         // TODO error handling
         return
     }
-    fmt.Printf("\tHook id retrieved from db -> %d \t hookId from GitHub: %d\n", hookId, h.Hook_id)
     // TODO token validation
+    
 //    if(hookId != h.Hook_id){
 //        // TODO error handling
 //        return
 //    }
     
-    fmt.Println("\tCreate new task")
     worker.CreateNewTask(tid)
 }
 
@@ -1154,7 +1137,6 @@ func handleWebhook(w http.ResponseWriter, r *http.Request){
 func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 
-    fmt.Printf("Handle Cancel id: %s\n", vars["tid"])
 
 	if is, err := db.IsScheduledTask(vars["tid"]); is && err == nil{
 		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)

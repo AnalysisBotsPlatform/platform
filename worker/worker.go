@@ -52,13 +52,13 @@ func Init(port string) error {
 func recoverActiveTasks(){
     sched_ids, err := db.GetScheduledTaskIdsWithStatus(db.Active)
     if err == nil{
-        for id := range sched_ids{
+        for _, id := range sched_ids{
             RunScheduledTask(id)
         }
     }
     oneTime_ids, err := db.GetOneTimeTaskIdsWithStatus(db.Active)
     if err == nil{
-        for id := range oneTime_ids{
+        for _, id := range oneTime_ids{
             RunOneTimeTask(id)
         }
     }
@@ -69,7 +69,6 @@ func CreateNewTask(parentTaskId int64) error{
 
     newTask, tErr := db.CreateNewChildTask(parentTaskId)
     if(tErr != nil){
-        fmt.Printf("\tError Create Task for Parent Task (%d): %s\n", parentTaskId, tErr.Error())
         return tErr
     }
     api.assignTask(newTask)
@@ -96,7 +95,6 @@ func RunOneTimeTask(otid int64){
 // ############################
 
 func CancelScheduledTask(stid int64) error{
-    fmt.Println("\tWorker Cancel Scheduled Task")
 	cancelChan, ok := runningTasks[stid]
     if(ok){
         cancelChan <- true
@@ -192,7 +190,6 @@ func StopPeriodRunners(){
 }
 
 func runScheduledTask(stid int64, cancelChan chan bool){
-    fmt.Printf("New Scheduled Task Runner (id: %d)\n", stid)
 	for{
 		scheduledTask, err := db.GetScheduledTask(stid)
 		if(err != nil){
@@ -208,37 +205,29 @@ func runScheduledTask(stid int64, cancelChan chan bool){
 		}
 		select{
 		case <- time.After(sleepTime):
-            fmt.Printf("\tExecute Scheduled Task: %d\n", stid)
 			CreateNewTask(stid)
 		case <- cancelChan:
-            fmt.Printf("\t(id: %d) Cancel Execution", stid)
 			db.UpdateScheduledTaskStatus(stid, db.Complete)
 			return;
 		case <- pauseChan:
-            fmt.Printf("\t(id: %d) Pause Execution", stid)
 			return;
 		}
 	}
 }
 
 func runOneTimeTask(otid int64, cancelChan chan bool){
-    fmt.Printf("New One Time Task Runner (id: %d)\n", otid)
 	oneTimeTask, err := db.GetOneTimeTask(otid)
 	if(err != nil){
-        fmt.Printf("\t(id: %d) Error during retrieving Task from db: %s", otid, err.Error())
 		return;
 	}
     duration := oneTimeTask.Exec_time.Sub(time.Now().UTC())
-    fmt.Printf("\t(id: %d) Sleep for \"%d\" nanosec (time: %s)", otid, duration, time.Now().UTC().String())
 	select{
         case <- time.After(duration):
-        fmt.Printf("\tExecute One Time Task: %d\n", otid)
 		CreateNewTask(otid)
         db.UpdateOneTimeTaskStatus(otid, db.Complete)
 	case <- cancelChan:
 		return;
 	case <- pauseChan:
-        fmt.Printf("\t(id: %d) Pause Execution", otid)
 		return;
 	}
 }
