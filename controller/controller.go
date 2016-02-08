@@ -465,8 +465,8 @@ func authGitHubRequest(method, req_url string, token string,
 func handleError(w http.ResponseWriter, r *http.Request, err error) {
 	error_counter++
 	error_map[strconv.Itoa(error_counter)] = err
-	http.Redirect(w, r, fmt.Sprintf("/?err=%d", error_counter),
-		http.StatusFound)
+	http.Redirect(w, r, fmt.Sprintf("%s?err=%d", application_subdirectory,
+		error_counter), http.StatusFound)
 }
 
 // The function checks whether the session is valid. If this is the case the
@@ -615,7 +615,7 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 			}
 		}
 		session.Save(r, w)
-		http.Redirect(w, r, "/", http.StatusFound)
+		http.Redirect(w, r, application_subdirectory, http.StatusFound)
 	} else {
 		handleError(w, r, errors.New("No state available!"))
 	}
@@ -665,7 +665,7 @@ func handleLogout(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
 	session.Options.MaxAge = -1
 	session.Save(r, w)
-	http.Redirect(w, r, "/", http.StatusFound)
+	http.Redirect(w, r, application_subdirectory, http.StatusFound)
 }
 
 // The handler fetches all user specific data and statistics to pass them to
@@ -726,7 +726,8 @@ func handleUserNewAPIToken(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	http.Redirect(w, r, "/user", http.StatusFound)
+	http.Redirect(w, r, fmt.Sprintf("%suser", application_subdirectory),
+		http.StatusFound)
 }
 
 // The handler invalidates the specified API token for the user and redirects to
@@ -744,7 +745,8 @@ func handleUserRevokeAPIToken(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	http.Redirect(w, r, "/user", http.StatusFound)
+	http.Redirect(w, r, fmt.Sprintf("%suser", application_subdirectory),
+		http.StatusFound)
 }
 
 // The handler invalidates the specified worker for the user and redirects to
@@ -763,7 +765,8 @@ func handleUserDegegisterWorker(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	http.Redirect(w, r, "/user", http.StatusFound)
+	http.Redirect(w, r, fmt.Sprintf("%suser", application_subdirectory),
+		http.StatusFound)
 }
 
 // The handler verifies that the logged in user has access to the requested
@@ -854,7 +857,8 @@ func handlePullRequestNew(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/tasks/%d", task.Id), http.StatusFound)
+	http.Redirect(w, r, fmt.Sprintf("%stasks/%d", application_subdirectory,
+		task.Id), http.StatusFound)
 }
 
 // The handler requests information about all Bots from the database. If an
@@ -906,7 +910,8 @@ func handleBotsNewPost(w http.ResponseWriter, r *http.Request,
 		handleError(w, r, err)
 		return
 	}
-	http.Redirect(w, r, "/bots/", http.StatusFound)
+	http.Redirect(w, r, fmt.Sprintf("%sbots/", application_subdirectory),
+		http.StatusFound)
 }
 
 // The handler requests detailed information about the Bot identified by its id.
@@ -1056,7 +1061,8 @@ func handleTasksNew(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		handleError(w, r, err)
 	} else {
-		http.Redirect(w, r, fmt.Sprintf("/tasks/%d", tid), http.StatusFound)
+		http.Redirect(w, r, fmt.Sprintf("%stasks/%d", application_subdirectory,
+			tid), http.StatusFound)
 	}
 }
 
@@ -1069,7 +1075,8 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		handleError(w, r, err)
 	} else {
-		http.Redirect(w, r, "/tasks/", http.StatusFound)
+		http.Redirect(w, r, fmt.Sprintf("%stasks/", application_subdirectory),
+			http.StatusFound)
 	}
 }
 
