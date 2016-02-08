@@ -6,6 +6,7 @@ import (
 	"github.com/AnalysisBotsPlatform/platform/db"
 	"github.com/gorhill/cronexpr"
 	"net"
+    "errors"
 	"net/rpc"
     "time"
 )
@@ -79,7 +80,13 @@ func RunOneTimeTask(otid int64){
 // ############################
 
 func CancelScheduledTask(stid int64) error{
-	runningTasks[stid] <- true
+    fmt.Println("\tWorker Cancel Scheduled Task")
+	cancelChan, ok := runningTasks[stid]
+    if(ok){
+        cancelChan <- true
+    } else{
+        return errors.New("The provided id does not correspond to a running task.")
+    }
 	err := db.UpdateScheduledTaskStatus(stid, db.Complete)
 	runningChildren, gErr := db.GetRunningChildren(stid)
 	if(gErr != nil){
@@ -94,7 +101,12 @@ func CancelScheduledTask(stid int64) error{
 }
 
 func CancelOneTimeTask(stid int64) error{
-	runningTasks[stid] <- true
+	cancelChan, ok := runningTasks[stid]
+    if(ok){
+        cancelChan <- true
+    } else{
+        return errors.New("The provided id does not correspond to a running task.")
+    }
 	err := db.UpdateOneTimeTaskStatus(stid, db.Complete)
 	runningChildren, gErr := db.GetRunningChildren(stid)
 	if(gErr != nil){
@@ -124,7 +136,12 @@ func CancelEventTask(stid int64) error{
 }
 
 func CancelInstantTask(stid int64) error{
-	runningTasks[stid] <- true
+    cancelChan, ok := runningTasks[stid]
+    if(ok){
+        cancelChan <- true
+    } else{
+        return errors.New("The provided id does not correspond to a running task.")
+    }
 	runningChildren, gErr := db.GetRunningChildren(stid)
 	if(gErr != nil){
 		return gErr
@@ -178,6 +195,7 @@ func runScheduledTask(stid int64, cancelChan chan bool){
             fmt.Printf("\tExecute Scheduled Task: %d\n", stid)
 			CreateNewTask(stid)
 		case <- cancelChan:
+            fmt.Printf("\t(id: %d) Cancel Execution", stid)
 			db.UpdateScheduledTaskStatus(stid, db.Complete)
 			return;
 		case <- pauseChan:
@@ -200,6 +218,7 @@ func runOneTimeTask(otid int64, cancelChan chan bool){
         case <- time.After(duration):
         fmt.Printf("\tExecute One Time Task: %d\n", otid)
 		CreateNewTask(otid)
+        db.UpdateOneTimeTaskStatus(otid, db.Complete)
 	case <- cancelChan:
 		return;
 	case <- pauseChan:

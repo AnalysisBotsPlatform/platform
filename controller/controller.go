@@ -1154,8 +1154,9 @@ func handleWebhook(w http.ResponseWriter, r *http.Request){
 func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 
+    fmt.Printf("Handle Cancel id: %s\n", vars["tid"])
 
-	if is, err := db.IsScheduledTask(vars["tid"]); is && err != nil{
+	if is, err := db.IsScheduledTask(vars["tid"]); is && err == nil{
 		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
 		if(cErr != nil){
 			handleError(w, r, cErr)
@@ -1166,12 +1167,16 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 			handleError(w, r, tErr)
 			return
 		}
-		worker.CancelScheduledTask(scheduledTask.Id)
+		err = worker.CancelScheduledTask(scheduledTask.Id)
+        if(err != nil){
+            handleError(w, r, err)
+            return
+        }
 		http.Redirect(w, r, "/tasks/", http.StatusFound)
 		return
 	}
 
-	if is, err := db.IsEventTask(vars["tid"]); is && err != nil{
+	if is, err := db.IsEventTask(vars["tid"]); is && err == nil{
 		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
 		if(cErr != nil){
 			handleError(w, r, cErr)
@@ -1196,12 +1201,16 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
             return
         }
 
-		worker.CancelEventTask(eventTask.Id)
+		err = worker.CancelEventTask(eventTask.Id)
+        if(err != nil){
+            handleError(w, r, err)
+            return
+        }
 		http.Redirect(w, r, "/tasks/", http.StatusFound)
 		return
     }
 
-	if is, err := db.IsOneTimeTask(vars["tid"]); is && err != nil{
+	if is, err := db.IsOneTimeTask(vars["tid"]); is && err == nil{
 		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
 		if(cErr != nil){
 			handleError(w, r, cErr)
@@ -1212,12 +1221,16 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 			handleError(w, r, tErr)
 			return
 		}
-		worker.CancelOneTimeTask(oneTimeTask.Id)
+		err = worker.CancelOneTimeTask(oneTimeTask.Id)
+        if(err != nil){
+            handleError(w, r, err)
+            return
+        }
 		http.Redirect(w, r, "/tasks/", http.StatusFound)
 		return
 	}
 
-	if is, err := db.IsInstantTask(vars["tid"]); is && err != nil{
+	if is, err := db.IsInstantTask(vars["tid"]); is && err == nil{
 		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
 		if(cErr != nil){
 			handleError(w, r, cErr)
@@ -1228,12 +1241,16 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 			handleError(w, r, tErr)
 			return
 		}
-		worker.CancelInstantTask(instantTask.Id)
+		err = worker.CancelInstantTask(instantTask.Id)
+        if(err != nil){
+            handleError(w, r, err)
+            return
+        }
 		http.Redirect(w, r, "/tasks/", http.StatusFound)
 		return
 	}
 
-	handleError(w, r, errors.New("The task id was valid known and thus could not have been canceled."))
+	handleError(w, r, errors.New("The task id was not known and thus could not have been canceled."))
 
 }
 

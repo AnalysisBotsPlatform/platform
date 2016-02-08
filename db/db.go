@@ -738,9 +738,9 @@ func UpdateTaskResult(tid int64, output string, exit_code int) error {
 func GetRunningChildren(gtid int64)([]*Task, error){
 	var tasks []*Task
 
-	rows, err := db.Query("SELECT tasks.id, users.token FROM tasks"+
-		" INNER JOIN (users INNER JOIN group_tasks ON users.id=group_tasks.uid)"+
-		" ON tasks.gid=group_tasks.id", gtid, Running)
+	rows, err := db.Query("SELECT tasks.id, group_tasks_users.token FROM tasks "+
+		" INNER JOIN (SELECT group_tasks.id, users.token FROM users INNER JOIN group_tasks ON users.id=group_tasks.uid WHERE group_tasks.id=$1) AS group_tasks_users "+
+		" ON tasks.gid=group_tasks_users.id WHERE status=$2 ", gtid, Running)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -922,11 +922,12 @@ func GetScheduledTask(stid int64) (*ScheduledTask, error){
 // TODO documentation
 //
 func IsScheduledTask(tid string)(bool, error){
+    var retrievedId int64
 	i, err := strconv.ParseInt(tid, 10, 64)
 	if err != nil {
 		return false, err
 	}
-	if err := db.QueryRow("SELECT id FROM schedule_tasks WHERE id=$1", i); err != nil {
+    if err := db.QueryRow("SELECT id FROM schedule_tasks WHERE id=$1", i).Scan(&retrievedId); err != nil {
 		return false, nil
 	}
 	return true, nil
@@ -1090,11 +1091,12 @@ func GetOneTimeTask(otid int64) (*OneTimeTask, error){
 // TODO documentation
 //
 func IsOneTimeTask(tid string)(bool, error){
+    var retrievedId int64
 	i, err := strconv.ParseInt(tid, 10, 64)
 	if err != nil {
 		return false, err
 	}
-	if err := db.QueryRow("SELECT id FROM onetime_tasks WHERE id=$1", i); err != nil {
+	if err := db.QueryRow("SELECT id FROM onetime_tasks WHERE id=$1", i).Scan(&retrievedId); err != nil {
 		return false, nil
 	}
 	return true, nil
@@ -1201,11 +1203,12 @@ func GetInstantTask(itid int64)(*InstantTask, error){
 // TODO documentation
 //
 func IsInstantTask(tid string)(bool, error){
+    var retrievedId int64
 	i, err := strconv.ParseInt(tid, 10, 64)
 	if err != nil {
 		return false, err
 	}
-	if err := db.QueryRow("SELECT id FROM instant_tasks WHERE id=$1", i); err != nil {
+	if err := db.QueryRow("SELECT id FROM instant_tasks WHERE id=$1", i).Scan(&retrievedId); err != nil {
 		return false, nil
 	}
 	return true, nil
@@ -1362,11 +1365,12 @@ func GetEventTask(etid int64)(*EventTask, error){
 // TODO documentation
 //
 func IsEventTask(tid string)(bool, error){
+    var retrievedId int64
 	i, err := strconv.ParseInt(tid, 10, 64)
 	if err != nil {
 		return false, err
 	}
-	if err := db.QueryRow("SELECT id FROM event_tasks WHERE id=$1", i); err != nil {
+	if err := db.QueryRow("SELECT id FROM event_tasks WHERE id=$1", i).Scan(&retrievedId); err != nil {
 		return false, nil
 	}
 	return true, nil
