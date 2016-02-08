@@ -41,11 +41,27 @@ func Init(port string) error {
 
 	pauseChan = make(chan bool)
 	runningTasks = make(map[int64]chan bool)
-
+    
+    recoverActiveTasks()
 
 	go rpc.Accept(listener)
 
 	return nil
+}
+
+func recoverActiveTasks(){
+    sched_ids, err := db.GetScheduledTaskIdsWithStatus(db.Active)
+    if err == nil{
+        for id := range sched_ids{
+            RunScheduledTask(id)
+        }
+    }
+    oneTime_ids, err := db.GetOneTimeTaskIdsWithStatus(db.Active)
+    if err == nil{
+        for id := range oneTime_ids{
+            RunOneTimeTask(id)
+        }
+    }
 }
 
 // TODO document this
