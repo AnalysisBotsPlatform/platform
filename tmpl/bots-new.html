@@ -1,5 +1,5 @@
 {{ template "header.html" "Add New Bot" }}
-{{ template "nav.html" }}
+{{ template "nav.html" .Subdir }}
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
@@ -44,4 +44,4 @@
             <!-- /.row -->
         </div>
         <!-- /#page-wrapper -->
-{{ template "footer.html" "/bots-new-validate.js" }}
+{{ template "footer.html" print .Subdir "bots-new-validate.js" }}

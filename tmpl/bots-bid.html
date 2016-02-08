@@ -1,9 +1,9 @@
-{{ template "header.html" print "Project - " .Name }}
-{{ template "nav.html" }}
+{{ template "header.html" print "Project - " .Bot.Name }}
+{{ template "nav.html" .Subdir }}
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
-                    <h1 class="page-header">Bot: {{.Name}}</h1>
+                    <h1 class="page-header">Bot: {{.Bot.Name}}</h1>
                 </div>
                 <!-- /.col-lg-12 -->
             </div>
@@ -24,19 +24,19 @@
                                                         <tbody>
                                                             <tr>
                                                                 <td>Id</td>
-                                                                <td>{{.Id}}</td>
+                                                                <td>{{.Bot.Id}}</td>
                                                             </tr>
                                                             <tr>
                                                                 <td>Name</td>
-                                                                <td>{{.Name}}</td>
+                                                                <td>{{.Bot.Name}}</td>
                                                             </tr>
                                                             <tr>
                                                                 <td>Description</td>
-                                                                <td>{{.Description}}</td>
+                                                                <td>{{.Bot.Description}}</td>
                                                             </tr>
                                                             <tr>
                                                                 <td>Tags</td>
-                                                                <td>{{ range .Tags }}"{{.}}" {{ end }}</td>
+                                                                <td>{{ range .Bot.Tags }}"{{.}}" {{ end }}</td>
                                                             </tr>
                                                         </tbody>
                                                     </table>

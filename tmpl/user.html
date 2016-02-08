@@ -1,5 +1,5 @@
 {{ template "header.html" "Profile" }}
-{{ template "nav.html" }}
+{{ template "nav.html" .Subdir }}
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
@@ -145,11 +145,12 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
+                                                            {{ $Subdir := .Subdir }}
                                                             {{ range .API_tokens }}
                                                             <tr>
                                                                 <td>{{.Name}}</td>
                                                                 <td><pre>{{.Token}}</pre></td>
-                                                                <td><a href="/user/api_token/revoke?token={{.Token}}"><button type="button" class="btn btn-success">Revoke</button></a></td>
+                                                                    <td><a href="{{$Subdir}}user/api_token/revoke?token={{.Token}}"><button type="button" class="btn btn-success">Revoke</button></a></td>
                                                             </tr>
                                                             {{ end }}
                                                         </tbody>
@@ -207,6 +208,7 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
+                                                            {{ $Subdir := .Subdir }}
                                                             {{ range .Workers }}
                                                             <tr>
                                                                 <td>{{.Id}}</td>
@@ -215,7 +217,7 @@
                                                                 <td>{{.Last_contact.Format "Mon Jan _2 15:04:05 2006"}}</td>
                                                                 <td>{{ if .Active }}Yes{{ else }}No{{ end }}</td>
                                                                 <td>{{ if .Shared }}Yes{{ else }}No{{ end }}</td>
-                                                                <td><a href="/user/worker/deregister?token={{.Token}}"><button type="button" class="btn btn-success">Deregister</button></a></td>
+                                                                <td><a href="{{$Subdir}}user/worker/deregister?token={{.Token}}"><button type="button" class="btn btn-success">Deregister</button></a></td>
                                                             </tr>
                                                             {{ end }}
                                                         </tbody>
@@ -238,4 +240,4 @@
             <!-- /.row -->
         </div>
         <!-- /#page-wrapper -->
-{{ template "footer.html" "/user-apitoken-new-validate.js" }}
+{{ template "footer.html" print .Subdir "user-apitoken-new-validate.js" }}

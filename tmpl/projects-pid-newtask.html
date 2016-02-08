@@ -1,5 +1,5 @@
 {{ template "header.html" "New Action: Run Bot On Project" }}
-{{ template "nav.html" }}
+{{ template "nav.html" .Subdir }}
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
@@ -37,7 +37,7 @@
                                             <label>Available Bots</label>
                                             {{ if eq 0 (len .Bots) }}
                                             <i>None</i><br />
-                                            <a href="/bots/new">
+                                            <a href="{{.Subdir}}bots/new">
                                                 <button type="button" class="btn btn-success">Add New Bot</button>
                                             </a>
                                             {{ else }}
@@ -54,12 +54,13 @@
                                                         </thead>
                                                         <tbody>
                                                             {{ $Pid := .Project.Id }}
+                                                            {{ $Subdir := .Subdir }}
                                                             {{ range .Bots }}
                                                             <tr>
                                                                 <td>{{.Id}}</td>
                                                                 <td>{{.Name}}</td>
                                                                 <td>{{.Description}}</td>
-                                                                <td><a href="/projects/{{$Pid}}/{{.Id}}"><button type="button" class="btn btn-success">Select</button></a></td>
+                                                                <td><a href="{{$Subdir}}projects/{{$Pid}}/{{.Id}}"><button type="button" class="btn btn-success">Select</button></a></td>
                                                             </tr>
                                                             {{ end }}
                                                         </tbody>

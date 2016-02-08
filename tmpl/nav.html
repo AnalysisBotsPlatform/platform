@@ -3,7 +3,7 @@
         <!-- Navigation -->
         <nav class="navbar navbar-default navbar-static-top" role="navigation" style="margin-bottom: 0">
             <div class="navbar-header">
-                <a class="navbar-brand" href="/">GitBot</a>
+                <a class="navbar-brand" href="{{.}}">GitBot</a>
             </div>
             <!-- /.navbar-header -->
 
@@ -13,7 +13,7 @@
                         <i class="fa fa-user fa-fw"></i>  <i class="fa fa-caret-down"></i>
                     </a>
                     <ul class="dropdown-menu dropdown-user">
-                        <li><a href="/logout"><i class="fa fa-sign-out fa-fw"></i> Logout</a>
+                        <li><a href="{{.}}logout"><i class="fa fa-sign-out fa-fw"></i> Logout</a>
                         </li>
                     </ul>
                     <!-- /.dropdown-user -->
@@ -37,19 +37,19 @@
                             <!-- /input-group -->
                         </li>
                         <li>
-                            <a href="/"><i class="fa fa-dashboard fa-fw"></i> Dashboard</a>
+                            <a href="{{.}}"><i class="fa fa-dashboard fa-fw"></i> Dashboard</a>
                         </li>
                         <li>
-                            <a href="/user"><i class="fa fa-home fa-fw"></i> Profile</a>
+                            <a href="{{.}}user"><i class="fa fa-home fa-fw"></i> Profile</a>
                         </li>
                         <li>
-                            <a href="/projects/"><i class="fa fa-puzzle-piece fa-fw"></i> Projects</a>
+                            <a href="{{.}}projects/"><i class="fa fa-puzzle-piece fa-fw"></i> Projects</a>
                         </li>
                         <li>
-                            <a href="/bots/"><i class="fa fa-gears fa-fw"></i> Available Bots</a>
+                            <a href="{{.}}bots/"><i class="fa fa-gears fa-fw"></i> Available Bots</a>
                         </li>
                         <li>
-                            <a href="/tasks/"><i class="fa fa-bars fa-fw"></i> Bot Status</a>
+                            <a href="{{.}}tasks/"><i class="fa fa-bars fa-fw"></i> Bot Status</a>
                         </li>
                     </ul>
                 </div>

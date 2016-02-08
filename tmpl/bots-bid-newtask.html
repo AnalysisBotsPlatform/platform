@@ -1,5 +1,5 @@
 {{ template "header.html" "New Action: Find Project For Bot" }}
-{{ template "nav.html" }}
+{{ template "nav.html" .Subdir }}
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
@@ -55,11 +55,12 @@
                                                         </thead>
                                                         <tbody>
                                                             {{ $Bid := .Bot.Id }}
+                                                            {{ $Subdir := .Subdir }}
                                                             {{ range .Projects }}
                                                             <tr>
                                                                 <td>{{.Id}}</td>
                                                                 <td>{{.Name}}</td>
-                                                                <td><a href="/bots/{{$Bid}}/{{.Id}}"><button type="button" class="btn btn-success">Select</button></a></td>
+                                                                <td><a href="{{$Subdir}}bots/{{$Bid}}/{{.Id}}"><button type="button" class="btn btn-success">Select</button></a></td>
                                                             </tr>
                                                             {{ end }}
                                                         </tbody>

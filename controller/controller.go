@@ -511,6 +511,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request,
 		data["User_statistics"] = user_stats
 		data["Latest_tasks_size"] = 10
 		data["Latest_tasks"] = tasks
+		data["Subdir"] = application_subdirectory
 
 		if err := r.FormValue("err"); err != "" {
 			data["Error"] = error_map[err]
@@ -519,10 +520,15 @@ func handleRoot(w http.ResponseWriter, r *http.Request,
 		renderTemplate(w, "index", data)
 	} else {
 		if err := r.FormValue("err"); err != "" {
-			renderTemplate(w, "login", error_map[err])
+			data := make(map[string]interface{})
+			data["Error"] = error_map[err]
+			data["Subdir"] = application_subdirectory
+			renderTemplate(w, "login", data)
 			delete(error_map, err)
 		} else {
-			renderTemplate(w, "login", nil)
+			data := make(map[string]interface{})
+			data["Subdir"] = application_subdirectory
+			renderTemplate(w, "login", data)
 		}
 	}
 }
@@ -708,6 +714,7 @@ func handleUser(w http.ResponseWriter, r *http.Request,
 	data["API_statistics"] = api_stats
 	data["API_tokens"] = api_tokens
 	data["Workers"] = workers
+	data["Subdir"] = application_subdirectory
 	renderTemplate(w, "user", data)
 }
 
@@ -870,14 +877,19 @@ func handleBots(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		handleError(w, r, err)
 	} else {
-		renderTemplate(w, "bots", bots)
+		data := make(map[string]interface{})
+		data["Bots"] = bots
+		data["Subdir"] = application_subdirectory
+		renderTemplate(w, "bots", data)
 	}
 }
 
 // The handler displays the form for adding new Bots.
 func handleBotsNewForm(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
-	renderTemplate(w, "bots-new", nil)
+	data := make(map[string]interface{})
+	data["Subdir"] = application_subdirectory
+	renderTemplate(w, "bots-new", data)
 }
 
 // The handler gets called after the user successfully submitted a new Bot via
@@ -923,7 +935,10 @@ func handleBotsBid(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		handleError(w, r, err)
 	} else {
-		renderTemplate(w, "bots-bid", bot)
+		data := make(map[string]interface{})
+		data["Bot"] = bot
+		data["Subdir"] = application_subdirectory
+		renderTemplate(w, "bots-bid", data)
 	}
 }
 
@@ -952,9 +967,10 @@ func handleBotsBidNewtask(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		if errBot == nil && errProjects == nil {
-			data := make(map[string]interface{}, 2)
+			data := make(map[string]interface{})
 			data["Bot"] = bot
 			data["Projects"] = projects
+			data["Subdir"] = application_subdirectory
 			renderTemplate(w, "bots-bid-newtask", data)
 		}
 	}
@@ -978,7 +994,10 @@ func handleProjects(w http.ResponseWriter, r *http.Request,
 		if err != nil {
 			handleError(w, r, err)
 		} else {
-			renderTemplate(w, "projects", projects)
+			data := make(map[string]interface{})
+			data["Projects"] = projects
+			data["Subdir"] = application_subdirectory
+			renderTemplate(w, "projects", data)
 		}
 	}
 }
@@ -992,7 +1011,10 @@ func handleProjectsPid(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		handleError(w, r, err)
 	} else {
-		renderTemplate(w, "projects-pid", project)
+		data := make(map[string]interface{})
+		data["Project"] = project
+		data["Subdir"] = application_subdirectory
+		renderTemplate(w, "projects-pid", data)
 	}
 }
 
@@ -1013,9 +1035,10 @@ func handleProjectsPidNewtask(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	if errProject == nil && errBots == nil {
-		data := make(map[string]interface{}, 2)
+		data := make(map[string]interface{})
 		data["Project"] = project
 		data["Bots"] = bots
+		data["Subdir"] = application_subdirectory
 		renderTemplate(w, "projects-pid-newtask", data)
 	}
 }
@@ -1029,7 +1052,10 @@ func handleTasks(w http.ResponseWriter, r *http.Request,
 	if err != nil {
 		handleError(w, r, err)
 	} else {
-		renderTemplate(w, "tasks", tasks)
+		data := make(map[string]interface{})
+		data["Tasks"] = tasks
+		data["Subdir"] = application_subdirectory
+		renderTemplate(w, "tasks", data)
 	}
 }
 
@@ -1045,9 +1071,10 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
 		task.Output = template.HTMLEscapeString(task.Output)
 		task.Output = strings.Replace(task.Output, "\n", "<br>", -1)
 		output := template.HTML(task.Output)
-		data := make(map[string]interface{}, 2)
+		data := make(map[string]interface{})
 		data["Task"] = task
 		data["Output"] = output
+		data["Subdir"] = application_subdirectory
 		renderTemplate(w, "tasks-tid", data)
 	}
 }

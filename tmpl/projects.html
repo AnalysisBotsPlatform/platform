@@ -1,5 +1,5 @@
 {{ template "header.html" "User Projects" }}
-{{ template "nav.html" }}
+{{ template "nav.html" .Subdir }}
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
@@ -27,15 +27,16 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {{ range . }}
+                                                {{ $Subdir := .Subdir }}
+                                                {{ range .Projects }}
                                                 <tr>
                                                     <td>{{.Id}}</td>
                                                     <td>{{.Name}}</td>
                                                     <td>
-                                                        <a href="/projects/{{.Id}}">
+                                                        <a href="{{$Subdir}}projects/{{.Id}}">
                                                             <button type="button" class="btn btn-success">Details</button>
                                                         </a>
-                                                        <a href="/projects/{{.Id}}/newtask">
+                                                        <a href="{{$Subdir}}projects/{{.Id}}/newtask">
                                                             <button type="button" class="btn btn-success">Select Bot</button>
                                                         </a>
                                                     </td>

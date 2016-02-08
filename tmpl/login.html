@@ -36,11 +36,11 @@
 
     <div class="container">
         <div class="header clearfix">
-            {{ if . }}
+            {{ if .Error }}
             <div class="alert alert-danger" role="alert">
                   <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
                   <span class="sr-only">Error:</span>
-                  {{.}}
+                  {{.Error}}
             </div>
             {{ end }}
             <div class="panel-body">
@@ -50,7 +50,7 @@
                     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus ut tristique elit. Praesent nulla turpis, volutpat a lacinia non.
                     </p>
                     <p>
-                        <a class="btn btn-lg btn-success" href="/login">Login Now</a>
+                        <a class="btn btn-lg btn-success" href="{{.Subdir}}login">Login Now</a>
                     </p>
                 </div>
             </div>

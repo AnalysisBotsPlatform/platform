@@ -1,5 +1,5 @@
 {{ template "header.html" print "Bot Result for Action #" .Task.Id }}
-{{ template "nav.html" }}
+{{ template "nav.html" .Subdir }}
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
@@ -53,14 +53,14 @@
                                                         <tr>
                                                             <td>Git Patch</td>
                                                             <td>
-                                                                <a href="/cache/patches/{{.Task.Patch}}" download><button type="button" class="btn btn-success">Download</button>
+                                                                <a href="{{.Subdir}}cache/patches/{{.Task.Patch}}" download><button type="button" class="btn btn-success">Download</button>
                                                                 </a>
                                                             </td>
                                                         </tr>
                                                         <tr>
                                                             <td>GitHub Pull Request</td>
                                                             <td>
-                                                                <a href="/newpullrequest/{{.Task.Id}}"><button type="button" class="btn btn-success">Create New Pull Request</button>
+                                                                <a href="{{.Subdir}}newpullrequest/{{.Task.Id}}"><button type="button" class="btn btn-success">Create New Pull Request</button>
                                                                 </a>
                                                             </td>
                                                         </tr>
