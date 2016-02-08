@@ -984,6 +984,38 @@ func UpdateNextScheduleTime(stid int64, next time.Time) error{
 	}
 	return nil
 }
+
+//
+// TODO documentation
+//
+func GetScheduledTaskIdsWithStatus(status int) ([]int64, error){
+    
+    var ids []int64
+    
+    rows, err := db.Query("SELECT group_tasks.id FROM group_tasks JOIN schedule_tasks "+
+                          "ON group_tasks.id = schedule_tasks.id WHERE status = $1", status)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return tasks, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+    
+    
+    for rows.Next() {
+		var tid int64
+		if err := rows.Scan(&tid); err != nil {
+			return nil, err
+		}
+		
+		ids = append(ids, id)
+	}
+    
+	return id, nil
+}
+
+
 //########################################################
 
 // OneTimeTask
@@ -1108,6 +1140,37 @@ func UpdateOneTimeTaskStatus(otid int64, status int) error{
 	}
 	return nil
 }
+
+//
+// TODO documentation
+//
+func GetOneTimeTaskIdsWithStatus(status int) ([]int64, error){
+    
+    var ids []int64
+    
+    rows, err := db.Query("SELECT group_tasks.id FROM group_tasks JOIN onetime_tasks "+
+                          "ON group_tasks.id = onetime_tasks.id WHERE status = $1", status)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return tasks, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+    
+    
+    for rows.Next() {
+		var tid int64
+		if err := rows.Scan(&tid); err != nil {
+			return nil, err
+		}
+		
+		ids = append(ids, id)
+	}
+    
+	return id, nil
+}
+
 //########################################################
 
 // InstantTask
