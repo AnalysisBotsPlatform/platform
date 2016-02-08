@@ -59,7 +59,7 @@ $("#basis").change(function(){
     } else if(periodic_sel == -1) {
         exec_basis = 4;
         url = "/{basis}/{name}";
-    }
+    }    
 });
 
 $("#schedule").click(function(){
@@ -71,18 +71,22 @@ $("#schedule").click(function(){
         url = "/{basis}/{name}";
         exec_basis = 4;
     }
+    $("#is_scheduled").val(schedule);
 });
 
 $("#datetimepicker1").on("dp.change", function(old_date) {
-    time = Math.round(old_date.timeStamp / 1000);          
+    time = Math.round(old_date.timeStamp / 1000);
+    $("#time").val(time);   
 });
 
 $("#datetimepicker2").on("dp.change", function(old_date) {
     time = Math.round(old_date.timeStamp / 1000);  
+    $("#time").val(time);   
 });
 
 $("#datetimepicker3").on("dp.change", function(old_date) {
     time = Math.round(old_date.timeStamp / 1000);
+    $("#time").val(time);   
 });
 
 $("#name").change(function() {
@@ -112,33 +116,44 @@ $("#weekday-sel").change(function() {
     weekday = $("#weekday-sel").val();
 });
 
+$("#name-tab1").change(function() {
+    $("#name-tab2").val($("#name-tab1").val());
+    $("#name-tab3").val($("#name-tab1").val());
+    $("#task-name").val($("#name-tab2").val());
+});
+
+$("#name-tab2").change(function() {
+    $("#name-tab1").val($("#name-tab2").val());
+    $("#name-tab3").val($("#name-tab2").val());
+    $("#task-name").val($("#name-tab2").val());
+});
+
+$("#name-tab3").change(function() {
+    $("#name-tab1").val($("#name-tab3").val());
+    $("#name-tab2").val($("#name-tab3").val());
+    $("#task-name").val($("#name-tab2").val());
+});
+
 $(".full_url").click(function() {
     var base_url = $(this).attr('href');
     if(schedule){
         if(chosen_tab == 1){
             if(periodic_sel == -1){
                 alert("Please select the type of periodicity.");
-            } else {
-                var u = (((((url.replace("{name}", name)).replace("{basis}", exec_basis)).replace('{hour}', hour)).replace("{weekday}", weekday)).replace("{event}", event_id)).replace("{time}", time);
-                $(this).attr('href', base_url + u);
-            } 
+                return false;
+            }
         } else if(chosen_tab == 3){
             exec_basis = 3;
-            url = "/"+exec_basis+"/"+name+"/"+time;
-            $(this).attr('href', base_url + url);
         } else if(chosen_tab == 2){
             exec_basis = 5;
-            if(event_id == -1){
+            if(event_id == null){
                 alert("Please select an event.");
                 return false;
-            } else {
-                url = "/"+exec_basis+"/"+name+"/"+event_id;
-                $(this).attr('href', base_url + url);
             }
         }
     } else {
-        exec_basis = 4;                
-        var u = (url.replace("{name}", name)).replace("{basis}", exec_basis);
-        $(this).attr('href', base_url + u);
+        exec_basis = 4;
     }
+    $("#new-task-form").attr("action", base_url);    
+    $("#execution_type").val(exec_basis+"");
 });
