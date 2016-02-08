@@ -133,8 +133,9 @@
                                                             <label>Event</label>
                                                             <select class="form-control" id="event-id">
                                                                 <option value="-1">Select Event</option>
-                                                                <option value="push">Push</option>
-                                                                <option value="pull_request">Pull Request</option>
+                                                                {{ range .Events }}
+                                                                <option value="{{.Id}}">{{.Name}}</option>
+                                                                {{ end }}
                                                             </select>
                                                         </div>
                                                     </div>
