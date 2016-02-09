@@ -836,17 +836,31 @@ func CreateScheduledTask(token string, pid string, bid string, name string, next
 		return nil, err
 	}
 
-	sErr := db.QueryRow("INSERT INTO group_tasks (uid, pid, bid) VALUES ($1, $2, $3) RETURNING id", userId, projectId, botId).Scan(&gid)
+    tx, tErr := db.Begin()
+    if (tErr != nil){
+        return nil, tErr
+    }
+    
+    groupInsert, gErr := db.Prepare("INSERT INTO group_tasks (uid, pid, bid) VALUES ($1, $2, $3) RETURNING id")
+    if(gErr != nil){
+        return nil, gErr
+    }
+    
+    sErr := tx.Stmt(groupInsert).QueryRow(userId, projectId, botId).Scan(&gid)
     if(sErr != nil){
         return nil, sErr
     }
 
-	_, err = db.Exec("INSERT INTO schedule_tasks (id, name, status, next, cron)"+
-	" VALUES ($1, $2, $3, $4, $5)", gid, name, Active, next, cron_exp)
-	if err != nil {
-		return nil, err
-	}
+    
+    taskInsert, tErr := db.Prepare("INSERT INTO schedule_tasks (id, name, status, next, cron)"+
+	" VALUES ($1, $2, $3, $4, $5)")
+    
+    _, err = tx.Stmt(taskInsert).Exec(gid, name, Active, next, cron_exp)
 
+    err = tx.Commit()
+    if(err != nil){
+        return nil, err
+    }
 
 	return GetScheduledTask(gid)
 }
@@ -1041,18 +1055,36 @@ func CreateOneTimeTask(token string, pid string, bid string, name string, exec_t
 		return nil, err
 	}
 
-	sErr := db.QueryRow("INSERT INTO group_tasks (uid, pid, bid) VALUES ($1, $2, $3) RETURNING id", userId, projectId, botId).Scan(&gid)
+	tx, tErr := db.Begin()
+    if (tErr != nil){
+        return nil, tErr
+    }
+    
+    groupInsert, gErr := db.Prepare("INSERT INTO group_tasks (uid, pid, bid) VALUES ($1, $2, $3) RETURNING id")
+    if(gErr != nil){
+        return nil, gErr
+    }
+    
+    sErr := tx.Stmt(groupInsert).QueryRow(userId, projectId, botId).Scan(&gid)
     if(sErr != nil){
         return nil, sErr
     }
-
-	_, err = db.Exec("INSERT INTO onetime_tasks (id, name, status, exec_time)"+
-	" VALUES ($1, $2, $3, $4)", gid, name, Active, exec_time)
-	if err != nil {
+    
+    taskInsert, tErr := db.Prepare("INSERT INTO onetime_tasks (id, name, status, exec_time)"+
+	" VALUES ($1, $2, $3, $4)")
+    if(tErr != nil){
+        return nil, tErr
+    }
+     
+    _, err = tx.Stmt(taskInsert).Exec(gid, name, Active, exec_time)
+    if err != nil {
 		return nil, err
 	}
 
-	
+    err = tx.Commit()
+    if(err != nil){
+        return nil, err
+    }
 
 	return GetOneTimeTask(gid)
 }
@@ -1199,18 +1231,35 @@ func CreateNewInstantTask(token string, pid string, bid string)(*InstantTask, er
 
 
     
-	sErr := db.QueryRow("INSERT INTO group_tasks (uid, pid, bid) VALUES ($1, $2, $3) RETURNING id", userId, projectId, botId).Scan(&gid)
+	tx, tErr := db.Begin()
+    if (tErr != nil){
+        return nil, tErr
+    }
+    
+    groupInsert, gErr := db.Prepare("INSERT INTO group_tasks (uid, pid, bid) VALUES ($1, $2, $3) RETURNING id")
+    if(gErr != nil){
+        return nil, gErr
+    }
+    
+    sErr := tx.Stmt(groupInsert).QueryRow(userId, projectId, botId).Scan(&gid)
     if(sErr != nil){
         return nil, sErr
     }
-
-
-
-	_, err = db.Exec("INSERT INTO instant_tasks (id) VALUES ($1)", gid)
-	if err != nil {
+    
+    taskInsert, tErr := db.Prepare("INSERT INTO instant_tasks (id) VALUES ($1)")
+    if(tErr != nil){
+        return nil, tErr
+    }
+    
+    _, err = tx.Stmt(taskInsert).Exec(gid)
+    if err != nil {
 		return nil, err
 	}
-
+	
+    err = tx.Commit()
+    if err != nil {
+		return nil, err
+	}
 
 	return GetInstantTask(gid)
 
@@ -1302,17 +1351,37 @@ func CreateNewEventTask(token string, pid string, bid string, name string, event
 		return nil, err
 	}
 
-	sErr := db.QueryRow("INSERT INTO group_tasks (uid, pid, bid) VALUES ($1, $2, $3) RETURNING id", userId, projectId, botId).Scan(&gid)
+	tx, tErr := db.Begin()
+    if (tErr != nil){
+        return nil, tErr
+    }
+    
+    groupInsert, gErr := db.Prepare("INSERT INTO group_tasks (uid, pid, bid) VALUES ($1, $2, $3) RETURNING id")
+    if(gErr != nil){
+        return nil, gErr
+    }
+    
+    sErr := tx.Stmt(groupInsert).QueryRow(userId, projectId, botId).Scan(&gid)
     if(sErr != nil){
         return nil, sErr
     }
-
-	_, err = db.Exec("INSERT INTO event_tasks (id, name, status, event)"+
-	" VALUES ($1, $2, $3, $4)", gid, name, Active, event)
+    
+    taskInsert, tErr := db.Prepare("INSERT INTO event_tasks (id, name, status, event)"+
+	                                       " VALUES ($1, $2, $3, $4)")
+    if(tErr != nil){
+        return nil, tErr
+    }
+    
+    _, err = tx.Stmt(taskInsert).Exec(gid, name, Active, event)
 	if err != nil {
 		return nil, err
 	}
-
+    
+    err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+    
 	return GetEventTask(gid)
 }
 //

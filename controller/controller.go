@@ -204,14 +204,15 @@ func Start() {
 	_, cache := os.LookupEnv(cache_path_var)
 	_, admin := os.LookupEnv(admin_user_var)
 	_, wport := os.LookupEnv(worker_port_var)
+    _, hname := os.LookupEnv(controller_host_var)
 	if !id || !secret || !auth || !enc || !host || !user || !pass || !name ||
-		!cache || !admin || !wport {
+		!cache || !admin || !wport || !hname{
 		fmt.Printf("Application settings missing!\n"+
-			"Please set the %s, %s, %s, %s, %s, %s, %s, %s, %s, %s and %s "+
+			"Please set the %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s and %s "+
 			"environment variables.\n", app_id_var, app_secret_var,
 			session_auth_var, session_enc_var, db_host_var, db_user_var,
 			db_pass_var, db_name_var, cache_path_var, admin_user_var,
-			worker_port_var)
+			worker_port_var, controller_host_var)
 		return
 	}
 
@@ -1115,13 +1116,15 @@ func handleWebhook(w http.ResponseWriter, r *http.Request){
         return
     }
 
-    // sanity check
-    hookId, tErr := db.GetHookId(tid)
-    if(tErr != nil ){
-        // TODO error handling
-        return
-    }
     // TODO token validation
+    
+    // sanity check
+//    hookId, tErr := db.GetHookId(tid)
+//    if(tErr != nil ){
+//        // TODO error handling
+//        return
+//    }
+    
     
 //    if(hookId != h.Hook_id){
 //        // TODO error handling
