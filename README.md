@@ -154,8 +154,17 @@ own instance of the Analysis Bots Platform for GitHub!
 
 ## Is there a sample `.htaccess` file that I can use?
 
-Yes, there is. You can find it [here](http://example.com)
+Yes, there is:
+```
+<IfModule mod_rewrite.c>
+  RewriteEngine On
 
+  RewriteBase /
+  RewriteCond %{DOCUMENT_ROOT}/%{REQUEST_FILENAME} !-f
+  RewriteRule (.*) http://localhost:${APP_PORT}%{REQUEST_URI} [P,QSA]
+</IfModule>
+```
+Simply replace `${APP_PORT}` with the appropriate value.
 
 # License
 
