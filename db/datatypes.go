@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+//
+// ## Constants ##
+//
+
 // Token length
 const Token_length = 32
 
@@ -17,6 +21,64 @@ const (
 	Succeeded = iota
 	Failed    = iota
 )
+
+// Days of the week
+const (
+	Monday    = iota
+	Tuesday   = iota
+	Wednesday = iota
+	Thursday  = iota
+	Friday    = iota
+	Saturday  = iota
+	Sunday    = iota
+)
+
+// Github Events
+const (
+	wildcard                    = iota //0
+	commit_comment              = iota
+	create                      = iota
+	delete                      = iota
+	deployment                  = iota
+	deployment_status           = iota //5
+	fork                        = iota
+	gollum                      = iota
+	issue_comment               = iota
+	issues                      = iota
+	member                      = iota //10
+	membership                  = iota
+	page_build                  = iota
+	public                      = iota
+	pull_request_review_comment = iota
+	pull_request                = iota //15
+	push                        = iota
+	repository                  = iota
+	release                     = iota
+	status                      = iota
+	team_add                    = iota //20
+	watch                       = iota
+)
+
+// Statuses of a Scheduled Task
+const (
+	Active   = iota
+	Stopped  = iota
+	Complete = iota
+)
+
+// Trigger for a task
+const (
+	Hourly  = iota // every hour
+	Daily   = iota // every day
+	Weekly  = iota // every week
+	Unique  = iota // just once
+	Instant = iota // immediately
+	Event   = iota // when event occurs
+)
+
+//
+// ## Data Structures ##
+//
 
 // User
 type User struct {
@@ -80,9 +142,7 @@ type Member struct {
 // A task is a bot's execution on a project
 type Task struct {
 	Id          int64
-	Project     *Project
-	User        *User
-	Bot         *Bot
+	Gid         int64
 	Worker      *Worker
 	Start_time  *time.Time
 	End_time    *time.Time
@@ -90,6 +150,45 @@ type Task struct {
 	Exit_status int64
 	Output      string
 	Patch       string
+}
+
+type ScheduledTask struct {
+	Id      int64
+	User    *User
+	Project *Project
+	Bot     *Bot
+	Name    string
+	Status  int64
+	Next    time.Time
+	Cron    string
+}
+
+type OneTimeTask struct {
+	Id        int64
+	User      *User
+	Project   *Project
+	Bot       *Bot
+	Name      string
+	Status    int64
+	Exec_time time.Time
+}
+
+type InstantTask struct {
+	Id      int64
+	User    *User
+	Project *Project
+	Bot     *Bot
+}
+
+type EventTask struct {
+	Id      int64
+	User    *User
+	Project *Project
+	Bot     *Bot
+	Name    string
+	Status  int64
+	Event   int64
+	HookId  int64
 }
 
 // A worker executes tasks
@@ -102,6 +201,10 @@ type Worker struct {
 	Active       bool
 	Shared       bool
 }
+
+//
+// ## Helper Functions ##
+//
 
 func (t *Task) StatusString() string {
 	switch {

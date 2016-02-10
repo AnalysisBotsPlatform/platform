@@ -9,6 +9,7 @@ import (
 	"github.com/AnalysisBotsPlatform/platform/db"
 	"github.com/AnalysisBotsPlatform/platform/utils"
 	"github.com/AnalysisBotsPlatform/platform/worker"
+	"github.com/gorhill/cronexpr"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"html/template"
@@ -75,8 +76,31 @@ const worker_port_var = "WORKER_PORT"
 
 var worker_port = os.Getenv(worker_port_var)
 
+// Hostname (necessary for webhooks)
+const controller_host_var = "CONTROLLER_HOST"
+
+var controller_host = os.Getenv(controller_host_var)
+
+// webhook path
+const webhook_subpath = "webhook"
+
 // Id regex
 const id_regex = "0|[1-9][0-9]*"
+
+// Type regex
+const type_regex = "[0-5]"
+
+// Time regex
+const time_regex = "[0-9]+"
+
+// Event regex
+const event_regex = time_regex
+
+// Day regex
+const day_regex = "[0-6]"
+
+// Bot name regex
+const bot_name_regex = "[a-z]+[a-z,0-9]*"
 
 // Template caching
 const template_root = "tmpl"
@@ -98,6 +122,20 @@ const state_size = 32
 // Context settings
 var error_counter = 0
 var error_map = make(map[string]interface{})
+
+// Webhooks
+
+type WebhookConfig struct {
+	Url          string `json:"url"`
+	Content_type string `json:"content_type"`
+}
+
+type Webhook struct {
+	Name   string        `json:"name"`
+	Active bool          `json:"active"`
+	Events []string      `json:"events"`
+	Config WebhookConfig `json:"config"`
+}
 
 //
 // Entry point
@@ -178,14 +216,16 @@ func Start() {
 	_, wport := os.LookupEnv(worker_port_var)
 	_, aport := os.LookupEnv(application_port_var)
 	_, subdir := os.LookupEnv(application_subdirectory_var)
+	_, hname := os.LookupEnv(controller_host_var)
 	if !id || !secret || !auth || !enc || !host || !user || !pass || !name ||
-		!cache || !admin || !wport || !aport || !subdir {
+		!cache || !admin || !wport || !aport || !subdir || !hname {
 		fmt.Printf("Application settings missing!\n"+
-			"Please set the %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s "+
-			"and %s environment variables.\n", app_id_var, app_secret_var,
+			"Please set the %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "+
+			"%s and %s environment variables.\n", app_id_var, app_secret_var,
 			session_auth_var, session_enc_var, db_host_var, db_user_var,
 			db_pass_var, db_name_var, cache_path_var, admin_user_var,
-			worker_port_var, application_port_var, application_subdirectory_var)
+			worker_port_var, application_port_var, application_subdirectory_var,
+			controller_host_var)
 		return
 	}
 
@@ -244,6 +284,7 @@ func Start() {
 	go func() {
 		<-sigs
 		ticker.Stop()
+		worker.StopPeriodRunners()
 		db.CloseDB()
 		fmt.Println("... controller terminated")
 		os.Exit(0)
@@ -304,6 +345,8 @@ func initRoutes() (rootRouter *mux.Router) {
 	rootRouter.HandleFunc(fmt.Sprintf("%snewpullrequest/{tid:.%s}",
 		application_subdirectory, id_regex),
 		makeHandler(makeTokenHandler(handlePullRequestNew)))
+	rootRouter.HandleFunc(fmt.Sprintf("%s%s/{tid:%s}", application_subdirectory,
+		webhook_subpath, id_regex), handleWebhook)
 
 	// bots
 	botsRouter.HandleFunc("/", makeHandler(makeTokenHandler(handleBots)))
@@ -316,7 +359,13 @@ func initRoutes() (rootRouter *mux.Router) {
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/newtask", id_regex),
 		makeHandler(makeTokenHandler(handleBotsBidNewtask)))
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
-		makeHandler(makeTokenHandler(handleTasksNew)))
+		makeHandler(makeTokenHandler(handleTasksNewScheduled))).Queries("name", "", "cron", "")
+	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
+		makeHandler(makeTokenHandler(handleTasksNewOneTime))).Queries("name", "", "time", "")
+	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
+		makeHandler(makeTokenHandler(handleTasksNewEventDriven))).Queries("name", "", "event", "")
+	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
+		makeHandler(makeTokenHandler(handleTasksNewInstant)))
 
 	// projects
 	projectsRouter.HandleFunc("/",
@@ -325,9 +374,14 @@ func initRoutes() (rootRouter *mux.Router) {
 		makeHandler(makeTokenHandler(handleProjectsPid)))
 	projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/newtask", id_regex),
 		makeHandler(makeTokenHandler(handleProjectsPidNewtask)))
-	projectsRouter.HandleFunc(
-		fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
-		makeHandler(makeTokenHandler(handleTasksNew)))
+	projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
+		makeHandler(makeTokenHandler(handleTasksNewScheduled))).Queries("name", "", "cron", "")
+	projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
+		makeHandler(makeTokenHandler(handleTasksNewOneTime))).Queries("name", "", "time", "")
+	projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
+		makeHandler(makeTokenHandler(handleTasksNewEventDriven))).Queries("name", "", "event", "")
+	projectsRouter.HandleFunc(fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
+		makeHandler(makeTokenHandler(handleTasksNewInstant)))
 
 	// tasks
 	tasksRouter.HandleFunc("/", makeHandler(makeTokenHandler(handleTasks)))
@@ -335,6 +389,8 @@ func initRoutes() (rootRouter *mux.Router) {
 		makeHandler(makeTokenHandler(handleTasksTid)))
 	tasksRouter.HandleFunc(fmt.Sprintf("/{tid:%s}/cancel", id_regex),
 		makeHandler(makeTokenHandler(handleTasksTidCancel)))
+	tasksRouter.HandleFunc(fmt.Sprintf("/{tid:%s}/cancel_group", id_regex),
+		makeHandler(makeTokenHandler(handleTasksTidCancelGroup)))
 
 	// API
 	apiRouter.HandleFunc("/bot", makeAPIHandler(handleAPIPostBot)).
@@ -449,6 +505,87 @@ func authGitHubRequest(method, req_url string, token string,
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
+	}
+	var resp_data interface{}
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	if err := dec.Decode(&resp_data); err != nil {
+		return nil, errors.New("Decoding error!")
+	}
+
+	return resp_data, nil
+}
+
+// TODO document this
+func authGitHubRequestPost(w http.ResponseWriter, req_url string,
+	token string, payload []byte, returnInterface interface{}) error {
+
+	// set up request
+	client := &http.Client{}
+	req, rErr := http.NewRequest("POST",
+		fmt.Sprintf("https://api.github.com/%s", req_url),
+		bytes.NewBuffer(payload))
+	if rErr != nil {
+		return rErr
+	}
+	//req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+
+	// do request
+	response, err := client.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	defer response.Body.Close()
+
+	// read response
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		body, _ := ioutil.ReadAll(response.Body)
+		fmt.Printf("authPost (status: %d) Error Payload: %s\n", response.StatusCode, string(body))
+		return errors.New("Bad request!")
+	}
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	if err := dec.Decode(returnInterface); err != nil {
+		return errors.New("Decoding error!")
+	}
+
+	return nil
+}
+
+// TODO document this
+func authGitHubRequestDelete(w http.ResponseWriter, req_url string,
+	token string) (interface{}, error) {
+
+	data := url.Values{}
+
+	// set up request
+	client := &http.Client{}
+	req, _ := http.NewRequest("DELETE",
+		fmt.Sprintf("https://api.github.com/%s", req_url),
+		bytes.NewBufferString(data.Encode()))
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+
+	// do request
+	response, err := client.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	defer response.Body.Close()
+
+	// read response
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusNoContent {
+		return nil, errors.New("Bad request!")
+	}
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	var resp_data interface{}
 	dec := json.NewDecoder(bytes.NewReader(body))
@@ -662,7 +799,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request,
 
 	http.Redirect(w, r,
 		fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s"+
-			"&scope=%s&state=%s", client_id, "user,repo", state),
+			"&scope=%s&state=%s", client_id, "user,repo,admin:repo_hook", state),
 		http.StatusFound)
 }
 
@@ -1051,12 +1188,19 @@ func handleTasks(w http.ResponseWriter, r *http.Request,
 	tasks, err := db.GetTasks(token)
 	if err != nil {
 		handleError(w, r, err)
-	} else {
-		data := make(map[string]interface{})
-		data["Tasks"] = tasks
-		data["Subdir"] = application_subdirectory
-		renderTemplate(w, "tasks", data)
+		return
 	}
+
+	hErr := updateHooks(w, token)
+	if hErr != nil {
+		handleError(w, r, hErr)
+		return
+	}
+
+	data := make(map[string]interface{})
+	data["Tasks"] = tasks
+	data["Subdir"] = application_subdirectory
+	renderTemplate(w, "tasks", data)
 }
 
 // The handler requests detailed information about the task identified by its
@@ -1064,6 +1208,13 @@ func handleTasks(w http.ResponseWriter, r *http.Request,
 // `renderTemplate` with the template "projects-pid" and the retrieved data.
 func handleTasksTid(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
+
+	hErr := updateHooks(w, token)
+	if hErr != nil {
+		handleError(w, r, hErr)
+		return
+	}
+
 	task, err := db.GetTask(vars["tid"], token)
 	if err != nil {
 		handleError(w, r, err)
@@ -1079,18 +1230,199 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// The handler creates a new task with the help of the background worker. If
-// this fails the `handleError` function is called else the user is redirected
-// to the details page of the newly created task.
-func handleTasksNew(w http.ResponseWriter, r *http.Request,
+// TODO document this
+func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
-	tid, err := worker.CreateNewTask(token, vars["pid"], vars["bid"])
+
+	hErr := updateHooks(w, token)
+	if hErr != nil {
+		handleError(w, r, hErr)
+		return
+	}
+
+	event, eErr := strconv.ParseInt(r.FormValue("event"), 10, 64)
+	if eErr != nil {
+		handleError(w, r, eErr)
+		return
+	}
+
+	// TODO updated version
+	eventTask, err := db.CreateNewEventTask(token, vars["pid"], vars["bid"], r.FormValue("name"), event)
 	if err != nil {
 		handleError(w, r, err)
 	} else {
+
+		project, projErr := db.GetProject(vars["pid"], token)
+		if projErr != nil {
+			handleError(w, r, projErr)
+		} else {
+			reqUrl := fmt.Sprintf("repos/%s/hooks", project.Name)
+
+			hookConfig := WebhookConfig{
+				Url: fmt.Sprintf("http://%s/%s/%d", controller_host,
+					webhook_subpath, eventTask.Id),
+				Content_type: "json"}
+
+			hook := Webhook{
+				Name:   "web",
+				Active: true,
+				// TODO change
+				Events: []string{"push"},
+				Config: hookConfig}
+
+			payloadMarshalled, marshErr := json.Marshal(hook)
+			if marshErr != nil {
+				handleError(w, r, marshErr)
+			} else {
+				type Config struct {
+					Url          string `json:"url"`
+					Content_type string `json:"content_type"`
+				}
+
+				type HookResponse struct {
+					Id         int64    `json:"id"`
+					Url        string   `json:"url"`
+					Test_url   string   `json:"test_url"`
+					Ping_url   string   `json:"ping_url"`
+					Name       string   `json:"name"`
+					Events     []string `json:"events"`
+					Active     bool     `json:"active"`
+					Config     Config   `json:"config"`
+					Updated_at string   `json:"updated_at"`
+					Created_at string   `json:"created_at"`
+				}
+
+				var hookResponse HookResponse
+
+				hErr := authGitHubRequestPost(w, reqUrl, token, payloadMarshalled, &hookResponse)
+				if hErr != nil {
+					handleError(w, r, hErr)
+					// TODO proper error handling
+					db.UpdateEventTaskStatus(eventTask.Id, db.Complete)
+					return
+				} else {
+
+					err := db.SetHookId(eventTask.Id, hookResponse.Id)
+					if err != nil {
+						handleError(w, r, err)
+						return
+					}
+					http.Redirect(w, r, fmt.Sprintf("/tasks/"),
+						http.StatusFound)
+				}
+
+			}
+
+		}
+
+	}
+}
+
+func handleTasksNewScheduled(w http.ResponseWriter, r *http.Request,
+	vars map[string]string, session *sessions.Session, token string) {
+
+	nextTime := cronexpr.MustParse(r.FormValue("cron")).Next(time.Now())
+	if nextTime.IsZero() {
+		handleError(w, r, errors.New("The cron expression <"+r.FormValue("cron")+"> could not have been parsed."))
+		return
+	}
+
+	scheduledTask, err := db.CreateScheduledTask(token, vars["pid"], vars["bid"], r.FormValue("name"), nextTime, r.FormValue("cron"))
+	if err != nil {
+		handleError(w, r, err)
+		return
+	}
+
+	http.Redirect(w, r, "/tasks/", http.StatusFound)
+
+	worker.RunScheduledTask(scheduledTask.Id)
+
+}
+
+// TODO document this
+func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
+	vars map[string]string, session *sessions.Session, token string) {
+
+	seconds, err := strconv.ParseInt(r.FormValue("time"), 10, 64)
+	if err != nil {
+		handleError(w, r, err)
+	} else {
+		scheduleTime := time.Unix(seconds, 0)
+		// TODO updated version
+		oneTimeTask, err := db.CreateOneTimeTask(token, vars["pid"], vars["bid"], r.FormValue("name"), scheduleTime)
+
+		if err != nil {
+			handleError(w, r, err)
+		} else {
+			worker.RunOneTimeTask(oneTimeTask.Id)
+			http.Redirect(w, r, fmt.Sprintf("/tasks/"),
+				http.StatusFound)
+		}
+
+	}
+
+}
+
+// TODO document this
+func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
+	vars map[string]string, session *sessions.Session, token string) {
+
+	instantTask, err := db.CreateNewInstantTask(token,
+		vars["pid"], vars["bid"])
+
+	if err != nil {
+		handleError(w, r, err)
+	} else {
+		worker.CreateNewTask(instantTask.Id)
 		http.Redirect(w, r, fmt.Sprintf("%stasks/%d", application_subdirectory,
 			tid), http.StatusFound)
 	}
+
+}
+
+// TODO document this
+func handleWebhook(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	taskId := vars["tid"]
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		// TODO error handling
+	}
+
+	type hook struct {
+		Hook_id int64 `json:hook_id`
+	}
+
+	var h hook
+	err = json.Unmarshal(body, &h)
+	if err != nil {
+		// TODO error handling
+		return
+	}
+
+	tid, iErr := strconv.ParseInt(taskId, 10, 64)
+	if iErr != nil {
+		// TODO error handling
+		return
+	}
+
+	// TODO token validation
+
+	// sanity check
+	//    hookId, tErr := db.GetHookId(tid)
+	//    if(tErr != nil ){
+	//        // TODO error handling
+	//        return
+	//    }
+
+	//    if(hookId != h.Hook_id){
+	//        // TODO error handling
+	//        return
+	//    }
+
+	worker.CreateNewTask(tid)
 }
 
 // The handler attempts to cancel the specified task. If this fails the
@@ -1105,6 +1437,106 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 		http.Redirect(w, r, fmt.Sprintf("%stasks/", application_subdirectory),
 			http.StatusFound)
 	}
+}
+
+// TODO check this
+// TODO document this
+func handleTasksTidCancelGroup(w http.ResponseWriter, r *http.Request,
+	vars map[string]string, session *sessions.Session, token string) {
+	if is, err := db.IsScheduledTask(vars["tid"]); is && err == nil {
+		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
+		if cErr != nil {
+			handleError(w, r, cErr)
+			return
+		}
+		scheduledTask, tErr := db.GetScheduledTask(tid)
+		if tErr != nil {
+			handleError(w, r, tErr)
+			return
+		}
+		err = worker.CancelScheduledTask(scheduledTask.Id)
+		if err != nil {
+			handleError(w, r, err)
+			return
+		}
+		http.Redirect(w, r, "/tasks/", http.StatusFound)
+		return
+	}
+	if is, err := db.IsEventTask(vars["tid"]); is && err == nil {
+		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
+		if cErr != nil {
+			handleError(w, r, cErr)
+			return
+		}
+		eventTask, tErr := db.GetEventTask(tid)
+		if tErr != nil {
+			handleError(w, r, tErr)
+			return
+		}
+
+		hookId, hErr := db.GetHookId(tid)
+		if hErr != nil {
+			handleError(w, r, hErr)
+			return
+		}
+		url := fmt.Sprintf("repos/%s/hooks/%d", eventTask.Project.Name, hookId)
+		// TODO error handling
+		_, dErr := authGitHubRequestDelete(w, url, token)
+		if dErr != nil {
+			handleError(w, r, dErr)
+			return
+		}
+
+		err = worker.CancelEventTask(eventTask.Id)
+		if err != nil {
+			handleError(w, r, err)
+			return
+		}
+		http.Redirect(w, r, "/tasks/", http.StatusFound)
+		return
+	}
+
+	if is, err := db.IsOneTimeTask(vars["tid"]); is && err == nil {
+		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
+		if cErr != nil {
+			handleError(w, r, cErr)
+			return
+		}
+		oneTimeTask, tErr := db.GetOneTimeTask(tid)
+		if tErr != nil {
+			handleError(w, r, tErr)
+			return
+		}
+		err = worker.CancelOneTimeTask(oneTimeTask.Id)
+		if err != nil {
+			handleError(w, r, err)
+			return
+		}
+		http.Redirect(w, r, "/tasks/", http.StatusFound)
+		return
+	}
+
+	if is, err := db.IsInstantTask(vars["tid"]); is && err == nil {
+		tid, cErr := strconv.ParseInt(vars["tid"], 10, 64)
+		if cErr != nil {
+			handleError(w, r, cErr)
+			return
+		}
+		instantTask, tErr := db.GetInstantTask(tid)
+		if tErr != nil {
+			handleError(w, r, tErr)
+			return
+		}
+		err = worker.CancelInstantTask(instantTask.Id)
+		if err != nil {
+			handleError(w, r, err)
+			return
+		}
+		http.Redirect(w, r, "/tasks/", http.StatusFound)
+		return
+	}
+
+	handleError(w, r, errors.New("The task id was not known and thus could not have been canceled."))
 }
 
 // Validates the user's input and adds a new Bot to the database. After
@@ -1271,4 +1703,27 @@ func handleAPIGetTasks(w http.ResponseWriter, r *http.Request, token string) {
 			w.Write(js)
 		}
 	}
+}
+
+// TODO document this
+func updateHooks(w http.ResponseWriter, token string) error {
+	tasks, err := db.GetActiveEventTasks(token)
+	if err != nil {
+		return err
+	}
+
+	for _, task := range tasks {
+		hook_id, hErr := db.GetHookId(task.Id)
+		if hErr != nil {
+			return hErr
+		}
+		url := fmt.Sprintf("repos/%s/hooks/%d", task.Project.Name, hook_id)
+		_, rErr := authGitHubRequest(w, url, token)
+		if rErr != nil {
+			db.UpdateScheduledTaskStatus(task.Id, db.Complete)
+		}
+	}
+
+	return nil
+
 }

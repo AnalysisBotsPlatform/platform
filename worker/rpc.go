@@ -80,12 +80,17 @@ func (api *WorkerAPI) assignTask(task *db.Task) {
 	api.guard.Lock()
 	defer api.guard.Unlock()
 
-	waiting, ok := api.available_workers[task.User.Id]
+	uid, err := db.GetTaskUserId(task.Id)
+	if err != nil {
+		// TODO error handling
+	}
+
+	waiting, ok := api.available_workers[uid]
 	if ok {
 		if len(waiting) > 0 {
 			waiting[0].task_assignment <- task
 			waiting = waiting[1:]
-			api.available_workers[task.User.Id] = waiting
+			api.available_workers[uid] = waiting
 		}
 	} else {
 		if len(api.shared_workers) > 0 {
@@ -225,6 +230,7 @@ func (api *WorkerAPI) GetTask(worker_token string, task *Task) error {
 		}
 	}
 
+	// TODO fill this
 	task.Id = pending.Id
 	task.Project = pending.Project.Name
 	task.Bot = pending.Bot.Name
@@ -234,6 +240,7 @@ func (api *WorkerAPI) GetTask(worker_token string, task *Task) error {
 			task.Patch = true
 		}
 	}
+
 	api.running_workers[task.Id] = make(chan bool, 1)
 	db.UpdateTaskStatus(task.Id, db.Scheduled)
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/AnalysisBotsPlatform/platform/db"
+	"github.com/gorhill/cronexpr"
 	"log"
 	"net"
 	"net/rpc"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 // Maximal duration in seconds for each task.
@@ -37,6 +39,14 @@ var (
 	PatchFailure = errors.New("Patch cannot be applied!")
 )
 
+// ticker to coordinate periodic tasks
+var timer *time.Timer
+
+// channel to cancel period runner
+var pauseChan chan bool
+
+var runningTasks map[int64]chan bool
+
 // Initialization of the worker. Sets up the RPC infrastructure.
 func Init(port, cache_path string) error {
 	api = NewWorkerAPI()
@@ -46,6 +56,11 @@ func Init(port, cache_path string) error {
 	if err != nil {
 		return err
 	}
+
+	pauseChan = make(chan bool)
+	runningTasks = make(map[int64]chan bool)
+
+	recoverActiveTasks()
 
 	go rpc.Accept(listener)
 
@@ -82,26 +97,103 @@ func GetPatchPath() string {
 // - Creating a new communication channel.
 // - Starting an asynchronous task.
 // The task id of the newly created task is returned.
-func CreateNewTask(token string, pid string, bid string) (int64, error) {
-	task, err := db.CreateNewTask(token, pid, bid)
-	if err != nil {
-		return -1, err
+// TODO document this
+func CreateNewTask(parentTaskId int64) error {
+
+	newTask, tErr := db.CreateNewChildTask(parentTaskId)
+	if tErr != nil {
+		return tErr
 	}
-
-	api.assignTask(task)
-
-	return task.Id, nil
+	api.assignTask(newTask)
+	return nil
 }
 
-// Cancels the running task specified by the given task id using the channel.
-// Also updates the database entry accordingly.
-func Cancle(tid string) error {
-	id, err := strconv.ParseInt(tid, 10, 64)
-	if err != nil {
-		return err
+func RunScheduledTask(stid int64) {
+	cancelChan := make(chan bool, 1)
+	runningTasks[stid] = cancelChan
+	go runScheduledTask(stid, cancelChan)
+}
+
+func RunOneTimeTask(otid int64) {
+	cancelChan := make(chan bool)
+	runningTasks[otid] = cancelChan
+	go runOneTimeTask(otid, cancelChan)
+}
+
+// ############################
+// TODO
+// cancel GroupTasks
+// ############################
+
+func CancelScheduledTask(stid int64) error {
+	cancelChan, ok := runningTasks[stid]
+	if ok {
+		cancelChan <- true
+	} else {
+		return errors.New("The provided id does not correspond to a running task.")
+	}
+	err := db.UpdateScheduledTaskStatus(stid, db.Complete)
+	runningChildren, gErr := db.GetRunningChildren(stid)
+	if gErr != nil {
+		return gErr
 	}
 
-	api.cancelTask(id)
+	for _, childTask := range runningChildren {
+		cancel(childTask.Id)
+	}
+
+	return err
+}
+
+func CancelOneTimeTask(stid int64) error {
+	cancelChan, ok := runningTasks[stid]
+	if ok {
+		cancelChan <- true
+	} else {
+		return errors.New("The provided id does not correspond to a running task.")
+	}
+	err := db.UpdateOneTimeTaskStatus(stid, db.Complete)
+	runningChildren, gErr := db.GetRunningChildren(stid)
+	if gErr != nil {
+		return gErr
+	}
+
+	for _, childTask := range runningChildren {
+		cancel(childTask.Id)
+	}
+
+	return err
+}
+
+func CancelEventTask(stid int64) error {
+	err := db.UpdateEventTaskStatus(stid, db.Complete)
+	runningChildren, gErr := db.GetRunningChildren(stid)
+	if gErr != nil {
+		return gErr
+	}
+
+	for _, childTask := range runningChildren {
+		cancel(childTask.Id)
+	}
+
+	return err
+}
+
+func CancelInstantTask(stid int64) error {
+	cancelChan, ok := runningTasks[stid]
+	if ok {
+		cancelChan <- true
+	} else {
+		return errors.New("The provided id does not correspond to a running task.")
+	}
+	runningChildren, gErr := db.GetRunningChildren(stid)
+	if gErr != nil {
+		return gErr
+	}
+
+	for _, childTask := range runningChildren {
+		cancel(childTask.Id)
+	}
 
 	return nil
 }
@@ -113,11 +205,81 @@ func DeleteWorker(worker_token string) {
 	api.UnregisterWorker(worker_token, &ack)
 }
 
+// Cancels the running task specified by the given task id using the channel.
+// Also updates the database entry accordingly.
+func cancel(tid int64) {
+
+	api.cancelTask(tid)
+
+}
+
 // This function cancles all tasks which succeeded the 'max_task_time'
 func CancleTimedOverTasks() {
 	tasks, _ := db.GetTimedOverTasks(max_task_time)
 	for _, e := range tasks {
-		Cancle(strconv.FormatInt(e, 10))
+		cancel(e)
+	}
+}
+
+func StopPeriodRunners() {
+	close(pauseChan)
+}
+
+func runScheduledTask(stid int64, cancelChan chan bool) {
+	for {
+		scheduledTask, err := db.GetScheduledTask(stid)
+		if err != nil {
+			db.UpdateScheduledTaskStatus(stid, db.Complete)
+			return
+		}
+		nextTime := cronexpr.MustParse(scheduledTask.Cron).Next(time.Now())
+		sleepTime := nextTime.Sub(time.Now())
+		uErr := db.UpdateNextScheduleTime(scheduledTask.Id, nextTime)
+		if uErr != nil {
+			db.UpdateScheduledTaskStatus(stid, db.Complete)
+			return
+		}
+		select {
+		case <-time.After(sleepTime):
+			CreateNewTask(stid)
+		case <-cancelChan:
+			db.UpdateScheduledTaskStatus(stid, db.Complete)
+			return
+		case <-pauseChan:
+			return
+		}
+	}
+}
+
+func runOneTimeTask(otid int64, cancelChan chan bool) {
+	oneTimeTask, err := db.GetOneTimeTask(otid)
+	if err != nil {
+		return
+	}
+	duration := oneTimeTask.Exec_time.Sub(time.Now().UTC())
+	select {
+	case <-time.After(duration):
+		CreateNewTask(otid)
+		db.UpdateOneTimeTaskStatus(otid, db.Complete)
+	case <-cancelChan:
+		return
+	case <-pauseChan:
+		return
+	}
+}
+
+func recoverActiveTasks() {
+	sched_ids, err := db.GetScheduledTaskIdsWithStatus(db.Active)
+	if err == nil {
+		for _, id := range sched_ids {
+			RunScheduledTask(id)
+		}
+	}
+	oneTime_ids, err := db.GetOneTimeTaskIdsWithStatus(db.Active)
+	if err == nil {
+		for _, id := range oneTime_ids {
+			RunOneTimeTask(id)
+		}
 	}
 }
 
