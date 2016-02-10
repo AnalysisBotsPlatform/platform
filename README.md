@@ -2,14 +2,14 @@
 
 [![GoDoc](https://godoc.org/github.com/AnalysisBotsPlatform/platform?status.svg)](https://godoc.org/github.com/AnalysisBotsPlatform/platform)
 
-Did you ever want to try a cool new project on one of yours but did not want to
-go through the hassle of installing it? Are you bored by doing repetitive tasks
-over and over again while working on a project? Do you have any other problem
-that you want to be solved in an automated fashion? Then you should definitely
-check out this project.
+Did you ever want to try a cool new project on one of your GitHub projects but
+did not want to go through the hassle of installing it? Are you bored of doing
+repetitive tasks over and over again while working on a project? Do you have any
+other problem that you want to have solved in an automated fashion? Then you
+should definitely check out this project.
 
 The Analysis Bots Platform for GitHub enables its users to solve all of the
-above problems and a lot more. It provides a clean looking and easy to use user
+problems above and a lot more. It provides a clean looking and easy to use user
 interface. You do not need to sign up for a new service as you can just use your
 already existing GitHub account.
 
@@ -17,18 +17,18 @@ You want to try it out? It is as easy as signing in with your GitHub account.
 All your projects are imported and synchronized automatically. The Analysis Bots
 Platform provides the rest.
 
-Is there something you want to have but that is not available yet? Do not
-hesitate, implement a Bot that does what you want and share it with everyone
-else. It is as easy as setting up a Docker image.
+Is there something you want to have but is not available yet? Do not hesitate,
+implement a Bot that does what you want and share it with everyone else. It is
+as easy as setting up a Docker image.
 
-But wait a minute. What exactly am I able to do with this platform? Great
-question! For the simplest scenario you choose one of your projects and select a
-Bot provided by the platform. This might be a Bot that checks for typos and
-spelling error in your comments. Then the platform pulls your project and the
-Bot with all its dependencies and executes it on your project. Finally, you are
-presented the results of the execution. There are more sophisticated mechanisms
-in place as Bot execution automation and creation of pull request for
-encountered problems.
+But wait a minute. You might ask yourself now: What exactly am I able to do with
+this platform? Great question! For the simplest scenario you choose one of your
+projects and select a Bot provided by the platform. This might be a Bot that
+checks for typos and spelling errors in your comments. Then the platform pulls
+your project and the Bot with all its dependencies and executes it on your
+project. Finally, you are presented the results of the execution. There are more
+sophisticated mechanisms in place like Bot execution automation and creation of
+pull request for encountered problems.
 
 What is left to say? Go on and give it a try!
 
@@ -44,7 +44,7 @@ to use the installation process using Docker. You can check it out
 These instructions assume that you have access to a working PostgreSQL server.
 For further information visit http://postgresql.org.
 
-Before you start make sure you have configured Go correctly. Especially verify
+Before you start, make sure you have configured Go correctly. Especially verify
 that the `GOPATH` environment variable is set properly.
 
 ## Setup environment
@@ -60,7 +60,7 @@ cd <destination>
 ```
 
 Next the `setup_env.sh` file must be edited. You can do so by using your
-favorite text editor. Anyone will do. The file should contain sufficient
+favorite text editor. Any one will do. The file should contain sufficient
 explanation but here is a more thorough description:
 
 | Variable        | Content                                                       |
@@ -100,7 +100,7 @@ Anyhow, make sure that both are exactly 32 characters long. ATTENTION: the
 strings you enter for these variables are used to encrypt the user cookies.
 Changing these will invalidate all user cookies.
 
-As you are going to create a new database and a user for it make sure to set
+As you are going to create a new database and a user for it, make sure to set
 `DB_NAME` and `DB_USER` to values that are not already taken.
 
 To finish the environment setup simply run
@@ -132,7 +132,7 @@ database. Thus specify a `<username>` that has.
 # Usage
 
 In order to run the platform you need to navigate to the directory where you
-cloned to project to. The following command should do the trick:
+cloned the project to. The following command should do the trick:
 ```shell
 cd <destination>
 ```
