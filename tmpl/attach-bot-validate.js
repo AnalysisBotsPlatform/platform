@@ -97,10 +97,10 @@ $("#name").change(function() {
 
 $("#numberpicker-input").change(function() {
     hour = parseInt($("#numberpicker-input").val());
-    if(hour <= 0){
+    if(hour == 0){
         $("#numberpicker-input").val(1);
         hour = 0;
-    } else if(hour >= 24){
+    } else if(hour == 24){
         $("#numberpicker-input").val(23);
         hour = 23;
     } else if($("#numberpicker-input").val() == ""){

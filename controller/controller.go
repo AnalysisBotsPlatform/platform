@@ -1232,7 +1232,7 @@ func handleTasks(w http.ResponseWriter, r *http.Request,
 	data := make(map[string]interface{})
 	data["TaskGroups"] = task_groups
 	data["Subdir"] = application_subdirectory
-	renderTemplate(w, "tasks", data)
+	renderTemplate(w, "tasks-new", data)
 }
 
 // The handler requests detailed information about the task identified by its
@@ -1311,7 +1311,8 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 func handleTasksNewScheduled(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 
-	nextTime := cronexpr.MustParse(r.FormValue("cron")).Next(time.Now())
+	cron_str := strings.Replace(r.FormValue("cron"), "_", " ", -1)
+	nextTime := cronexpr.MustParse(cron_str).Next(time.Now())
 	if nextTime.IsZero() {
 		handleError(w, r,
 			fmt.Errorf("The cron expression <%s> could not have been parsed.",
@@ -1357,7 +1358,6 @@ func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
 // TODO document this
 func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
-
 	instantTask, err := db.CreateNewInstantTask(token, vars["pid"], vars["bid"])
 
 	if err != nil {

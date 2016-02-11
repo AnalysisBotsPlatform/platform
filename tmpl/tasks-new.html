@@ -1,5 +1,6 @@
 {{ template "header.html" "Bot Status" }}
 {{ template "nav.html" .Subdir }}
+{{ $Subdir := .Subdir }}
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
@@ -31,91 +32,91 @@
 												</tr>
 												</thead>
 												<tbody>
-                                                    { range . TaskGroups.Scheduled }
-													<tr data-toggle="collapse" data-target="#demo{{.task.Id}}" class="accordion-toggle">
-														<td>{{.task.Id}}</td>
-														<td>{{.task.Name}}</td>
+                                                    {{ range .TaskGroups.Scheduled }}
+													<tr data-toggle="collapse" data-target="#demo{{.Task.Id}}" class="accordion-toggle">
+														<td>{{.Task.Id}}</td>
+														<td>{{.Task.Name}}</td>
 														<td>Scheduled</td>
-														<td>{{.task.Project.Name}}</td>
-														<td>{{.task.Bot.Name}}</td>
-														<td>{{.task.Status}}</td>
+														<td>{{.Task.Project.Name}}</td>
+														<td>{{.Task.Bot.Name}}</td>
+														<td>{{.Task.Status}}</td>
 														<td>
-															<a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
+                                                            <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
+                                                            <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Expand</button></a>
 														</td>
 													</tr>
 													<tr>
 														<td colspan="7" class="hiddenRow" style="border:none;" height="0%">
-														<div class="accordian-body collapse" id="demo{{.task.Id}}">
+														<div class="accordian-body collapse" id="demo{{.Task.Id}}">
 															<table class="table table-hover">
 																<tbody>
-                                                                    { range . child_tasks }
+                                                                    {{ range .Child_tasks }}
 																	<tr>
-																		<td>{.Id}</td>
-																		<td>{.StatusString}</td>
+                                                                        <td>{{.Id}}</td>
+                                                                        <td>{{.StatusString}}</td>
 																		<td>
 																		<a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button>
 																		</td>
 																	</tr>
-                                                                    { end }
+                                                                    {{ end }}
 																</tbody>
 															</table>
 														</div>
 														</td>
 													</tr>
-                                                    { end }
-                                                    { range . TaskGroups.Event }
-													<tr data-toggle="collapse" data-target="#demo{{.task.Id}}" class="accordion-toggle">
-														<td>{{.task.Id}}</td>
-														<td>{{.task.Name}}</td>
+                                                    {{ end }}
+                                                    {{ range .TaskGroups.Event }}
+													<tr data-toggle="collapse" data-target="#demo{{.Task.Id}}" class="accordion-toggle">
+														<td>{{.Task.Id}}</td>
+														<td>{{.Task.Name}}</td>
 														<td>Event Triggered</td>
-														<td>{{.task.Project.Name}}</td>
-														<td>{{.task.Bot.Name}}</td>
-														<td>{{.task.Status}}</td>
+														<td>{{.Task.Project.Name}}</td>
+														<td>{{.Task.Bot.Name}}</td>
+														<td>{{.Task.Status}}</td>
 														<td>
-															<a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button>
-															<a href="{{$Subdir}}tasks/{{.task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button>
+                                                            <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
+                                                            <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>
 														</td>
 													</tr>
 													<tr>
 														<td colspan="7" class="hiddenRow" style="border:none;" height="0%">
-														<div class="accordian-body collapse" id="demo{{.task.Id}}">
+														<div class="accordian-body collapse" id="demo{{.Task.Id}}">
 															<table class="table table-hover">
 																<tbody>
-                                                                    { range . child_tasks }
+                                                                    {{ range .Child_tasks }}
 																	<tr>
-																		<td>{.Id}</td>
-																		<td>{.StatusString}</td>
+                                                                        <td>{{.Id}}</td>
+                                                                        <td>{{.StatusString}}</td>
 																		<td>
 																		<a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button>
 																		</td>
 																	</tr>
-                                                                    { end }
+                                                                    {{ end }}
 																</tbody>
 															</table>
 														</div>
 														</td>
 													</tr>
-                                                    { end }
-                                                    { range .TaskGroups.Instant }
-													<tr data-toggle="collapse" data-target="#demo{{.Id}}" class="accordion-toggle">
-														<td>{{.task.Id}}</td>
+                                                    {{ end }}
+                                                    {{ range .TaskGroups.Instant }}
+													<tr data-toggle="collapse" data-target="#demo{{.Task.Id}}" class="accordion-toggle">
+														<td>{{.Task.Id}}</td>
 														<td>-</td>
 														<td>Manual</td>
-														<td>{{.task.Project.Name}}</td>
-														<td>{{.task.Bot.Name}}</td>
+														<td>{{.Task.Project.Name}}</td>
+														<td>{{.Task.Bot.Name}}</td>
 														<td>-</td>
 														<td>
-															<a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
-															<a href="{{$Subdir}}bots/{{.Bot.Id}}/{{.Project.Id}}"><button type="button" class="btn btn-success">Rerun</button>
+                                                            <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                         </a>
 														</td>
 													</tr>
 													<tr>
 														<td colspan="7" class="hiddenRow" style="border:none;" height="0%">
-                                                        <div class="accordian-body collapse" id="demo{{.Id}}">
+                                                        <div class="accordian-body collapse" id="demo{{.Task.Id}}">
 															<table class="table table-hover">
 																<tbody>
-                                                                    { range . child_tasks }
+                                                                    {{ range .Child_tasks }}
 																	<tr>
 																		<td>{{.Id}}</td>
 																		<td>{{.StatusString}}</td>
@@ -123,30 +124,31 @@
 																		<a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button>
 																		</td>
 																	</tr>
-                                                                    { end }
+                                                                    {{ end }}
 																</tbody>
 															</table>
 														</div>
 													</tr>
-                                                    { end }
-                                                    { range .TaskGroups.OneTime }
-													<tr data-toggle="collapse" data-target="#demo{{.Id}}" class="accordion-toggle">
-                                                        <td>{{.task.Id}}</td>
-														<td>{{.task.Name}}</td>
+                                                    {{ end }}
+                                                    {{ range .TaskGroups.OneTime }}
+													<tr data-toggle="collapse" data-target="#demo{{.Task.Id}}" class="accordion-toggle">
+                                                        <td>{{.Task.Id}}</td>
+														<td>{{.Task.Name}}</td>
 														<td>One Time Task</td>
-														<td>{{.task.Project.Name}}</td>
-														<td>{{.task.Bot.Name}}</td>
+														<td>{{.Task.Project.Name}}</td>
+														<td>{{.Task.Bot.Name}}</td>
 														<td>-</td>
 														<td>
-															<a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
+                                                            <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
+                                                            <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>
 														</td>
 													</tr>
 													<tr>
 														<td colspan="7" class="hiddenRow" style="border:none;" height="0%">
-                                                        <div class="accordian-body collapse" id="demo{{.Id}}">
+                                                        <div class="accordian-body collapse" id="demo{{.Task.Id}}">
 															<table class="table table-hover">
 																<tbody>
-                                                                    { range . child_tasks }
+                                                                    {{ range .Child_tasks }}
 																	<tr>
 																		<td>{{.Id}}</td>
 																		<td>{{.StatusString}}</td>
@@ -154,12 +156,12 @@
 																		<a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button>
 																		</td>
 																	</tr>
-                                                                    { end }
+                                                                    {{ end }}
 																</tbody>
 															</table>
 														</div>
 													</tr>
-                                                    { end }
+                                                    {{ end }}
 												</tbody>
 											</table>
                                         </div>

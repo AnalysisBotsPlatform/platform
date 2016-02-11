@@ -172,8 +172,8 @@ type ScheduledTask struct {
 }
 
 type ScheduledTaskInstances struct {
-	task        *ScheduledTask
-	child_tasks []*Task
+	Task        *ScheduledTask
+	Child_tasks []*Task
 }
 
 type OneTimeTask struct {
@@ -187,8 +187,8 @@ type OneTimeTask struct {
 }
 
 type OneTimeTaskInstances struct {
-	task        *OneTimeTask
-	child_tasks []*Task
+	Task        *OneTimeTask
+	Child_tasks []*Task
 }
 
 type InstantTask struct {
@@ -199,8 +199,8 @@ type InstantTask struct {
 }
 
 type InstantTaskInstances struct {
-	task        *InstantTask
-	child_tasks []*Task
+	Task        *InstantTask
+	Child_tasks []*Task
 }
 
 type EventTask struct {
@@ -215,8 +215,8 @@ type EventTask struct {
 }
 
 type EventTaskInstances struct {
-	task        *EventTask
-	child_tasks []*Task
+	Task        *EventTask
+	Child_tasks []*Task
 }
 
 // A worker executes tasks

@@ -16,7 +16,7 @@
                         <div class="panel-body">
                             <div class="row">
                                 <div class="col-lg-12">
-                                    <form role="form" action="{{.Subdir}}bots/" method="GET">
+                                    <form id="new-task-form" role="form" action="{{.Subdir}}bots/" method="GET">
                                         <div class="form-group">
                                             <label>Bot Description</label>
                                             <div class="panel-body">
@@ -180,4 +180,4 @@
             <!-- /.row -->
         </div>
         <!-- /#page-wrapper -->
-{{ template "footer.html" print .Subdir "attache-bot-validate.js" }}
+{{ template "footer.html" print .Subdir "attach-bot-validate.js" }}
