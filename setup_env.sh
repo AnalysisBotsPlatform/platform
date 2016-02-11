@@ -16,6 +16,9 @@ export CACHE_PATH=cache
 # GitHub user name of the person who administrates the platform
 # (default: --none--)
 export ADMIN_USER=
+# Host where the application is reachable
+# (default: --none--)
+export APP_HOST=
 # Port where the application is reachable
 # (default: 8080)
 export APP_PORT=8080

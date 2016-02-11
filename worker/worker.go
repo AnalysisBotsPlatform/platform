@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"time"
 )
 
@@ -98,14 +97,14 @@ func GetPatchPath() string {
 // - Starting an asynchronous task.
 // The task id of the newly created task is returned.
 // TODO document this
-func CreateNewTask(parentTaskId int64) error {
+func CreateNewTask(parentTaskId int64) (int64, error) {
 
 	newTask, tErr := db.CreateNewChildTask(parentTaskId)
 	if tErr != nil {
-		return tErr
+		return -1, tErr
 	}
 	api.assignTask(newTask)
-	return nil
+	return newTask.Id, nil
 }
 
 func RunScheduledTask(stid int64) {
@@ -130,16 +129,17 @@ func CancelScheduledTask(stid int64) error {
 	if ok {
 		cancelChan <- true
 	} else {
-		return errors.New("The provided id does not correspond to a running task.")
+		return errors.New(
+			"The provided id does not correspond to a running task.")
 	}
 	err := db.UpdateScheduledTaskStatus(stid, db.Complete)
-	runningChildren, gErr := db.GetRunningChildren(stid)
+	runningChildren, gErr := db.GetActiveChildren(stid)
 	if gErr != nil {
 		return gErr
 	}
 
 	for _, childTask := range runningChildren {
-		cancel(childTask.Id)
+		Cancel(childTask.Id)
 	}
 
 	return err
@@ -150,16 +150,17 @@ func CancelOneTimeTask(stid int64) error {
 	if ok {
 		cancelChan <- true
 	} else {
-		return errors.New("The provided id does not correspond to a running task.")
+		return errors.New(
+			"The provided id does not correspond to a running task.")
 	}
 	err := db.UpdateOneTimeTaskStatus(stid, db.Complete)
-	runningChildren, gErr := db.GetRunningChildren(stid)
+	runningChildren, gErr := db.GetActiveChildren(stid)
 	if gErr != nil {
 		return gErr
 	}
 
 	for _, childTask := range runningChildren {
-		cancel(childTask.Id)
+		Cancel(childTask.Id)
 	}
 
 	return err
@@ -167,32 +168,26 @@ func CancelOneTimeTask(stid int64) error {
 
 func CancelEventTask(stid int64) error {
 	err := db.UpdateEventTaskStatus(stid, db.Complete)
-	runningChildren, gErr := db.GetRunningChildren(stid)
+	runningChildren, gErr := db.GetActiveChildren(stid)
 	if gErr != nil {
 		return gErr
 	}
 
 	for _, childTask := range runningChildren {
-		cancel(childTask.Id)
+		Cancel(childTask.Id)
 	}
 
 	return err
 }
 
 func CancelInstantTask(stid int64) error {
-	cancelChan, ok := runningTasks[stid]
-	if ok {
-		cancelChan <- true
-	} else {
-		return errors.New("The provided id does not correspond to a running task.")
-	}
-	runningChildren, gErr := db.GetRunningChildren(stid)
+	runningChildren, gErr := db.GetActiveChildren(stid)
 	if gErr != nil {
 		return gErr
 	}
 
 	for _, childTask := range runningChildren {
-		cancel(childTask.Id)
+		Cancel(childTask.Id)
 	}
 
 	return nil
@@ -207,17 +202,15 @@ func DeleteWorker(worker_token string) {
 
 // Cancels the running task specified by the given task id using the channel.
 // Also updates the database entry accordingly.
-func cancel(tid int64) {
-
+func Cancel(tid int64) {
 	api.cancelTask(tid)
-
 }
 
 // This function cancles all tasks which succeeded the 'max_task_time'
-func CancleTimedOverTasks() {
+func CancelTimedOverTasks() {
 	tasks, _ := db.GetTimedOverTasks(max_task_time)
 	for _, e := range tasks {
-		cancel(e)
+		Cancel(e)
 	}
 }
 
@@ -262,6 +255,7 @@ func runOneTimeTask(otid int64, cancelChan chan bool) {
 		CreateNewTask(otid)
 		db.UpdateOneTimeTaskStatus(otid, db.Complete)
 	case <-cancelChan:
+		// one time already completed in CancelOneTimeTask
 		return
 	case <-pauseChan:
 		return

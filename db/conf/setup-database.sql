@@ -77,7 +77,6 @@ CREATE TABLE group_tasks(
 CREATE TABLE tasks(
 	id SERIAL PRIMARY KEY NOT NULL,
 	gid integer REFERENCES group_tasks(id) NOT NULL,
-	worker_token varchar(50) NOT NULL UNIQUE CHECK (worker_token <> ''),
 	start_time timestamp,
 	end_time timestamp,
 	status integer NOT NULL,
@@ -98,7 +97,7 @@ CREATE TABLE onetime_tasks(
 	id integer UNIQUE REFERENCES group_tasks(id) NOT NULL,
 	name varchar(50) NOT NULL CHECK (name <> ''),
 	status integer NOT NULL,
-	exec_time timestamp
+	exec_time timestamp NOT NULL
 );
 
 CREATE TABLE instant_tasks(
@@ -110,7 +109,7 @@ CREATE TABLE event_tasks(
 	name varchar(50) NOT NULL CHECK (name <> ''),
 	status integer NOT NULL,
 	event integer NOT NULL,
-	hook_id integer 
+	hook_id integer
 );
 
 -- Transfer ownership to the newly created user.
