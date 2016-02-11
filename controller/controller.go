@@ -753,6 +753,20 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 
+		// verify user has granted the requested permissions
+		scopes := resp_data["scopes"].([]string)
+		perm := make(map[string]bool)
+		for _, scope := range scopes {
+			perm[scope] = true
+		}
+		_, ok_user := perm["user"]
+		_, ok_repo := perm["repo"]
+		_, ok_hooks := perm["admin:repo_hook"]
+		if !ok_user || !ok_repo || !ok_hooks {
+			handleError(w, r, fmt.Errorf("No permissions!"))
+			return
+		}
+
 		// store access token and user information
 		token := resp_data["access_token"].(string)
 		session.Values["token"] = token
