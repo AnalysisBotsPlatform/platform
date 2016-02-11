@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -119,6 +120,7 @@ const state_size = 32
 // Context settings
 var error_counter = 0
 var error_map = make(map[string]interface{})
+var error_guard *sync.RWMutex = &sync.RWMutex{}
 
 // Webhooks
 
@@ -609,6 +611,9 @@ func authGitHubRequest(method, req_url string, token string,
 // Error handling routine. The user is redirected to the index page and an error
 // message (stored in `error_map`) is displayed.
 func handleError(w http.ResponseWriter, r *http.Request, err error) {
+	error_guard.Lock()
+	defer error_guard.Unlock()
+
 	error_counter++
 	error_map[strconv.Itoa(error_counter)] = err
 	http.Redirect(w, r, fmt.Sprintf("%s?err=%d", application_subdirectory,
@@ -640,42 +645,43 @@ func getTokenOrRedirect(w http.ResponseWriter, r *http.Request,
 // displayed.
 func handleRoot(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
+
+	data := make(map[string]interface{})
+	data["Subdir"] = application_subdirectory
+
+	error_guard.Lock()
+	defer error_guard.Unlock()
+	if err := r.FormValue("err"); err != "" {
+		if _, ok := error_map[err]; ok {
+			data["Error"] = error_map[err]
+			delete(error_map, err)
+		} else {
+			data["Error"] = "Unknown error!"
+		}
+	}
+
 	if token, ok := session.Values["token"]; ok {
 		user_stats, err := db.GetUserStatistics(token.(string))
 		if err != nil {
-			handleError(w, r, err)
+			// TODO error handling
+			fmt.Println(err)
 			return
 		}
 
 		tasks, err := db.GetLatestTasks(token.(string), 10)
 		if err != nil {
-			handleError(w, r, err)
+			// TODO error handling
+			fmt.Println(err)
 			return
 		}
 
-		data := make(map[string]interface{})
 		data["User_statistics"] = user_stats
 		data["Latest_tasks_size"] = 10
 		data["Latest_tasks"] = tasks
-		data["Subdir"] = application_subdirectory
 
-		if err := r.FormValue("err"); err != "" {
-			data["Error"] = error_map[err]
-			delete(error_map, err)
-		}
 		renderTemplate(w, "index", data)
 	} else {
-		if err := r.FormValue("err"); err != "" {
-			data := make(map[string]interface{})
-			data["Error"] = error_map[err]
-			data["Subdir"] = application_subdirectory
-			renderTemplate(w, "login", data)
-			delete(error_map, err)
-		} else {
-			data := make(map[string]interface{})
-			data["Subdir"] = application_subdirectory
-			renderTemplate(w, "login", data)
-		}
+		renderTemplate(w, "login", data)
 	}
 }
 

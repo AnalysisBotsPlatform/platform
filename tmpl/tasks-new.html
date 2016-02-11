@@ -39,7 +39,7 @@
                                                 <td>Scheduled</td>
                                                 <td>{{.Task.Project.Name}}</td>
                                                 <td>{{.Task.Bot.Name}}</td>
-                                                <td>{{.Task.Status}}</td>
+                                                <td>{{.Task.StatusString}}</td>
                                                 <td>
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                     <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>
@@ -72,7 +72,7 @@
                                                 <td>Event Triggered</td>
                                                 <td>{{.Task.Project.Name}}</td>
                                                 <td>{{.Task.Bot.Name}}</td>
-                                                <td>{{.Task.Status}}</td>
+                                                <td>{{.Task.StatusString}}</td>
                                                 <td>
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                     <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>
@@ -137,7 +137,7 @@
                                                 <td>One Time Task</td>
                                                 <td>{{.Task.Project.Name}}</td>
                                                 <td>{{.Task.Bot.Name}}</td>
-                                                <td>-</td>
+                                                <td>{{.Task.StatusString}}</td>
                                                 <td>
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                     <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>

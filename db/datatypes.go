@@ -253,6 +253,29 @@ func (t *Task) StatusString() string {
 	}
 }
 
+func task_group_status_string(status int64) string {
+	switch {
+	case status == Active:
+		return "Active"
+	case status == Complete:
+		return "Complete"
+	default:
+		return "Ups! This should not happen ..."
+	}
+}
+
+func (t *ScheduledTask) StatusString() string {
+	return task_group_status_string(t.Status)
+}
+
+func (t *EventTask) StatusString() string {
+	return task_group_status_string(t.Status)
+}
+
+func (t *OneTimeTask) StatusString() string {
+	return task_group_status_string(t.Status)
+}
+
 func (t *EventTask) EventString() string {
 	switch {
 	case t.Event == wildcard:

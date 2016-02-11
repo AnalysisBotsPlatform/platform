@@ -1621,11 +1621,13 @@ func SetHookId(etid int64, hook_id int64) error {
 func CancelTaskGroup(tid string) (interface{}, error) {
 	var task_type int
 
-	if err := db.QueryRow("BEGIN; " +
-		"UPDATE scheduled_tasks SET status = $2 WHERE id = $1 RETURNING 1; " +
-		"UPDATE event_tasks SET status = $2 WHERE id = $1 RETURNING 2; " +
-		"UPDATE onetime_tasks SET status = $2 WHERE id = $1 RETURNING 3; " +
-		"COMMIT").Scan(&task_type); err != nil {
+	if err := db.QueryRow("WITH s AS ( "+
+		"UPDATE schedule_tasks SET status = $2 WHERE id = $1 RETURNING 1 "+
+		"), e AS ( "+
+		"UPDATE event_tasks SET status = $2 WHERE id = $1 RETURNING 2 "+
+		") "+
+		"UPDATE onetime_tasks SET status = $2 WHERE id = $1 RETURNING 3 ", tid,
+		Complete).Scan(&task_type); err != nil {
 		if sql.ErrNoRows != err {
 			return nil, err
 		}
