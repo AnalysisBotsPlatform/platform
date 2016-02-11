@@ -1330,12 +1330,12 @@ func handleTasksNewScheduled(w http.ResponseWriter, r *http.Request,
 	if nextTime.IsZero() {
 		handleError(w, r,
 			fmt.Errorf("The cron expression <%s> could not have been parsed.",
-				r.FormValue("cron")))
+				cron_str))
 		return
 	}
 
 	scheduledTask, err := db.CreateScheduledTask(token, vars["pid"],
-		vars["bid"], r.FormValue("name"), nextTime, r.FormValue("cron"))
+		vars["bid"], r.FormValue("name"), nextTime, cron_str)
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -1444,7 +1444,6 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 		http.StatusFound)
 }
 
-// TODO check this
 // TODO document this
 func handleTasksTidCancelGroup(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {

@@ -884,7 +884,7 @@ func GetPendingTask(uid int64, shared bool) (*Task, error) {
 	rows, err := db.Query("SELECT tasks.id, users.token FROM tasks "+
 		"INNER JOIN group_tasks ON tasks.gid = group_tasks.id "+
 		"INNER JOIN users ON group_tasks.uid = users.id "+
-		"WHERE tasks.uid = $1 AND tasks.status = $2", uid, Pending)
+		"WHERE group_tasks.uid = $1 AND tasks.status = $2", uid, Pending)
 	if err != nil {
 		return nil, err
 	}
@@ -1385,7 +1385,7 @@ func GetOneTimeTaskIdsWithStatus(status int) ([]int64, error) {
 func CreateNewInstantTask(token string, pid string,
 	bid string) (*InstantTask, error) {
 	var gid int64
-	if err := db.QueryRow("SELECT * FROM group_tasks "+
+	if err := db.QueryRow("SELECT instant_tasks.id FROM group_tasks "+
 		"NATURAL JOIN instant_tasks "+
 		"WHERE uid = (SELECT id FROM users WHERE token = $1) AND pid = $2 "+
 		"AND bid = $3", token, pid, bid).Scan(&gid); err != nil {
@@ -1398,6 +1398,8 @@ func CreateNewInstantTask(token string, pid string,
 				token, pid, bid).Scan(&gid); err != nil {
 				return nil, err
 			}
+		} else {
+			return nil, err
 		}
 	}
 
