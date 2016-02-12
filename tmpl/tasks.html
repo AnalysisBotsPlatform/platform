@@ -36,7 +36,7 @@
                                             <tr data-toggle="collapse" data-target="#demo{{.Task.Id}}" class="accordion-toggle">
                                                 <td>{{.Task.Id}}</td>
                                                 <td>{{.Task.Name}}</td>
-                                                <td>Scheduled ({{.Task.Next.Format "Mon Jan _2 15:04:05 2006" }})</td>
+                                                <td>Scheduled <br>({{.Task.Next.Format "Mon Jan _2 15:04:05 2006" }})</td>
                                                 <td>{{.Task.Project.Name}}</td>
                                                 <td>{{.Task.Bot.Name}}</td>
                                                 <td>{{.Task.StatusString}}</td>
@@ -150,7 +150,7 @@
                                             <tr data-toggle="collapse" data-target="#demo{{.Task.Id}}" class="accordion-toggle">
                                                 <td>{{.Task.Id}}</td>
                                                 <td>{{.Task.Name}}</td>
-                                                <td>One Time Task ({{.Task.Exec_time.Format "Mon Jan _2 15:04:05 2006" }})</td>
+                                                <td>One Time Task <br>({{.Task.Exec_time.Format "Mon Jan _2 15:04:05 2006" }})</td>
                                                 <td>{{.Task.Project.Name}}</td>
                                                 <td>{{.Task.Bot.Name}}</td>
                                                 <td>{{.Task.StatusString}}</td>
