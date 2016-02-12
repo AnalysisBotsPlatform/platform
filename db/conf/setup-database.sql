@@ -109,6 +109,7 @@ CREATE TABLE event_tasks(
 	name varchar(50) NOT NULL,
 	status integer NOT NULL,
 	event integer NOT NULL,
+	token varchar(50) NOT NULL,
 	hook_id integer
 );
 

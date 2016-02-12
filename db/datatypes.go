@@ -231,6 +231,7 @@ type EventTask struct {
 	Status  int64
 	Event   int64
 	HookId  int64
+	Token   string
 }
 
 // Even task with its executions

@@ -3,6 +3,8 @@ package controller
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha1"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1414,6 +1416,20 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	taskId := vars["tid"]
+
+	key, err := db.GetSecret(taskId)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unknown event task id!")
+		return
+	}
+	mac := hmac.New(sha1.New, key)
+	body, _ := ioutil.ReadAll(r.Body)
+	mac.Write(body)
+	expectedMAC := mac.Sum(nil)
+	if !hmac.Equal([]byte(r.Header.Get("X-Hub-Signature")), expectedMAC) {
+		fmt.Fprintf(os.Stderr, "Unknown secret!")
+		return
+	}
 
 	tid, iErr := strconv.ParseInt(taskId, 10, 64)
 	if iErr != nil {

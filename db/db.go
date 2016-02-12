@@ -3,6 +3,7 @@ package db
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -1477,13 +1478,15 @@ func GetInstantTasks(token string) ([]*InstantTaskInstances, error) {
 func CreateNewEventTask(token string, pid string, bid string, name string,
 	event int64) (*EventTask, error) {
 	var gid int64
+	secret_token := nonExistingRandString(sha1.BlockSize,
+		"SELECT 42 FROM event_tasks WHERE token = $1")
 	if err := db.QueryRow("WITH row AS ("+
 		"INSERT INTO group_tasks (uid, pid, bid) VALUES ("+
 		"(SELECT id FROM users WHERE token = $1), $2, $3) RETURNING id"+
 		")"+
-		"INSERT INTO event_tasks (id, name, status, event) "+
-		"VALUES ((SELECT id FROM row), $4, $5, $6) RETURNING id", token, pid,
-		bid, name, Active, event).Scan(&gid); err != nil {
+		"INSERT INTO event_tasks (id, name, status, event, token) "+
+		"VALUES ((SELECT id FROM row), $4, $5, $6, $7) RETURNING id", token,
+		pid, bid, name, Active, event, secret_token).Scan(&gid); err != nil {
 		return nil, err
 	}
 	return GetEventTask(gid)
@@ -1577,7 +1580,7 @@ func GetEventTask(etid int64) (*EventTask, error) {
 
 	if err := db.QueryRow("SELECT * FROM event_tasks WHERE id=$1", etid).
 		Scan(&task.Id, &task.Name, &task.Status, &task.Event,
-		&hook_id); err != nil {
+		&task.Token, &hook_id); err != nil {
 		return nil, err
 	}
 
@@ -1597,6 +1600,7 @@ func GetEventTask(etid int64) (*EventTask, error) {
 	return &task, nil
 }
 
+// TODO document this
 func SetHookId(etid int64, hook_id int64) error {
 	var dummy string
 	if err := db.QueryRow("UPDATE event_tasks SET hook_id=$1 WHERE id=$2 "+
@@ -1604,6 +1608,18 @@ func SetHookId(etid int64, hook_id int64) error {
 		return err
 	}
 	return nil
+}
+
+// TODO document this
+func GetSecret(tid string) ([]byte, error) {
+	var token string
+
+	if err := db.QueryRow("SELECT token FROM event_tasks WHERE id = $1", tid).
+		Scan(&token); err != nil {
+		return nil, err
+	}
+
+	return []byte(token), nil
 }
 
 // This function sets the status of either an *ScheduledTask,
