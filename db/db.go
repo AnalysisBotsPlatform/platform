@@ -21,7 +21,7 @@ const (
 	api_restriction_interval = "1 hour"
 	// sslmode of the database
 	// NOTE may be changed in reason of security
-	db_ssl_mode = disable
+	db_ssl_mode = "disable"
 )
 
 // The import "pq" is a pure Go postgres driver for Go's database/sql package
