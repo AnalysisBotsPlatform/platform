@@ -534,6 +534,9 @@ func authGitHubRequest(method, req_url string, token string,
 	if err != nil {
 		return nil, err
 	}
+	if len(body) == 0 {
+		return nil, nil
+	}
 	var resp_data interface{}
 	dec := json.NewDecoder(bytes.NewReader(body))
 	dec.UseNumber()
@@ -1514,10 +1517,10 @@ func handleTasksTidCancelGroup(w http.ResponseWriter, r *http.Request,
 	}
 
 	switch task.(type) {
-	case db.ScheduledTask:
-		err = worker.CancelScheduledTask(task.(db.ScheduledTask).Id)
-	case db.EventTask:
-		eventTask := task.(db.EventTask)
+	case *db.ScheduledTask:
+		err = worker.CancelScheduledTask(task.(*db.ScheduledTask).Id)
+	case *db.EventTask:
+		eventTask := task.(*db.EventTask)
 		err = worker.CancelEventTask(eventTask.Id)
 		url := fmt.Sprintf("repos/%s/hooks/%d", eventTask.Project.Name,
 			eventTask.HookId)
@@ -1527,10 +1530,10 @@ func handleTasksTidCancelGroup(w http.ResponseWriter, r *http.Request,
 			handleError(w, r, err)
 			return
 		}
-	case db.OneTimeTask:
-		err = worker.CancelOneTimeTask(task.(db.OneTimeTask).Id)
-	case db.InstantTask:
-		err = worker.CancelInstantTask(task.(db.InstantTask).Id)
+	case *db.OneTimeTask:
+		err = worker.CancelOneTimeTask(task.(*db.OneTimeTask).Id)
+	case *db.InstantTask:
+		err = worker.CancelInstantTask(task.(*db.InstantTask).Id)
 	}
 	if err != nil {
 		handleError(w, r, err)
