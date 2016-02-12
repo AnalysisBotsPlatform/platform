@@ -42,8 +42,8 @@
                                             </a>
                                             {{ else }}
                                             <div class="form-group">
-                                                <input type="checkbox" id="schedule" value="true">
-                                                <label>Schedule the bot</label>
+                                                <button type="button" id="enable_scheduling" class="btn btn-success">Enable Scheduling</button>
+                                                <button type="button" id="disable_scheduling" style="display:none;" class="btn btn-warning">Disable Scheduling</button>
                                                 <input type="hidden" id="time">
                                                 <input type="hidden" id="type">
                                                 <input type="hidden" id="name">

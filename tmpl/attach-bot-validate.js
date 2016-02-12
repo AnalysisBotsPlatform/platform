@@ -70,21 +70,23 @@ $("#basis").change(function(){
     }
 });
 
-$("#schedule").click(function(){
-    schedule = $("#schedule").is(":checked");
-    if($("#schedule").is(":checked")){
-        $("#schedule-div").css("display","block");
-    } else {
-        $("#schedule-div").css("display","none");
-        url = "/{basis}/{name}";
-        exec_basis = 4;
-    }
-    if(!schedule){
-        $("#time").removeAttr('name');
-        $("#type").removeAttr('name');
-        $("#name").removeAttr('name');
-        $("#cron").removeAttr('name');
-    }
+$("#enable_scheduling").click(function(){
+    schedule = true;
+    $("#schedule-div").css("display","block");
+    $("#disable_scheduling").css("display","block");
+    $("#enable_scheduling").css("display","none");
+});
+
+$("#disable_scheduling").click(function(){
+    schedule = false;
+    exec_basis = 4;
+    $("#schedule-div").css("display","none");
+    $("#disable_scheduling").css("display","none");
+    $("#enable_scheduling").css("display","block");
+    $("#time").removeAttr('name');
+    $("#type").removeAttr('name');
+    $("#name").removeAttr('name');
+    $("#cron").removeAttr('name');
 });
 
 $("#datetimepicker1").on("dp.change", function(old_date) {
