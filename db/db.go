@@ -1014,7 +1014,7 @@ func GetPatchFileName(token, patch_file string) (string, error) {
 
 	// fetch file name
 	if err := db.QueryRow("SELECT tasks.patch FROM tasks "+
-		"INNER JOIN group_task ON tasks.gid = group_task.id"+
+		"INNER JOIN group_tasks ON tasks.gid = group_tasks.id "+
 		"WHERE group_tasks.uid = (SELECT id FROM users WHERE token = $1) "+
 		"AND patch = $2", token, patch_file).Scan(&file_name); err != nil {
 		return "", err
