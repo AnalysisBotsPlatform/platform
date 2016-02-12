@@ -128,20 +128,6 @@ var error_counter = 0
 var error_map = make(map[string]interface{})
 var error_guard *sync.RWMutex = &sync.RWMutex{}
 
-// Webhooks
-
-type WebhookConfig struct {
-	Url          string `json:"url"`
-	Content_type string `json:"content_type"`
-}
-
-type Webhook struct {
-	Name   string        `json:"name"`
-	Active bool          `json:"active"`
-	Events []string      `json:"events"`
-	Config WebhookConfig `json:"config"`
-}
-
 //
 // Entry point
 //
@@ -1560,7 +1546,7 @@ func updateHooks(token string) error {
 			make(map[string]interface{}), make(map[string]string),
 			http.StatusOK)
 		if rErr != nil {
-			db.UpdateScheduledTaskStatus(task.Id, db.Complete)
+			db.UpdateEventTaskStatus(task.Id, db.Complete)
 		}
 	}
 
