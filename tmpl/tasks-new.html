@@ -43,7 +43,7 @@
                                                 <td>
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                     {{ if .Task.IsActive }}
-                                                    <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>
+                                                    <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Deactivate</button></a>
                                                     {{ end }}
                                                 </td>
                                             </tr>
@@ -58,6 +58,9 @@
                                                                     <td>{{.StatusString}}</td>
                                                                     <td>
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
+                                                                        {{ if or .IsPending (or .IsScheduled .IsRunning) }}
+                                                                        <a href="{{$Subdir}}tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button></a>
+                                                                        {{ end }}
                                                                     </td>
                                                                 </tr>
                                                                 {{ end }}
@@ -78,7 +81,7 @@
                                                 <td>
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                     {{ if .Task.IsActive }}
-                                                    <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>
+                                                    <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Deactivate</button></a>
                                                     {{ end }}
                                                 </td>
                                             </tr>
@@ -93,6 +96,9 @@
                                                                     <td>{{.StatusString}}</td>
                                                                     <td>
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
+                                                                        {{ if or .IsPending (or .IsScheduled .IsRunning) }}
+                                                                        <a href="{{$Subdir}}tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button></a>
+                                                                        {{ end }}
                                                                     </td>
                                                                 </tr>
                                                                 {{ end }}
@@ -126,7 +132,12 @@
                                                                     <td>{{.StatusString}}</td>
                                                                     <td>
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
+                                                                        {{ if or .IsPending (or .IsScheduled .IsRunning) }}
+                                                                        <a href="{{$Subdir}}tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button></a>
+                                                                        {{ end }}
+                                                                        {{ if or .IsCanceled (or .IsSucceeded .IsFailed) }}
                                                                         <a href="{{$Subdir}}bots/{{.Bot.Id}}/{{.Project.Id}}"><button type="button" class="btn btn-success">Rerun</button></a>
+                                                                        {{ end }}
                                                                     </td>
                                                                 </tr>
                                                                 {{ end }}
@@ -146,7 +157,7 @@
                                                 <td>
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                     {{ if .Task.IsActive }}
-                                                    <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>
+                                                    <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Deactivate</button></a>
                                                     {{ end }}
                                                 </td>
                                             </tr>
@@ -161,6 +172,9 @@
                                                                     <td>{{.StatusString}}</td>
                                                                     <td>
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
+                                                                        {{ if or .IsPending (or .IsScheduled .IsRunning) }}
+                                                                        <a href="{{$Subdir}}tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button></a>
+                                                                        {{ end }}
                                                                     </td>
                                                                 </tr>
                                                                 {{ end }}

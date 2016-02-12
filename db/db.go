@@ -1625,13 +1625,15 @@ func CancelTaskGroup(tid string) (interface{}, error) {
 		"UPDATE schedule_tasks SET status = $2 WHERE id = $1 RETURNING 1 "+
 		"), e AS ( "+
 		"UPDATE event_tasks SET status = $2 WHERE id = $1 RETURNING 2 "+
+		"), o AS ( "+
+		"UPDATE onetime_tasks SET status = $2 WHERE id = $1 RETURNING 3 "+
 		") "+
-		"UPDATE onetime_tasks SET status = $2 WHERE id = $1 RETURNING 3 ", tid,
-		Complete).Scan(&task_type); err != nil {
-		if sql.ErrNoRows != err {
-			return nil, err
-		}
-		task_type = 4
+		"SELECT CASE "+
+		"WHEN EXISTS (SELECT 42 FROM s) THEN 1 "+
+		"WHEN EXISTS (SELECT 42 FROM e) THEN 2 "+
+		"WHEN EXISTS (SELECT 42 FROM o) THEN 3 "+
+		"ELSE 4 END", tid, Complete).Scan(&task_type); err != nil {
+		return nil, err
 	}
 
 	gid, _ := strconv.ParseInt(tid, 10, 64)
