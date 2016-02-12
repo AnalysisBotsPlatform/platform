@@ -361,13 +361,13 @@ func initRoutes() (rootRouter *mux.Router) {
 		makeHandler(makeTokenHandler(handleBotsBidNewtask)))
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewScheduled))).
-		Queries("name", "", "cron", "")
+		Queries("cron", "")
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewOneTime))).
-		Queries("name", "", "time", "")
+		Queries("time", "")
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewEventDriven))).
-		Queries("name", "", "event", "")
+		Queries("event", "")
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewInstant)))
 
@@ -381,15 +381,15 @@ func initRoutes() (rootRouter *mux.Router) {
 	projectsRouter.HandleFunc(
 		fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewScheduled))).
-		Queries("name", "", "cron", "")
+		Queries("cron", "")
 	projectsRouter.HandleFunc(
 		fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewOneTime))).
-		Queries("name", "", "time", "")
+		Queries("time", "")
 	projectsRouter.HandleFunc(
 		fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewEventDriven))).
-		Queries("name", "", "event", "")
+		Queries("event", "")
 	projectsRouter.HandleFunc(
 		fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewInstant)))
