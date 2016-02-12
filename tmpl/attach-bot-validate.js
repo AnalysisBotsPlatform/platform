@@ -88,15 +88,15 @@ $("#schedule").click(function(){
 });
 
 $("#datetimepicker1").on("dp.change", function(old_date) {
-    time = Math.round(old_date.timeStamp / 1000);
+    time = new Date(old_date.date).getTime();
 });
 
 $("#datetimepicker2").on("dp.change", function(old_date) {
-    time = Math.round(old_date.timeStamp / 1000);
+    time = new Date(old_date.date).getTime();
 });
 
 $("#datetimepicker3").on("dp.change", function(old_date) {
-    time = Math.round(old_date.timeStamp / 1000);
+    time = new Date(old_date.date).getTime();
 });
 
 $("#name").change(function() {
@@ -105,10 +105,10 @@ $("#name").change(function() {
 
 $("#numberpicker-input").change(function() {
     hour = parseInt($("#numberpicker-input").val());
-    if(hour == 0){
+    if(hour <= 0){
         $("#numberpicker-input").val(1);
         hour = 0;
-    } else if(hour == 24){
+    } else if(hour >= 24){
         $("#numberpicker-input").val(23);
         hour = 23;
     } else if($("#numberpicker-input").val() == ""){
@@ -162,34 +162,28 @@ $(".full_url").click(function() {
             if(periodic_sel == 0){
                 cron = "0_*/"+hour+"_*_*_*";
             } else if(periodic_sel == 1){
-                var date = new Date(time * 1000);
-                var date_utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()));
+                var date = new Date(time);
+                var date_utc = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
                 cron = date_utc.getMinutes()+"_"+date_utc.getHours()+"_*_*_*";
             } else if(periodic_sel == 2){
-                var date = new Date(time * 1000);
-                var date_utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()));
+                var date = new Date(time);
+                var date_utc = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
                 cron = date_utc.getMinutes()+"_"+date_utc.getHours()+"_*_*_"+weekday;
             }
             $('#cron').attr('name', 'cron');
             $('#cron').val(cron);
 
             $('#time').removeAttr('name');
-            $('#timezone').removeAttr('name');
             $('#type').removeAttr('name');
         } else if(chosen_tab == 3){
             exec_basis = 3;
             $('#time').attr('name', 'time');
-            $('#timezone').attr('name', 'timezone');
             
-            var date = new Date(time * 1000);
+            var date = new Date(time);
+            date.setSeconds(0);
+            var date_utc = date.getTime() + date.getTimezoneOffset() * 60000;
 
-            var offset = new Date().getTimezoneOffset();
-            offset = ((offset<0? '+':'-') + pad(parseInt(Math.abs(offset/60)), 2) + pad(Math.abs(offset%60), 2));
-
-            //var date_utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()));
-            
-            $("#time").val(date.getTime());
-            $('#timezone').val(offset);
+            $("#time").val(date_utc);
 
             $('#cron').removeAttr('name');
             $('#type').removeAttr('name');
@@ -203,14 +197,12 @@ $(".full_url").click(function() {
             $("#type").val(event_id);
 
             $('#time').removeAttr('name');
-            $('#timezone').removeAttr('name');
             $('#cron').removeAttr('name');
         }
     } else {
         exec_basis = 4;
         $('#name').removeAttr('name');
         $('#time').removeAttr('name');
-        $('#timezone').removeAttr('name');
         $('#type').removeAttr('name');
         $('#cron').removeAttr('name');
     }

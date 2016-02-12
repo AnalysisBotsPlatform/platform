@@ -225,8 +225,9 @@ func runScheduledTask(stid int64, cancelChan chan bool) {
 			db.UpdateScheduledTaskStatus(stid, db.Complete)
 			return
 		}
-		nextTime := cronexpr.MustParse(scheduledTask.Cron).Next(time.Now())
-		sleepTime := nextTime.Sub(time.Now())
+		nextTime := cronexpr.MustParse(scheduledTask.Cron).
+			Next(time.Now().UTC())
+		sleepTime := nextTime.Sub(time.Now().UTC())
 		uErr := db.UpdateNextScheduleTime(scheduledTask.Id, nextTime)
 		if uErr != nil {
 			db.UpdateScheduledTaskStatus(stid, db.Complete)

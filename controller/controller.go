@@ -364,7 +364,7 @@ func initRoutes() (rootRouter *mux.Router) {
 		Queries("name", "", "cron", "")
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewOneTime))).
-		Queries("name", "", "time", "", "timezone", "")
+		Queries("name", "", "time", "")
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewEventDriven))).
 		Queries("name", "", "event", "")
@@ -385,7 +385,7 @@ func initRoutes() (rootRouter *mux.Router) {
 	projectsRouter.HandleFunc(
 		fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewOneTime))).
-		Queries("name", "", "time", "", "timezone", "")
+		Queries("name", "", "time", "")
 	projectsRouter.HandleFunc(
 		fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewEventDriven))).
@@ -760,9 +760,9 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 		}
 
 		// verify user has granted the requested permissions
-		scopes := resp_data["scopes"].([]string)
+		scopes := resp_data["scope"].(string)
 		perm := make(map[string]bool)
-		for _, scope := range scopes {
+		for _, scope := range strings.Split(scopes, ",") {
 			perm[scope] = true
 		}
 		_, ok_user := perm["user"]
@@ -796,9 +796,12 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 // Delivers JavaScript files.
 func handleJavaScripts(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session) {
-	err := templates.ExecuteTemplate(w, vars["file"], nil)
+	file_path := fmt.Sprintf("tmpl/%s", vars["file"])
+	in, err := ioutil.ReadFile(file_path)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, r, err)
+	} else {
+		w.Write(in)
 	}
 }
 
@@ -1362,10 +1365,7 @@ func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	t := time.Unix(seconds, 0)
-	off, _ := strconv.Atoi(r.FormValue("timezone"))
-	scheduleTime := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(),
-		t.Minute(), t.Second(), t.Nanosecond(), time.FixedZone("UTC", off*36))
+	scheduleTime := time.Unix(seconds/1000, 0)
 	oneTimeTask, err := db.CreateOneTimeTask(token, vars["pid"],
 		vars["bid"], r.FormValue("name"), scheduleTime)
 	if err != nil {
