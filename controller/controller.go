@@ -73,10 +73,12 @@ var admin_user = os.Getenv(admin_user_var)
 const application_host_var = "APP_HOST"
 const application_port_var = "APP_PORT"
 const application_subdirectory_var = "APP_SUBDIR"
+const application_ssl_mode_var = "APP_SSL_MODE"
 
 var application_host = os.Getenv(application_host_var)
 var application_port = os.Getenv(application_port_var)
 var application_subdirectory = os.Getenv(application_subdirectory_var)
+var application_ssl_mode = os.Getenv(application_ssl_mode_var)
 
 // Worker service
 const worker_port_var = "WORKER_PORT"
@@ -185,6 +187,9 @@ type Webhook struct {
 //
 // - APP_SUBDIR: Subdirectory where the application is reachable.
 //
+// - APP_SSL_MODE: True if the platfrom is supposed to use https instead of
+// http.
+//
 // In case some of the variables are missing a corresponding message is prompted
 // to the standard output and the function terminates without any further
 // action.
@@ -222,15 +227,17 @@ func Start() {
 	_, aport := os.LookupEnv(application_port_var)
 	_, subdir := os.LookupEnv(application_subdirectory_var)
 	_, hname := os.LookupEnv(application_host_var)
+	_, ssl := os.LookupEnv(application_ssl_mode_var)
 	if !id || !secret || !auth || !enc || !host || !user || !pass || !name ||
-		!cache || !admin || !wport || !aport || !subdir || !hname {
+		!cache || !admin || !wport || !aport || !subdir || !hname || !ssl {
 		fmt.Printf("Application settings missing!\n"+
 			"Please set the %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, "+
-			"%s and %s environment variables.\n", app_id_var, app_secret_var,
-			session_auth_var, session_enc_var, db_host_var, db_user_var,
-			db_pass_var, db_name_var, cache_path_var, admin_user_var,
-			worker_port_var, application_port_var, application_subdirectory_var,
-			application_host_var)
+			"%s, %s and %s environment variables.\n", app_id_var,
+			app_secret_var, session_auth_var, session_enc_var, db_host_var,
+			db_user_var, db_pass_var, db_name_var, cache_path_var,
+			admin_user_var, worker_port_var, application_port_var,
+			application_subdirectory_var, application_host_var,
+			application_subdirectory_var)
 		return
 	}
 
@@ -1327,7 +1334,11 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 	payload["active"] = true
 	payload["events"] = [...]string{task.EventString()}
 	config := make(map[string]interface{})
-	config["url"] = fmt.Sprintf("http://%s%s%s/%d", application_host,
+	ssl := ""
+	if is_ssl, _ := strconv.ParseBool(application_ssl_mode); is_ssl {
+		ssl = "s"
+	}
+	config["url"] = fmt.Sprintf("http%s://%s%s%s/%d", ssl, application_host,
 		application_subdirectory, webhook_subpath, task.Id)
 	config["content_type"] = "json"
 	payload["config"] = config

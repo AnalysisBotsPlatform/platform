@@ -25,6 +25,9 @@ export APP_PORT=8080
 # Subdirectory where the application is reachable (should start and end with /)
 # (default: /)
 export APP_SUBDIR=/
+# Use https instead of http for the platform?
+# (default: false)
+export APP_SSL_MODE=false
 # Port where the worker interface is exposed
 # (default: 4242)
 export WORKER_PORT=4242
