@@ -187,62 +187,64 @@
                                         <div class="col-md-6">
                                             <div class="input-group">
                                                 <span class="input-group-addon" id="basic-addon3">Host</span>
-                                                <input type="text" class="form-control" id="basic-url" aria-describedby="basic-addon3" readonly value="example.com">
+                                                <input type="text" class="form-control" id="basic-url" style="background-color:white" aria-describedby="basic-addon3" readonly value="{{.Host}}">
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="input-group">
                                                 <span class="input-group-addon" id="basic-addon3">Port</span>
-                                                <input type="text" class="form-control" id="basic-url" aria-describedby="basic-addon3" readonly value="4242">
+                                                <input type="text" class="form-control" id="basic-url" style="background-color:white" aria-describedby="basic-addon3" readonly value="{{.Port}}">
                                             </div>
                                         </div>
+                                    </div>                                
+                                </div>
+                                <div class="form-group">
+                                    <div class="row">
                                         <div class="col-md-12">
                                             <div class="input-group">
                                                 <span class="input-group-addon" id="basic-addon3">Registration Token</span>
-                                                <input type="text" class="form-control" id="basic-url" style="width:60%" aria-describedby="basic-addon3" readonly value="{{.User.Worker_token}}">
+                                                <input type="text" class="form-control" id="basic-url" style="background-color:white" aria-describedby="basic-addon3" readonly value="{{.User.Worker_token}}">
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="form-group">
-                                    <label>Registered Workers</label>
-                                    {{ if eq 0 (len .Workers) }}
-                                    <br />
-                                    <i>None</i>
-                                    {{ else }}
-                                    <div class="panel-body">
-                                        <div class="table-responsive">
-                                            <table class="table table-striped table-bordered table-hover">
-                                                <thead>
-                                                    <tr>
-                                                        <th>#</th>
-                                                        <th>Token</th>
-                                                        <th>Name</th>
-                                                        <th>Last Contact</th>
-                                                        <th>Active</th>
-                                                        <th>Shared</th>
-                                                        <th>Action</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {{ $Subdir := .Subdir }}
-                                                    {{ range .Workers }}
-                                                    <tr>
-                                                        <td>{{.Id}}</td>
-                                                        <td><pre>{{.Token}}</pre></td>
-                                                            <td>{{.Name}}</td>
-                                                            <td>{{.Last_contact.Format "Mon Jan _2 15:04:05 2006"}}</td>
-                                                            <td>{{ if .Active }}Yes{{ else }}No{{ end }}</td>
-                                                            <td>{{ if .Shared }}Yes{{ else }}No{{ end }}</td>
-                                                            <td><a href="{{$Subdir}}user/worker/deregister?token={{.Token}}"><button type="button" class="btn btn-success">Deregister</button></a></td>
-                                                    </tr>
-                                                    {{ end }}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                <h3>Registered Workers</h3>
+                                {{ if eq 0 (len .Workers) }}
+                                <br />
+                                <i>None</i>
+                                {{ else }}
+                                <div class="panel-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-bordered table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Token</th>
+                                                    <th>Name</th>
+                                                    <th>Last Contact</th>
+                                                    <th>Active</th>
+                                                    <th>Shared</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {{ $Subdir := .Subdir }}
+                                                {{ range .Workers }}
+                                                <tr>
+                                                    <td>{{.Id}}</td>
+                                                    <td><pre>{{.Token}}</pre></td>
+                                                        <td>{{.Name}}</td>
+                                                        <td>{{.Last_contact.Format "Mon Jan _2 15:04:05 2006"}}</td>
+                                                        <td>{{ if .Active }}Yes{{ else }}No{{ end }}</td>
+                                                        <td>{{ if .Shared }}Yes{{ else }}No{{ end }}</td>
+                                                        <td><a href="{{$Subdir}}user/worker/deregister?token={{.Token}}"><button type="button" class="btn btn-success">Deregister</button></a></td>
+                                                </tr>
+                                                {{ end }}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    {{ end }}
                                 </div>
+                                {{ end }}
                             </form>
                         </div>
                     </div>
