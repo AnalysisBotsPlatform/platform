@@ -7,7 +7,6 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"errors"
-    "regexp"
 	"fmt"
 	"github.com/AnalysisBotsPlatform/platform/db"
 	"github.com/AnalysisBotsPlatform/platform/utils"
@@ -22,6 +21,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -521,110 +521,102 @@ func authGitHubRequest(method, req_url string, token string,
 	if response.StatusCode != expected_status {
 		return nil, errors.New("Bad request!")
 	}
-    
-    body, err := ioutil.ReadAll(response.Body)
-    if err != nil {
-        return nil, err
-    }
-    var resp_data interface{}
-    dec := json.NewDecoder(bytes.NewReader(body))
-    dec.UseNumber()
-    if err := dec.Decode(&resp_data); err != nil {
-        return nil, errors.New("Decoding error!")
-    }
-    
-    
-    url, err := getNextUrl("next", response.Header.Get("Link"))
-    if(err != nil){
-        return resp_data, nil    
-    }
-    
-    
-    var resp_data_slice []interface{}
-    
-                
-    for _, value := range resp_data.([]interface{}){
-        resp_data_slice = append(resp_data_slice, value)
-    }
-    
 
-    for{
-        req, _ := http.NewRequest(method, url, nil)
-        req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
-        for key, value := range header {
-            req.Header.Set(key, value)
-        }
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	var resp_data interface{}
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	if err := dec.Decode(&resp_data); err != nil {
+		return nil, errors.New("Decoding error!")
+	}
 
-        // do request
-        response, err = client.Do(req)
-        if err != nil {
-            return nil, err
-        }
-        defer response.Body.Close()
+	url, err := getNextUrl("next", response.Header.Get("Link"))
+	if err != nil {
+		return resp_data, nil
+	}
 
-        // read response
-        if response.StatusCode != expected_status {
-            return nil, errors.New("Bad request!")
-        }
-        body, err := ioutil.ReadAll(response.Body)
-        if err != nil {
-            return nil, err
-        }
-        var data interface{}
-        dec := json.NewDecoder(bytes.NewReader(body))
-        dec.UseNumber()
-        if err := dec.Decode(&data); err != nil {
-            return nil, errors.New("Decoding error!")
-        }            
-        for _, value := range data.([]interface{}){
-            resp_data_slice = append(resp_data_slice, value)
-        }
+	var resp_data_slice []interface{}
 
-        url, err = getNextUrl("next", response.Header.Get("Link"))
-        if(err != nil){
-            break
-        }
-    }
-        
-        
-    return resp_data_slice, nil
-    
-    
-    
-	
+	for _, value := range resp_data.([]interface{}) {
+		resp_data_slice = append(resp_data_slice, value)
+	}
+
+	for {
+		req, _ := http.NewRequest(method, url, nil)
+		req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+		for key, value := range header {
+			req.Header.Set(key, value)
+		}
+
+		// do request
+		response, err = client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer response.Body.Close()
+
+		// read response
+		if response.StatusCode != expected_status {
+			return nil, errors.New("Bad request!")
+		}
+		body, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return nil, err
+		}
+		var data interface{}
+		dec := json.NewDecoder(bytes.NewReader(body))
+		dec.UseNumber()
+		if err := dec.Decode(&data); err != nil {
+			return nil, errors.New("Decoding error!")
+		}
+		for _, value := range data.([]interface{}) {
+			resp_data_slice = append(resp_data_slice, value)
+		}
+
+		url, err = getNextUrl("next", response.Header.Get("Link"))
+		if err != nil {
+			break
+		}
+	}
+
+	return resp_data_slice, nil
+
 }
 
-// Extracts the URL from a list of strings from the "Link" field in a 
+// Extracts the URL from a list of strings from the "Link" field in a
 // HTTP-Header specified by "specifier"var
-// e.g. for 
-// <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=2>; 
-// rel="next", 
+// e.g. for
+// <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=2>;
+// rel="next",
 // <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=34>;
 // rel="last"
 // as a link and the spcifier "next" this returns:
 // https://api.github.com/search/code?q=addClass+user%3Amozilla&page=2
 // If no match is being found it returns an error.
-func getNextUrl(specifier, link string) (string, error){
-    regexpNext := regexp.MustCompile(fmt.Sprintf("<.*>;.*rel=\"%s\"", specifier))
-    
-    matches := regexpNext.FindAllString(link, -1)
-    if(len(matches) == 0){
-        return "", errors.New("No match found.")
-    }
-    
-    url := matches[0]
-    
-    regexpUrl := regexp.MustCompile("<.*>")
-    matches = regexpUrl.FindAllString(url, -1)
-    if(len(matches) == 0){
-        return "", errors.New("No match found.")
-    }
-    
-    url = matches[0]
-    
-    url = strings.TrimPrefix(url,"<")
-    url = strings.TrimSuffix(url,">")
-    return url, nil
+func getNextUrl(specifier, link string) (string, error) {
+	regexpNext := regexp.MustCompile(fmt.Sprintf("<.*>;.*rel=\"%s\"", specifier))
+
+	matches := regexpNext.FindAllString(link, -1)
+	if len(matches) == 0 {
+		return "", errors.New("No match found.")
+	}
+
+	url := matches[0]
+
+	regexpUrl := regexp.MustCompile("<.*>")
+	matches = regexpUrl.FindAllString(url, -1)
+	if len(matches) == 0 {
+		return "", errors.New("No match found.")
+	}
+
+	url = matches[0]
+
+	url = strings.TrimPrefix(url, "<")
+	url = strings.TrimSuffix(url, ">")
+	return url, nil
 }
 
 // Error handling routine. The user is redirected to the index page and an error
@@ -975,7 +967,7 @@ func handlePatchDownload(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	file_name, err := db.GetPatchFileName(token, vars["patch"])
 	if err != nil {
-		handleError(w, r, err)
+		http.Error(w, fmt.Sprint(err), http.StatusNotFound)
 	} else {
 		file_path := fmt.Sprintf("%s/%s", worker.GetPatchPath(), file_name)
 		in, err := ioutil.ReadFile(file_path)
@@ -1309,7 +1301,7 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
 // retrieved from the response and added to the event task. In the end the users
 // is redirected to the overview page of the tasks. In case the creation of a
 // hook failed the status of the task is updated to complete and the
-// errorhandler is called. 
+// errorhandler is called.
 func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 
@@ -1338,13 +1330,13 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 	payload["active"] = true
 	payload["events"] = [...]string{task.EventString()}
 	config := make(map[string]interface{})
-	config["url"] = fmt.Sprintf("http://%s/%s/%d", application_host,
-		webhook_subpath, task.Id)
+	config["url"] = fmt.Sprintf("http://%s%s%s/%d", application_host,
+		application_subdirectory, webhook_subpath, task.Id)
 	config["content_type"] = "json"
 	payload["config"] = config
 
 	header := make(map[string]string)
-	header["secret"] = ""
+	header["secret"] = task.Token
 
 	hookResp, err := authGitHubRequest("POST", reqUrl, token, payload, header,
 		http.StatusCreated)
@@ -1431,7 +1423,7 @@ func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
 
 // The handler creates a new instant task. After creating a new instance of
 // instant task the execution is immediately initiate by calling CreateNewTask.
-// In the end the users is redirected to the overview page of the tasks. In 
+// In the end the users is redirected to the overview page of the tasks. In
 // case of an error the errorhandler is called.
 func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
@@ -1451,7 +1443,7 @@ func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
 }
 
 // The handler handles the requests from GitHub to the call back url specified
-// during the creation of a hook. The url '.../webhook/id' ends with the id 
+// during the creation of a hook. The url '.../webhook/id' ends with the id
 // of the associated event task to identify the request. After checking the
 // validity of the request CreateNewTask is called to initiate the execution of
 // the event task.
