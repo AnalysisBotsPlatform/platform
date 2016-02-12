@@ -22,16 +22,6 @@ const (
 	Failed    = iota
 )
 
-// Days of the week
-const (
-	Monday    = iota
-	Tuesday   = iota
-	Wednesday = iota
-	Thursday  = iota
-	Friday    = iota
-	Saturday  = iota
-	Sunday    = iota
-)
 
 // Github Events
 const (
@@ -57,6 +47,7 @@ const (
 	watch                       = iota
 )
 
+// user friendly names of the GitHub events
 var Event_names = {
 	"Every Event",
 	"Commit Comment",
@@ -80,7 +71,7 @@ var Event_names = {
 	"Watch",
 }
 
-// Statuses of a Scheduled Task
+// Statuses of a scheduled, event or one time task
 const (
 	Active   = iota
 	Complete = iota
@@ -159,6 +150,7 @@ type Member struct {
 	Project *Project
 }
 
+// abstract super class of the tasks
 type group_task struct {
 	id      int64
 	user    *User
@@ -181,6 +173,7 @@ type Task struct {
 	Patch       string
 }
 
+// Scheduled task
 type ScheduledTask struct {
 	Id      int64
 	User    *User
@@ -192,11 +185,13 @@ type ScheduledTask struct {
 	Cron    string
 }
 
+// Scheduled task with its executions 
 type ScheduledTaskInstances struct {
 	Task        *ScheduledTask
 	Child_tasks []*Task
 }
 
+// One time task
 type OneTimeTask struct {
 	Id        int64
 	User      *User
@@ -207,11 +202,13 @@ type OneTimeTask struct {
 	Exec_time time.Time
 }
 
+// One time with its executions
 type OneTimeTaskInstances struct {
 	Task        *OneTimeTask
 	Child_tasks []*Task
 }
 
+// Instant task
 type InstantTask struct {
 	Id      int64
 	User    *User
@@ -219,11 +216,13 @@ type InstantTask struct {
 	Bot     *Bot
 }
 
+// Instant task with its instances
 type InstantTaskInstances struct {
 	Task        *InstantTask
 	Child_tasks []*Task
 }
 
+// Event task
 type EventTask struct {
 	Id      int64
 	User    *User
@@ -235,6 +234,7 @@ type EventTask struct {
 	HookId  int64
 }
 
+// Even task with its executions
 type EventTaskInstances struct {
 	Task        *EventTask
 	Child_tasks []*Task
@@ -255,6 +255,7 @@ type Worker struct {
 // ## Helper Functions ##
 //
 
+// Converts the status of a task to the corresponding string representation
 func (t *Task) StatusString() string {
 	switch {
 	case t.Status == Pending:
@@ -274,6 +275,7 @@ func (t *Task) StatusString() string {
 	}
 }
 
+// Converts the status from an int to the corresponding string representation
 func task_group_status_string(status int64) string {
 	switch {
 	case status == Active:
@@ -285,42 +287,52 @@ func task_group_status_string(status int64) string {
 	}
 }
 
+// Converts the status of a task to the corresponding string representation
 func (t *ScheduledTask) StatusString() string {
 	return task_group_status_string(t.Status)
 }
 
+// Checks if the task is active
 func (t *ScheduledTask) IsActive() bool {
 	return t.Status == Active
 }
 
+// Checks if the task is complete
 func (t *ScheduledTask) IsComplete() bool {
 	return t.Status == Complete
 }
 
+// Converts the status of a task to the corresponding string representation
 func (t *EventTask) StatusString() string {
 	return task_group_status_string(t.Status)
 }
 
+// Checks if the task is active
 func (t *EventTask) IsActive() bool {
 	return t.Status == Active
 }
 
+// Checks if the task is complete
 func (t *EventTask) IsComplete() bool {
 	return t.Status == Complete
 }
 
+// Converts the status of a task to the corresponding string representation
 func (t *OneTimeTask) StatusString() string {
 	return task_group_status_string(t.Status)
 }
 
+// Checks if the task is active
 func (t *OneTimeTask) IsActive() bool {
 	return t.Status == Active
 }
 
+// Checks if the task is complete
 func (t *OneTimeTask) IsComplete() bool {
 	return t.Status == Complete
 }
 
+// Converts the event of a task to the corresponding string representation
 func (t *EventTask) EventString() string {
 	switch {
 	case t.Event == wildcard:
@@ -372,26 +384,32 @@ func (t *EventTask) EventString() string {
 	}
 }
 
+// Check if the task is pending
 func (t *Task) IsPending() bool {
 	return t.Status == Pending
 }
 
+// Check if the task is scheduled
 func (t *Task) IsScheduled() bool {
 	return t.Status == Scheduled
 }
 
+// Check if the task is running
 func (t *Task) IsRunning() bool {
 	return t.Status == Running
 }
 
+// Check if the task is canceled
 func (t *Task) IsCanceled() bool {
 	return t.Status == Canceled
 }
 
+// Check if the task is succeeded
 func (t *Task) IsSucceeded() bool {
 	return t.Status == Succeeded
 }
 
+// Check if the task is failed
 func (t *Task) IsFailed() bool {
 	return t.Status == Failed
 }
