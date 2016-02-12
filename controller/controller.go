@@ -893,6 +893,8 @@ func handleUser(w http.ResponseWriter, r *http.Request,
 	data["API_tokens"] = api_tokens
 	data["Workers"] = workers
 	data["Subdir"] = application_subdirectory
+	data["Host"] = application_host
+	data["Port"] = worker_port
 	renderTemplate(w, "user", data)
 }
 
@@ -1662,21 +1664,43 @@ func handleAPIDeleteTask(w http.ResponseWriter, r *http.Request, token string) {
 // Retrieves all Tasks of the user from the database and marshals them as JSON
 // object.
 func handleAPIGetTasks(w http.ResponseWriter, r *http.Request, token string) {
-	// user_token, err := db.GetUserTokenFromAPIToken(token)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusNotFound)
-	// }
-	// TODO
-	// tasks, err := db.GetTasks(user_token)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusNotFound)
-	// } else {
-	// 	js, err := json.Marshal(tasks)
-	// 	if err != nil {
-	// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	} else {
-	// 		w.Header().Set("Content-Type", "application/json")
-	// 		w.Write(js)
-	// 	}
-	// }
+	user_token, err := db.GetUserTokenFromAPIToken(token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+
+	scheduled, err := db.GetScheduledTasks(user_token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	event, err := db.GetEventTasks(user_token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	instant, err := db.GetInstantTasks(user_token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	one_time, err := db.GetOneTimeTasks(user_token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	task_groups := make(map[string]interface{})
+	task_groups["Scheduled"] = scheduled
+	task_groups["Event"] = event
+	task_groups["Instant"] = instant
+	task_groups["OneTime"] = one_time
+
+	js, err := json.Marshal(task_groups)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
+	}
 }
