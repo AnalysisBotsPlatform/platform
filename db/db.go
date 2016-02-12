@@ -1600,7 +1600,7 @@ func GetEventTask(etid int64) (*EventTask, error) {
 	return &task, nil
 }
 
-// TODO document this
+// This function sets a new hookId for the specified EventTask
 func SetHookId(etid int64, hook_id int64) error {
 	var dummy string
 	if err := db.QueryRow("UPDATE event_tasks SET hook_id=$1 WHERE id=$2 "+
@@ -1610,7 +1610,7 @@ func SetHookId(etid int64, hook_id int64) error {
 	return nil
 }
 
-// TODO document this
+// This function returns the webhook secret from the specified EventTask
 func GetSecret(tid string) ([]byte, error) {
 	var token string
 
