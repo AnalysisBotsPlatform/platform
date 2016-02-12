@@ -34,13 +34,13 @@
                                         <tbody>
                                             {{ range .TaskGroups.Scheduled }}
                                             <tr data-toggle="collapse" data-target="#demo{{.Task.Id}}" class="accordion-toggle">
-                                                <td>{{.Task.Id}}</td>
+                                                <td width="10%">{{.Task.Id}}</td>
                                                 <td>{{.Task.Name}}</td>
                                                 <td>Scheduled <br>({{.Task.Next.Format "Mon Jan _2 15:04:05 2006" }})</td>
                                                 <td>{{.Task.Project.Name}}</td>
                                                 <td>{{.Task.Bot.Name}}</td>
-                                                <td>{{.Task.StatusString}}</td>
-                                                <td>
+                                                <td width="15%">{{.Task.StatusString}}</td>
+                                                <td width="20%">
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                     {{ if .Task.IsActive }}
                                                     <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Deactivate</button></a>
@@ -52,11 +52,13 @@
                                                     <div class="accordian-body collapse" id="demo{{.Task.Id}}">
                                                         <table class="table table-hover">
                                                             <tbody>
+                                                                {{ $parent := .Task.Id }}
                                                                 {{ range .Child_tasks }}
                                                                 <tr>
-                                                                    <td>{{.Id}}</td>
-                                                                    <td>{{.StatusString}}</td>
-                                                                    <td>
+                                                                    <td width="10%">{{$parent}}-{{.Id}}</td>
+                                                                    <td></td>
+                                                                    <td width="15%">{{.StatusString}}</td>
+                                                                    <td width="20%">
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
                                                                         {{ if or .IsPending (or .IsScheduled .IsRunning) }}
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button></a>
@@ -72,13 +74,13 @@
                                             {{ end }}
                                             {{ range .TaskGroups.Event }}
                                             <tr data-toggle="collapse" data-target="#demo{{.Task.Id}}" class="accordion-toggle">
-                                                <td>{{.Task.Id}}</td>
+                                                <td width="10%">{{.Task.Id}}</td>
                                                 <td>{{.Task.Name}}</td>
                                                 <td>Event Triggered</td>
                                                 <td>{{.Task.Project.Name}}</td>
                                                 <td>{{.Task.Bot.Name}}</td>
-                                                <td>{{.Task.StatusString}}</td>
-                                                <td>
+                                                <td width="15%">{{.Task.StatusString}}</td>
+                                                <td width="20%">
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                     {{ if .Task.IsActive }}
                                                     <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Deactivate</button></a>
@@ -90,11 +92,13 @@
                                                     <div class="accordian-body collapse" id="demo{{.Task.Id}}">
                                                         <table class="table table-hover">
                                                             <tbody>
+                                                                {{ $parent := .Task.Id }}
                                                                 {{ range .Child_tasks }}
                                                                 <tr>
-                                                                    <td>{{.Id}}</td>
-                                                                    <td>{{.StatusString}}</td>
-                                                                    <td>
+                                                                    <td width="10%">{{$parent}}-{{.Id}}</td>
+                                                                    <td></td>
+                                                                    <td width="15%">{{.StatusString}}</td>
+                                                                    <td width="20%">
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
                                                                         {{ if or .IsPending (or .IsScheduled .IsRunning) }}
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button></a>
@@ -110,13 +114,13 @@
                                             {{ end }}
                                             {{ range .TaskGroups.Instant }}
                                             <tr data-toggle="collapse" data-target="#demo{{.Task.Id}}" class="accordion-toggle">
-                                                <td>{{.Task.Id}}</td>
+                                                <td width="10%">{{.Task.Id}}</td>
                                                 <td>-</td>
                                                 <td>Manual</td>
                                                 <td>{{.Task.Project.Name}}</td>
                                                 <td>{{.Task.Bot.Name}}</td>
-                                                <td>-</td>
-                                                <td>
+                                                <td width="15%">-</td>
+                                                <td width="20%">
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                                         </a>
                                                 </td>
@@ -126,11 +130,13 @@
                                                     <div class="accordian-body collapse" id="demo{{.Task.Id}}">
                                                         <table class="table table-hover">
                                                             <tbody>
+                                                                {{ $parent := .Task.Id }}
                                                                 {{ range .Child_tasks }}
                                                                 <tr>
-                                                                    <td>{{.Id}}</td>
-                                                                    <td>{{.StatusString}}</td>
-                                                                    <td>
+                                                                    <td width="10%">{{$parent}}-{{.Id}}</td>
+                                                                    <td></td>
+                                                                    <td width="15%">{{.StatusString}}</td>
+                                                                    <td width="20%">
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
                                                                         {{ if or .IsPending (or .IsScheduled .IsRunning) }}
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button></a>
@@ -148,13 +154,13 @@
                                             {{ end }}
                                             {{ range .TaskGroups.OneTime }}
                                             <tr data-toggle="collapse" data-target="#demo{{.Task.Id}}" class="accordion-toggle">
-                                                <td>{{.Task.Id}}</td>
+                                                <td width="10%">{{.Task.Id}}</td>
                                                 <td>{{.Task.Name}}</td>
                                                 <td>One Time Task <br>({{.Task.Exec_time.Format "Mon Jan _2 15:04:05 2006" }})</td>
                                                 <td>{{.Task.Project.Name}}</td>
                                                 <td>{{.Task.Bot.Name}}</td>
-                                                <td>{{.Task.StatusString}}</td>
-                                                <td>
+                                                <td width="15%">{{.Task.StatusString}}</td>
+                                                <td width="20%">
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
                                                     {{ if .Task.IsActive }}
                                                     <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Deactivate</button></a>
@@ -166,11 +172,13 @@
                                                     <div class="accordian-body collapse" id="demo{{.Task.Id}}">
                                                         <table class="table table-hover">
                                                             <tbody>
+                                                                {{ $parent := .Task.Id }}
                                                                 {{ range .Child_tasks }}
                                                                 <tr>
-                                                                    <td>{{.Id}}</td>
-                                                                    <td>{{.StatusString}}</td>
-                                                                    <td>
+                                                                    <td width="10%">{{$parent}}-{{.Id}}</td>
+                                                                    <td></td>
+                                                                    <td width="15%">{{.StatusString}}</td>
+                                                                    <td width="20%">
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
                                                                         {{ if or .IsPending (or .IsScheduled .IsRunning) }}
                                                                         <a href="{{$Subdir}}tasks/{{.Id}}/cancel"><button type="button" class="btn btn-danger">Cancel</button></a>
