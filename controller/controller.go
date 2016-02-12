@@ -172,8 +172,8 @@ type Webhook struct {
 // - CACHE_PATH: The file system path where the different components can store
 // their data.
 //
-// - ADMIN_USER: GitHub user name of the system administrator. TODO: apply this
-// to the database
+// - ADMIN_USER: GitHub user name of the system administrator. NOTE Not
+// implemented yet.
 //
 // - WORKER_PORT: Port where all worker related communication takes place.
 //
@@ -532,87 +532,6 @@ func authGitHubRequest(method, req_url string, token string,
 
 	return resp_data, nil
 }
-
-// TODO document this
-// func authGitHubRequestPost(w http.ResponseWriter, req_url string,
-// 	token string, payload []byte, returnInterface interface{}) error {
-//
-// 	// set up request
-// 	client := &http.Client{}
-// 	req, rErr := http.NewRequest("POST",
-// 		fmt.Sprintf("https://api.github.com/%s", req_url),
-// 		bytes.NewBuffer(payload))
-// 	if rErr != nil {
-// 		return rErr
-// 	}
-// 	//req.Header.Set("Accept", "application/json")
-// 	req.Header.Set("Content-Type", "application/json")
-// 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
-//
-// 	// do request
-// 	response, err := client.Do(req)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 	}
-// 	defer response.Body.Close()
-//
-// 	// read response
-// 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
-// 		body, _ := ioutil.ReadAll(response.Body)
-// 		fmt.Printf("authPost (status: %d) Error Payload: %s\n", response.StatusCode, string(body))
-// 		return errors.New("Bad request!")
-// 	}
-// 	body, err := ioutil.ReadAll(response.Body)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 	}
-// 	dec := json.NewDecoder(bytes.NewReader(body))
-// 	dec.UseNumber()
-// 	if err := dec.Decode(returnInterface); err != nil {
-// 		return errors.New("Decoding error!")
-// 	}
-//
-// 	return nil
-// }
-
-// TODO document this
-// func authGitHubRequestDelete(w http.ResponseWriter, req_url string,
-// 	token string) (interface{}, error) {
-//
-// 	data := url.Values{}
-//
-// 	// set up request
-// 	client := &http.Client{}
-// 	req, _ := http.NewRequest("DELETE",
-// 		fmt.Sprintf("https://api.github.com/%s", req_url),
-// 		bytes.NewBufferString(data.Encode()))
-// 	req.Header.Set("Accept", "application/json")
-// 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
-//
-// 	// do request
-// 	response, err := client.Do(req)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 	}
-// 	defer response.Body.Close()
-//
-// 	// read response
-// 	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusNoContent {
-// 		return nil, errors.New("Bad request!")
-// 	}
-// 	body, err := ioutil.ReadAll(response.Body)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 	}
-// 	var resp_data interface{}
-// 	dec := json.NewDecoder(bytes.NewReader(body))
-// 	dec.UseNumber()
-// 	if err := dec.Decode(&resp_data); err != nil {
-// 		return nil, errors.New("Decoding error!")
-// 	}
-//
-// 	return resp_data, nil
-// }
 
 // Error handling routine. The user is redirected to the index page and an error
 // message (stored in `error_map`) is displayed.

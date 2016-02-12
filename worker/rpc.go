@@ -117,7 +117,7 @@ func (api *WorkerAPI) cancelTask(tid int64) {
 // passed.
 func (api *WorkerAPI) RegisterNewWorker(worker NewWorker, token *string) error {
 	tok, err := db.CreateWorker(worker.User_token, worker.Name, worker.Shared)
-	if err != nil { // TODO handle invalid token and not privileged
+	if err != nil { // NOTE handle invalid token and not privileged
 		err = InvalidToken
 	}
 	*token = tok
@@ -225,7 +225,6 @@ func (api *WorkerAPI) GetTask(worker_token string, task *Task) error {
 		}
 	}
 
-	// TODO fill this
 	task.Id = pending.Id
 	task.Project = pending.Project.Name
 	task.Bot = pending.Bot.Name
