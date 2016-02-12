@@ -19,6 +19,9 @@ const (
 	api_restriction_count = 5000
 	// Time interval used to count the number of API accesses
 	api_restriction_interval = "1 hour"
+	// sslmode of the database
+	// NOTE may be changed in reason of security
+	db_ssl_mode = disable
 )
 
 // The import "pq" is a pure Go postgres driver for Go's database/sql package
@@ -29,13 +32,16 @@ var db *sql.DB //pq.Conn
 // returns an error
 // Parameters like username and password must be provided by the db owner
 // Further parameters shall be adapted:
+// host - the host that runs the application
+// user - the user for accessing the database
+// password - the password for accessing the database
 // dbname - the name of the database
 // sslmode - possible values see in the Postgres' sslmode documentation
-func OpenDB(host, user, password, name string) error {
+func OpenDB(host, user, password, dbname string) error {
 	var err error
 	db, err = sql.Open("postgres",
 		fmt.Sprintf("host=%s user=%s password=%s dbname=%s "+
-			"sslmode=disable", host, user, password, name))
+			"sslmode=%s", host, user, password, dbname, db_ssl_mode))
 	return err
 }
 
@@ -799,7 +805,8 @@ func GetLatestTasks(token string, size int) ([]*Task, error) {
 	return tasks, nil
 }
 
-// TODO document this
+// This function retrieves the user, project and bot information from the
+// database and creates a group_task struct containing these fields
 func getGroupTask(gid int64) (*group_task, error) {
 	// declarations
 	gt := group_task{}
@@ -839,7 +846,8 @@ func getGroupTask(gid int64) (*group_task, error) {
 	return &gt, nil
 }
 
-// TODO documentation
+// This function retrieves the information for a task specified by his id
+// and the users' token and creates a *Task from these values
 func GetTask(tid, user_token string) (*Task, error) {
 	// declarations
 	var start_time, end_time pq.NullTime
@@ -876,9 +884,9 @@ func GetTask(tid, user_token string) (*Task, error) {
 	return &task, nil
 }
 
-//
-// TODO documentation
-//
+// This function selects a Pending Task from the user and returns it
+// If there exists no task and the shared flag is set then a random
+// pending task is been chosen and returned otherwise it will return nil
 func GetPendingTask(uid int64, shared bool) (*Task, error) {
 	//declarations
 	rows, err := db.Query("SELECT tasks.id, users.token FROM tasks "+
@@ -933,9 +941,8 @@ func GetPendingTask(uid int64, shared bool) (*Task, error) {
 	return nil, nil
 }
 
-//
-// TODO documentation
-//
+// This function creates a new *Task in the database initialized with
+// the user, project and bot information and returns it
 func CreateNewChildTask(gtid int64) (*Task, error) {
 	group_task, _ := getGroupTask(gtid)
 
@@ -1014,9 +1021,8 @@ func GetPatchFileName(token, patch_file string) (string, error) {
 	return file_name, nil
 }
 
-//
-// TODO documentation
-//
+// This function returns all tasks from the database which are related to
+// the provided group_task id as a list of *Task
 func GetChildTasks(gtid int64) ([]*Task, error) {
 	var tasks []*Task
 
@@ -1046,9 +1052,9 @@ func GetChildTasks(gtid int64) ([]*Task, error) {
 	return tasks, err
 }
 
-//
-// TODO documentation
-//
+// This function returns all tasks from the database which are related to
+// the provided group_task id and have either the status Pending, Scheduled
+// or Running as a list of *Task
 func GetActiveChildren(gtid int64) ([]*Task, error) {
 	var tasks []*Task
 
@@ -1079,9 +1085,8 @@ func GetActiveChildren(gtid int64) ([]*Task, error) {
 	return tasks, err
 }
 
-//
-// TODO documentation
-//
+// This function returns the id's of all tasks which are running
+// longer then the maxseconds duration
 func GetTimedOverTasks(maxseconds int64) ([]int64, error) {
 	var starttime pq.NullTime
 	var tid int64
@@ -1117,9 +1122,10 @@ func GetTimedOverTasks(maxseconds int64) ([]int64, error) {
 
 // ScheduledTask
 //########################################################
-//
-// TODO documentation
-//
+
+// This function creates a *ScheduledTask from the given parameters,
+// makes a database entry in the table group_tasks and schedule_tasks
+// and returns it
 func CreateScheduledTask(token string, pid string, bid string, name string,
 	next time.Time, cron_exp string) (*ScheduledTask, error) {
 	var gid int64
@@ -1135,9 +1141,7 @@ func CreateScheduledTask(token string, pid string, bid string, name string,
 	return GetScheduledTask(gid)
 }
 
-//
-// TODO documentation
-//
+// This function returns a *ScheduledTask specified by his id
 func GetScheduledTask(stid int64) (*ScheduledTask, error) {
 	var next pq.NullTime
 	task := ScheduledTask{}
@@ -1164,9 +1168,9 @@ func GetScheduledTask(stid int64) (*ScheduledTask, error) {
 	return &task, nil
 }
 
-//
-// TODO documentation
-//
+// This function returns all *ScheduledTaskInstances (containing
+// a *ScheduledTask and a list of *Task's) which are referred to
+// the users token
 func GetScheduledTasks(token string) ([]*ScheduledTaskInstances, error) {
 	var tasks []*ScheduledTaskInstances
 
@@ -1202,9 +1206,8 @@ func GetScheduledTasks(token string) ([]*ScheduledTaskInstances, error) {
 	return tasks, nil
 }
 
-//
-// TODO documentation
-//
+// This function updates the status of a *ScheduledTask with the
+// provided value
 func UpdateScheduledTaskStatus(stid int64, status int) error {
 	var dummy string
 	if err := db.QueryRow("UPDATE schedule_tasks SET status=$1 WHERE id=$2 "+
@@ -1214,9 +1217,8 @@ func UpdateScheduledTaskStatus(stid int64, status int) error {
 	return nil
 }
 
-//
-// TODO documentation
-//
+// This function updates the next execution time of a *ScheduledTask
+// with the provided value
 func UpdateNextScheduleTime(stid int64, next time.Time) error {
 	var dummy string
 	if err := db.QueryRow("UPDATE schedule_tasks SET next=$1 WHERE id=$2 "+
@@ -1226,9 +1228,8 @@ func UpdateNextScheduleTime(stid int64, next time.Time) error {
 	return nil
 }
 
-//
-// TODO documentation
-//
+// This function returns the id's of all *ScheduledTask's which have
+// the specific status
 func GetScheduledTaskIdsWithStatus(status int) ([]int64, error) {
 	var ids []int64
 
@@ -1258,9 +1259,10 @@ func GetScheduledTaskIdsWithStatus(status int) ([]int64, error) {
 
 // OneTimeTask
 //########################################################
-//
-// TODO documentation
-//
+
+// This function creates a *OneTimeTask from the given parameters,
+// makes a database entry in the table group_tasks and onetime_tasks
+// and returns it
 func CreateOneTimeTask(token string, pid string, bid string, name string,
 	exec_time time.Time) (*OneTimeTask, error) {
 	var gid int64
@@ -1276,9 +1278,7 @@ func CreateOneTimeTask(token string, pid string, bid string, name string,
 	return GetOneTimeTask(gid)
 }
 
-//
-// TODO documentation
-//
+// This function returns an *OneTimeTask specified by his id
 func GetOneTimeTask(otid int64) (*OneTimeTask, error) {
 	task := OneTimeTask{}
 
@@ -1299,9 +1299,9 @@ func GetOneTimeTask(otid int64) (*OneTimeTask, error) {
 	return &task, nil
 }
 
-//
-// TODO documentation
-//
+// This function returns all *OneTimeTaskInstances (containing
+// a *OneTimeTask and a list of *Task's) which are referred to
+// the users token
 func GetOneTimeTasks(token string) ([]*OneTimeTaskInstances, error) {
 	var tasks []*OneTimeTaskInstances
 
@@ -1337,7 +1337,8 @@ func GetOneTimeTasks(token string) ([]*OneTimeTaskInstances, error) {
 	return tasks, nil
 }
 
-// NOTE DONE
+// This function updates the status of an *OneTimeTask with the
+// provided value
 func UpdateOneTimeTaskStatus(otid int64, status int) error {
 	var dummy string
 	if err := db.QueryRow("UPDATE onetime_tasks SET status=$1 WHERE id=$2 "+
@@ -1347,9 +1348,8 @@ func UpdateOneTimeTaskStatus(otid int64, status int) error {
 	return nil
 }
 
-//
-// TODO documentation
-//
+// This function returns the id's of all *OneTimeTask's which have
+// the specific status
 func GetOneTimeTaskIdsWithStatus(status int) ([]int64, error) {
 	var ids []int64
 
@@ -1379,9 +1379,10 @@ func GetOneTimeTaskIdsWithStatus(status int) ([]int64, error) {
 
 // InstantTask
 //########################################################
-//
-// TODO documentation
-//
+
+// This function creates a *InstantTask from the given parameters,
+// makes a database entry in the table group_tasks and instant_tasks
+// and returns it
 func CreateNewInstantTask(token string, pid string,
 	bid string) (*InstantTask, error) {
 	var gid int64
@@ -1406,9 +1407,7 @@ func CreateNewInstantTask(token string, pid string,
 	return GetInstantTask(gid)
 }
 
-//
-// TODO documentation
-//
+// This function returns an *InstantTask specified by his id
 func GetInstantTask(itid int64) (*InstantTask, error) {
 	task := InstantTask{}
 
@@ -1429,9 +1428,9 @@ func GetInstantTask(itid int64) (*InstantTask, error) {
 	return &task, nil
 }
 
-//
-// TODO documentation
-//
+// This function returns all *InstantTaskInstances (containing
+// a *InstantTask and a list of *Task's) which are referred to
+// the users token
 func GetInstantTasks(token string) ([]*InstantTaskInstances, error) {
 	var tasks []*InstantTaskInstances
 
@@ -1471,8 +1470,10 @@ func GetInstantTasks(token string) ([]*InstantTaskInstances, error) {
 
 // EventTask
 //########################################################
-//
-// TODO documentation
+
+// This function creates a *EventTask from the given parameters,
+// makes a database entry in the table group_tasks and event_tasks
+// and returns it
 func CreateNewEventTask(token string, pid string, bid string, name string,
 	event int64) (*EventTask, error) {
 	var gid int64
@@ -1488,9 +1489,9 @@ func CreateNewEventTask(token string, pid string, bid string, name string,
 	return GetEventTask(gid)
 }
 
-//
-// TODO documentation
-//
+// This function returns all *EventTaskInstances (containing
+// a *EventTask and a list of *Task's) which are referred to
+// the users token
 func GetEventTasks(token string) ([]*EventTaskInstances, error) {
 	var tasks []*EventTaskInstances
 
@@ -1526,9 +1527,8 @@ func GetEventTasks(token string) ([]*EventTaskInstances, error) {
 	return tasks, nil
 }
 
-//
-// TODO documentation
-//
+// This function updates the status of an *EventTask with the
+// provided value
 func UpdateEventTaskStatus(etid int64, status int) error {
 	var dummy string
 	if err := db.QueryRow("UPDATE event_tasks SET status=$1 WHERE id=$2 "+
@@ -1538,7 +1538,9 @@ func UpdateEventTaskStatus(etid int64, status int) error {
 	return nil
 }
 
-// TODO
+// This function returns all *EventTask's from the database
+// which are related to the provided users' token and have
+// the status Active as a list of *EventTask's
 func GetActiveEventTasks(token string) ([]*EventTask, error) {
 	var tasks []*EventTask
 
@@ -1568,9 +1570,7 @@ func GetActiveEventTasks(token string) ([]*EventTask, error) {
 	return tasks, nil
 }
 
-//
-// TODO documentation
-//
+// This function returns an *EventTask specified by his id
 func GetEventTask(etid int64) (*EventTask, error) {
 	var hook_id sql.NullInt64
 	task := EventTask{}
@@ -1597,17 +1597,6 @@ func GetEventTask(etid int64) (*EventTask, error) {
 	return &task, nil
 }
 
-//
-// TODO documentation
-//
-// func GetHookId(etid int64) (int64, error) {
-// 	var hookId int64
-// 	if err := db.QueryRow("SELECT hook_id FROM event_tasks WHERE id=$1", etid).Scan(&hookId); err != nil {
-// 		return 0, err
-// 	}
-// 	return hookId, nil
-// }
-
 func SetHookId(etid int64, hook_id int64) error {
 	var dummy string
 	if err := db.QueryRow("UPDATE event_tasks SET hook_id=$1 WHERE id=$2 "+
@@ -1617,7 +1606,9 @@ func SetHookId(etid int64, hook_id int64) error {
 	return nil
 }
 
-// TODO document this
+// This function sets the status of either an *ScheduledTask,
+// *EventTask or *OneTimeTask provided by his id to Complete
+// and returns it as an interface
 func CancelTaskGroup(tid string) (interface{}, error) {
 	var task_type int
 
