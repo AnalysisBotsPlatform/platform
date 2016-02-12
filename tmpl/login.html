@@ -23,6 +23,9 @@
     <!-- Custom Fonts -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.5.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
 
+    <!-- Social Media Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-social/4.12.0/bootstrap-social.css" rel="stylesheet" type="text/css">
+
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
     <!--[if lt IE 9]>
@@ -30,27 +33,44 @@
         <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
     <![endif]-->
 
+
+
 </head>
 
 <body>
 
     <div class="container">
-        <div class="header clearfix">
-            {{ if .Error }}
-            <div class="alert alert-danger" role="alert">
-                  <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
-                  <span class="sr-only">Error:</span>
-                  {{.Error}}
-            </div>
-            {{ end }}
+        <div class="header clearfix">            
             <div class="panel-body">
+                {{ if .Error }}
+                <div class="alert alert-danger" role="alert">
+                      <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+                      <span class="sr-only">Error:</span>
+                      {{.Error}}
+                </div>
+                {{ end }}
                 <div class="jumbotron text-center">
                     <h1>Hello!</h1>
                     <p class="lead">
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus ut tristique elit. Praesent nulla turpis, volutpat a lacinia non.
+                    Did you ever want to try a cool new project on one of your GitHub projects but did not want to go through the hassle of installing it? Are you bored of doing repetitive tasks over and over again while working on a project? Do you have any other problem that you want to have solved in an automated fashion? Then you should definitely try this.
                     </p>
                     <p>
-                        <a class="btn btn-lg btn-success" href="{{.Subdir}}login">Login Now</a>
+                        <div class="row">
+                            <table style="margin: 0 auto !important; float: none !important;">
+                                <tr>
+                                    <td style="padding-right:20px">
+                                        <a class="btn btn-block btn-lg btn-social btn-github" style="background-color:#5CB85C;" href="{{.Subdir}}login">
+                                            <div class="fa fa-github"></div> Sign in with GitHub
+                                        </a>                                      
+                                    </td>
+                                    <td>
+                                        <a class="btn btn-block btn-lg btn-social btn-github"  href="https://github.com/AnalysisBotsPlatform/platform">
+                                            <div class="fa fa-github"></div> More Info
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>                
                     </p>
                 </div>
             </div>
