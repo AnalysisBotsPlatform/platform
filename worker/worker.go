@@ -99,7 +99,6 @@ func GetPatchPath() string {
 // - Creating a new communication channel.
 // - Starting an asynchronous task.
 // The task id of the newly created task is returned.
-// TODO document this
 func CreateNewTask(parentTaskId int64) (int64, error) {
 
 	newTask, tErr := db.CreateNewChildTask(parentTaskId)
@@ -133,11 +132,6 @@ func RunOneTimeTask(otid int64) {
 	runningTasks[otid] = cancelChan
 	go runOneTimeTask(otid, cancelChan)
 }
-
-// ############################
-// TODO
-// cancel GroupTasks
-// ############################
 
 // Cancels the scheduling go routine for this particular task and its "child"
 // tasks that are being executed at the moment by some worker.
