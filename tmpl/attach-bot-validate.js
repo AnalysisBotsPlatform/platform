@@ -118,7 +118,7 @@ $("#numberpicker-input").change(function() {
 });
 
 $("#event-id").change(function() {
-    event_id = $("#event-id").val();
+    event_id = $("#event-id")[0].selectedIndex - 1;
     url = "/{basis}/{name}/{event}";
 });
 

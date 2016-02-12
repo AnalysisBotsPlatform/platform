@@ -46,18 +46,39 @@ const (
 	issue_comment               = iota
 	issues                      = iota
 	member                      = iota //10
-	membership                  = iota
 	page_build                  = iota
 	public                      = iota
 	pull_request_review_comment = iota
-	pull_request                = iota //15
-	push                        = iota
-	repository                  = iota
+	pull_request                = iota 
+	push                        = iota //15
 	release                     = iota
 	status                      = iota
-	team_add                    = iota //20
+	team_add                    = iota 
 	watch                       = iota
 )
+
+var Event_names = {
+	"Every Event",
+	"Commit Comment",
+	"Create",
+	"Delete",
+	"Deployment",
+	"Deployment Status",
+	"Fork",
+	"Gollum",
+	"Issue Comment",
+	"Issues",
+	"Member",
+	"Page Build",
+	"Public",
+	"Pull Request Review Comment",
+	"Pull Request",
+	"Push",
+	"Release",
+	"Status",
+	"Team Add",
+	"Watch",
+}
 
 // Statuses of a Scheduled Task
 const (

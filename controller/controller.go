@@ -1142,6 +1142,7 @@ func handleBotsBidNewtask(w http.ResponseWriter, r *http.Request,
 			data["Bot"] = bot
 			data["Projects"] = projects
 			data["Subdir"] = application_subdirectory
+			data["Events"] = db.Event_names
 			renderTemplate(w, "bots-bid-newtask", data)
 		}
 	}
@@ -1210,6 +1211,7 @@ func handleProjectsPidNewtask(w http.ResponseWriter, r *http.Request,
 		data["Project"] = project
 		data["Bots"] = bots
 		data["Subdir"] = application_subdirectory
+		data["Events"] = db.Event_names
 		renderTemplate(w, "projects-pid-newtask", data)
 	}
 }
