@@ -22,7 +22,6 @@ const (
 	Failed    = iota
 )
 
-
 // Github Events
 const (
 	wildcard                    = iota //0
@@ -39,16 +38,16 @@ const (
 	page_build                  = iota
 	public                      = iota
 	pull_request_review_comment = iota
-	pull_request                = iota 
+	pull_request                = iota
 	push                        = iota //15
 	release                     = iota
 	status                      = iota
-	team_add                    = iota 
+	team_add                    = iota
 	watch                       = iota
 )
 
 // user friendly names of the GitHub events
-var Event_names = {
+var Event_names = [...]string{
 	"Every Event",
 	"Commit Comment",
 	"Create",
@@ -185,7 +184,7 @@ type ScheduledTask struct {
 	Cron    string
 }
 
-// Scheduled task with its executions 
+// Scheduled task with its executions
 type ScheduledTaskInstances struct {
 	Task        *ScheduledTask
 	Child_tasks []*Task
@@ -357,8 +356,6 @@ func (t *EventTask) EventString() string {
 		return "issues"
 	case t.Event == member:
 		return "member"
-	case t.Event == membership:
-		return "membership"
 	case t.Event == page_build:
 		return "page_build"
 	case t.Event == public:
@@ -369,8 +366,6 @@ func (t *EventTask) EventString() string {
 		return "pull_request"
 	case t.Event == push:
 		return "push"
-	case t.Event == repository:
-		return "repository"
 	case t.Event == release:
 		return "release"
 	case t.Event == status:

@@ -87,7 +87,7 @@ CREATE TABLE tasks(
 
 CREATE TABLE schedule_tasks(
 	id integer UNIQUE REFERENCES group_tasks(id) NOT NULL,
-	name varchar(50) NOT NULL CHECK (name <> ''),
+	name varchar(50) NOT NULL,
 	status integer NOT NULL,
 	next timestamp,
 	cron varchar(100) NOT NULL CHECK (cron <> '')
@@ -95,7 +95,7 @@ CREATE TABLE schedule_tasks(
 
 CREATE TABLE onetime_tasks(
 	id integer UNIQUE REFERENCES group_tasks(id) NOT NULL,
-	name varchar(50) NOT NULL CHECK (name <> ''),
+	name varchar(50) NOT NULL,
 	status integer NOT NULL,
 	exec_time timestamp NOT NULL
 );
@@ -106,7 +106,7 @@ CREATE TABLE instant_tasks(
 
 CREATE TABLE event_tasks(
 	id integer UNIQUE REFERENCES group_tasks(id) NOT NULL,
-	name varchar(50) NOT NULL CHECK (name <> ''),
+	name varchar(50) NOT NULL,
 	status integer NOT NULL,
 	event integer NOT NULL,
 	hook_id integer

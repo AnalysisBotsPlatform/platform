@@ -367,7 +367,7 @@ func initRoutes() (rootRouter *mux.Router) {
 		Queries("time", "")
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewEventDriven))).
-		Queries("event", "")
+		Queries("type", "")
 	botsRouter.HandleFunc(fmt.Sprintf("/{bid:%s}/{pid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewInstant)))
 
@@ -389,7 +389,7 @@ func initRoutes() (rootRouter *mux.Router) {
 	projectsRouter.HandleFunc(
 		fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewEventDriven))).
-		Queries("event", "")
+		Queries("type", "")
 	projectsRouter.HandleFunc(
 		fmt.Sprintf("/{pid:%s}/{bid:%s}", id_regex, id_regex),
 		makeHandler(makeTokenHandler(handleTasksNewInstant)))
@@ -488,7 +488,8 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
 // successful response the result data in JSON format is decoded and returned.
 // In case of an unexpected error, the error is returned.
 func authGitHubRequest(method, req_url string, token string,
-	payload map[string]string, expected_status int) (interface{}, error) {
+	payload map[string]interface{}, header map[string]string,
+	expected_status int) (interface{}, error) {
 	// set up request payload
 	data, err := json.Marshal(payload)
 	if err != nil {
@@ -501,6 +502,9 @@ func authGitHubRequest(method, req_url string, token string,
 		fmt.Sprintf("https://api.github.com/%s", req_url),
 		bytes.NewBuffer(data))
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+	for key, value := range header {
+		req.Header.Set(key, value)
+	}
 
 	// do request
 	response, err := client.Do(req)
@@ -777,7 +781,8 @@ func handleAuth(w http.ResponseWriter, r *http.Request,
 		token := resp_data["access_token"].(string)
 		session.Values["token"] = token
 		user_resp, err := authGitHubRequest("GET", "user", token,
-			make(map[string]string), http.StatusOK)
+			make(map[string]interface{}), make(map[string]string),
+			http.StatusOK)
 		if err != nil {
 			session.Options.MaxAge = -1
 		} else {
@@ -985,7 +990,7 @@ func handlePullRequestNew(w http.ResponseWriter, r *http.Request,
 	// request master branch information
 	ref_response, err := authGitHubRequest("GET",
 		fmt.Sprintf("repos/%s/git/refs/heads/master", task.Project.Name), token,
-		make(map[string]string), http.StatusOK)
+		make(map[string]interface{}), make(map[string]string), http.StatusOK)
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -996,12 +1001,12 @@ func handlePullRequestNew(w http.ResponseWriter, r *http.Request,
 
 	// create new branch to put the changes on
 	branch_name := fmt.Sprintf("analysisbots_task_%d", task.Id)
-	new_ref_payload := make(map[string]string)
+	new_ref_payload := make(map[string]interface{})
 	new_ref_payload["ref"] = fmt.Sprintf("refs/heads/%s", branch_name)
 	new_ref_payload["sha"] = sha
 	new_ref_response, err := authGitHubRequest("POST",
 		fmt.Sprintf("repos/%s/git/refs", task.Project.Name), token,
-		new_ref_payload, http.StatusCreated)
+		new_ref_payload, make(map[string]string), http.StatusCreated)
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -1021,7 +1026,7 @@ func handlePullRequestNew(w http.ResponseWriter, r *http.Request,
 	}
 
 	// create pull request
-	pullreq_payload := make(map[string]string)
+	pullreq_payload := make(map[string]interface{})
 	pullreq_payload["title"] = fmt.Sprintf("[AUTO] Analysis Bots Action #%d",
 		task.Id)
 	pullreq_payload["head"] = branch_name
@@ -1029,7 +1034,7 @@ func handlePullRequestNew(w http.ResponseWriter, r *http.Request,
 	pullreq_payload["body"] = "Please pull this in!"
 	_, err = authGitHubRequest("POST",
 		fmt.Sprintf("repos/%s/pulls", task.Project.Name), token,
-		pullreq_payload, http.StatusCreated)
+		pullreq_payload, make(map[string]string), http.StatusCreated)
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -1126,7 +1131,7 @@ func handleBotsBidNewtask(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	response, err := authGitHubRequest("GET", "user/repos", token,
-		make(map[string]string), http.StatusOK)
+		make(map[string]interface{}), make(map[string]string), http.StatusOK)
 	if err != nil {
 		session.Options.MaxAge = -1
 		session.Save(r, w)
@@ -1156,7 +1161,7 @@ func handleBotsBidNewtask(w http.ResponseWriter, r *http.Request,
 func handleProjects(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	response, err := authGitHubRequest("GET", "user/repos", token,
-		make(map[string]string), http.StatusOK)
+		make(map[string]interface{}), make(map[string]string), http.StatusOK)
 	if err != nil {
 		session.Options.MaxAge = -1
 		session.Save(r, w)
@@ -1290,7 +1295,7 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	event, err := strconv.ParseInt(r.FormValue("event"), 10, 64)
+	event, err := strconv.ParseInt(r.FormValue("type"), 10, 64)
 	if err != nil {
 		handleError(w, r, err)
 		return
@@ -1304,15 +1309,20 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 	}
 
 	reqUrl := fmt.Sprintf("repos/%s/hooks", task.Project.Name)
-	payload := make(map[string]string)
+	payload := make(map[string]interface{})
 	payload["name"] = "web"
-	payload["active"] = "true"
-	payload["events"] = fmt.Sprintf("{%s}", task.EventString())
-	payload["config"] =
-		fmt.Sprintf("{\"url\":\"http://%s/%s/%d\",\"content_type\":\"json\"}",
-			application_host, webhook_subpath, task.Id)
+	payload["active"] = true
+	payload["events"] = [...]string{task.EventString()}
+	config := make(map[string]interface{})
+	config["url"] = fmt.Sprintf("http://%s/%s/%d", application_host,
+		webhook_subpath, task.Id)
+	config["content_type"] = "json"
+	payload["config"] = config
 
-	hookResp, err := authGitHubRequest("POST", reqUrl, token, payload,
+	header := make(map[string]string)
+	header["secret"] = ""
+
+	hookResp, err := authGitHubRequest("POST", reqUrl, token, payload, header,
 		http.StatusCreated)
 	if err != nil {
 		handleError(w, r, err)
@@ -1321,7 +1331,8 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	hid := hookResp.(map[string]interface{})["id"].(int64)
+	json_hid := hookResp.(map[string]interface{})["id"].(json.Number)
+	hid, _ := json_hid.Int64()
 
 	err = db.SetHookId(task.Id, hid)
 	if err != nil {
@@ -1404,41 +1415,11 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	taskId := vars["tid"]
 
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		// TODO error handling
-	}
-
-	type hook struct {
-		Hook_id int64 `json:hook_id`
-	}
-
-	var h hook
-	err = json.Unmarshal(body, &h)
-	if err != nil {
-		// TODO error handling
-		return
-	}
-
 	tid, iErr := strconv.ParseInt(taskId, 10, 64)
 	if iErr != nil {
 		// TODO error handling
 		return
 	}
-
-	// TODO token validation
-
-	// sanity check
-	//    hookId, tErr := db.GetHookId(tid)
-	//    if(tErr != nil ){
-	//        // TODO error handling
-	//        return
-	//    }
-
-	//    if(hookId != h.Hook_id){
-	//        // TODO error handling
-	//        return
-	//    }
 
 	worker.CreateNewTask(tid)
 }
@@ -1474,7 +1455,8 @@ func handleTasksTidCancelGroup(w http.ResponseWriter, r *http.Request,
 		url := fmt.Sprintf("repos/%s/hooks/%d", eventTask.Project.Name,
 			eventTask.HookId)
 		if _, err := authGitHubRequest("DELETE", url, token,
-			make(map[string]string), http.StatusNoContent); err != nil {
+			make(map[string]interface{}), make(map[string]string),
+			http.StatusNoContent); err != nil {
 			handleError(w, r, err)
 			return
 		}
@@ -1501,7 +1483,8 @@ func updateHooks(token string) error {
 
 	for _, task := range tasks {
 		url := fmt.Sprintf("repos/%s/hooks/%d", task.Project.Name, task.HookId)
-		_, rErr := authGitHubRequest("GET", url, token, make(map[string]string),
+		_, rErr := authGitHubRequest("GET", url, token,
+			make(map[string]interface{}), make(map[string]string),
 			http.StatusOK)
 		if rErr != nil {
 			db.UpdateScheduledTaskStatus(task.Id, db.Complete)
@@ -1583,7 +1566,7 @@ func handleAPIGetProjects(w http.ResponseWriter, r *http.Request,
 		http.Error(w, err.Error(), http.StatusNotFound)
 	}
 	response, err := authGitHubRequest("GET", "user/repos", user_token,
-		make(map[string]string), http.StatusOK)
+		make(map[string]interface{}), make(map[string]string), http.StatusOK)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 	} else {
