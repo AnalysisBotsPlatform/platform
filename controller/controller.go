@@ -7,6 +7,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"errors"
+    "regexp"
 	"fmt"
 	"github.com/AnalysisBotsPlatform/platform/db"
 	"github.com/AnalysisBotsPlatform/platform/utils"
@@ -519,18 +520,100 @@ func authGitHubRequest(method, req_url string, token string,
 	if response.StatusCode != expected_status {
 		return nil, errors.New("Bad request!")
 	}
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
-	var resp_data interface{}
-	dec := json.NewDecoder(bytes.NewReader(body))
-	dec.UseNumber()
-	if err := dec.Decode(&resp_data); err != nil {
-		return nil, errors.New("Decoding error!")
-	}
+    
+    body, err := ioutil.ReadAll(response.Body)
+    if err != nil {
+        return nil, err
+    }
+    var resp_data interface{}
+    dec := json.NewDecoder(bytes.NewReader(body))
+    dec.UseNumber()
+    if err := dec.Decode(&resp_data); err != nil {
+        return nil, errors.New("Decoding error!")
+    }
+    
+    
+    url, err := getNextUrl("next", response.Header.Get("Link"))
+    if(err != nil){
+        return resp_data, nil    
+    }
+    
+    
+    var resp_data_slice []interface{}
+    
+                
+    for _, value := range resp_data.([]interface{}){
+        resp_data_slice = append(resp_data_slice, value)
+    }
+    
 
-	return resp_data, nil
+    for{
+        req, _ := http.NewRequest(method, url, nil)
+        req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
+        for key, value := range header {
+            req.Header.Set(key, value)
+        }
+
+        // do request
+        response, err = client.Do(req)
+        if err != nil {
+            return nil, err
+        }
+        defer response.Body.Close()
+
+        // read response
+        if response.StatusCode != expected_status {
+            return nil, errors.New("Bad request!")
+        }
+        body, err := ioutil.ReadAll(response.Body)
+        if err != nil {
+            return nil, err
+        }
+        var data interface{}
+        dec := json.NewDecoder(bytes.NewReader(body))
+        dec.UseNumber()
+        if err := dec.Decode(&data); err != nil {
+            return nil, errors.New("Decoding error!")
+        }            
+        for _, value := range data.([]interface{}){
+            resp_data_slice = append(resp_data_slice, value)
+        }
+
+        url, err = getNextUrl("next", response.Header.Get("Link"))
+        if(err != nil){
+            break
+        }
+    }
+        
+        
+    return resp_data_slice, nil
+    
+    
+    
+	
+}
+
+func getNextUrl(specifier, link string) (string, error){
+    regexpNext := regexp.MustCompile(fmt.Sprintf("<.*>;.*rel=\"%s\"", specifier))
+    
+    matches := regexpNext.FindAllString(link, -1)
+    if(len(matches) == 0){
+        return "", errors.New("error")
+    }
+    
+    url := matches[0]
+    
+    regexpUrl := regexp.MustCompile("<.*>")
+    matches = regexpUrl.FindAllString(url, -1)
+    if(len(matches) == 0){
+        return "", errors.New("error")
+    }
+    
+    url = matches[0]
+    
+    url = strings.TrimPrefix(url,"<")
+    url = strings.TrimSuffix(url,">")
+    return url, nil
 }
 
 // Error handling routine. The user is redirected to the index page and an error
@@ -1208,7 +1291,14 @@ func handleTasksTid(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// TODO document this
+// The handler creates a new event triggered task by using the query arguments
+// 'name' and 'event'. After creating a new event task instance a new web hook
+// on GitHub is created. (How this is done you can lookup here:
+// https://developer.github.com/v3/repos/hooks/ ) The id of the hook is
+// retrieved from the response and added to the event task. In the end the users
+// is redirected to the overview page of the tasks. In case the creation of a
+// hook failed the status of the task is updated to complete and the
+// errorhandler is called. 
 func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 
@@ -1267,6 +1357,14 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 		http.StatusFound)
 }
 
+// The handler creates a new scheduled task by using the query arguments
+// 'name' and 'cron'. The 'cron' argument is a a unix cron expression
+// (https://en.wikipedia.org/wiki/Cron) to identify the schedule times. First
+// the next time satisfying the cron expression is calculated (corresponds to
+// the next execution time). Then a a new instance of scheduled task is created
+// and a go routine for scheduling the the task is started. In the end the
+// users is redirected to the overview page of the tasks. In case of an error
+// the errorhandler is called.
 func handleTasksNewScheduled(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 
@@ -1291,7 +1389,13 @@ func handleTasksNewScheduled(w http.ResponseWriter, r *http.Request,
 		http.StatusFound)
 }
 
-// TODO document this
+// The handler creates a new one time task by using the query arguments 'name'
+// and 'time'. The 'time' argument is passed in unix time and is the time stamp
+// the task should be executed. If it is the past the task is executed
+// immediately. After converting the time stamp from unix time to a go time
+// type a new instance of a one time task is created. To schedule the task a go
+// routine in the worker is started. In the end the users is redirected to the
+// overview page of the tasks. In case of an error the errorhandler is called.
 func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 
@@ -1314,7 +1418,10 @@ func handleTasksNewOneTime(w http.ResponseWriter, r *http.Request,
 		http.StatusFound)
 }
 
-// TODO document this
+// The handler creates a new instant task. After creating a new instance of
+// instant task the execution is immediately initiate by calling CreateNewTask.
+// In the end the users is redirected to the overview page of the tasks. In 
+// case of an error the errorhandler is called.
 func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	instantTask, err := db.CreateNewInstantTask(token, vars["pid"], vars["bid"])
@@ -1332,7 +1439,11 @@ func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
 		tid), http.StatusFound)
 }
 
-// TODO document this
+// The handler handles the requests from GitHub to the call back url specified
+// during the creation of a hook. The url '.../webhook/id' ends with the id 
+// of the associated event task to identify the request. After checking the
+// validity of the request CreateNewTask is called to initiate the execution of
+// the event task.
 func handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
@@ -1373,7 +1484,12 @@ func handleTasksTidCancel(w http.ResponseWriter, r *http.Request,
 		http.StatusFound)
 }
 
-// TODO document this
+// The handler attempts to cancel the whole group task. Depending on the type
+// of the task the corresponding cancel function is called. In case of a event
+// task also the corresponding hook is deleted. (How to delete a webhook you
+// can lookup here: https://developer.github.com/v3/repos/hooks/) In the end
+// the users is redirected to the overview page of the tasks. In case of an
+// error the errorhandler is called.
 func handleTasksTidCancelGroup(w http.ResponseWriter, r *http.Request,
 	vars map[string]string, session *sessions.Session, token string) {
 	task, err := db.CancelTaskGroup(vars["tid"])
@@ -1411,7 +1527,10 @@ func handleTasksTidCancelGroup(w http.ResponseWriter, r *http.Request,
 		http.StatusFound)
 }
 
-// TODO document this
+// Because a user is also able to delete the webhooks manually the status of
+// the database needs to be updated. For every active event task it is checked
+// if the corresponding hook still exists. If it is not the case the task is
+// set to completed.
 func updateHooks(token string) error {
 	tasks, err := db.GetActiveEventTasks(token)
 	if err != nil {
