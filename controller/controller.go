@@ -1341,13 +1341,11 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 	config["url"] = fmt.Sprintf("http%s://%s%s%s/%d", ssl, application_host,
 		application_subdirectory, webhook_subpath, task.Id)
 	config["content_type"] = "json"
+	config["secret"] = task.Token
 	payload["config"] = config
 
-	header := make(map[string]string)
-	header["secret"] = task.Token
-
-	hookResp, err := authGitHubRequest("POST", reqUrl, token, payload, header,
-		http.StatusCreated)
+	hookResp, err := authGitHubRequest("POST", reqUrl, token, payload,
+		make(map[string]string), http.StatusCreated)
 	if err != nil {
 		handleError(w, r, err)
 		// NOTE proper error handling
