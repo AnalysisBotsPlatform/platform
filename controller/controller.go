@@ -1266,7 +1266,7 @@ func handleTasks(w http.ResponseWriter, r *http.Request,
 	data := make(map[string]interface{})
 	data["TaskGroups"] = task_groups
 	data["Subdir"] = application_subdirectory
-	renderTemplate(w, "tasks-new", data)
+	renderTemplate(w, "tasks", data)
 }
 
 // The handler requests detailed information about the task identified by its
