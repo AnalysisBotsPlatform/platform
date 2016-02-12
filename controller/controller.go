@@ -490,6 +490,7 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
 // The function sends a request `req_url` to GitHub. After receiving a
 // successful response the result data in JSON format is decoded and returned.
 // In case of an unexpected error, the error is returned.
+// Also supports pagination
 func authGitHubRequest(method, req_url string, token string,
 	payload map[string]interface{}, header map[string]string,
 	expected_status int) (interface{}, error) {
@@ -593,12 +594,22 @@ func authGitHubRequest(method, req_url string, token string,
 	
 }
 
+// Extracts the URL from a list of strings from the "Link" field in a 
+// HTTP-Header specified by "specifier"var
+// e.g. for 
+// <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=2>; 
+// rel="next", 
+// <https://api.github.com/search/code?q=addClass+user%3Amozilla&page=34>;
+// rel="last"
+// as a link and the spcifier "next" this returns:
+// https://api.github.com/search/code?q=addClass+user%3Amozilla&page=2
+// If no match is being found it returns an error.
 func getNextUrl(specifier, link string) (string, error){
     regexpNext := regexp.MustCompile(fmt.Sprintf("<.*>;.*rel=\"%s\"", specifier))
     
     matches := regexpNext.FindAllString(link, -1)
     if(len(matches) == 0){
-        return "", errors.New("error")
+        return "", errors.New("No match found.")
     }
     
     url := matches[0]
@@ -606,7 +617,7 @@ func getNextUrl(specifier, link string) (string, error){
     regexpUrl := regexp.MustCompile("<.*>")
     matches = regexpUrl.FindAllString(url, -1)
     if(len(matches) == 0){
-        return "", errors.New("error")
+        return "", errors.New("No match found.")
     }
     
     url = matches[0]
