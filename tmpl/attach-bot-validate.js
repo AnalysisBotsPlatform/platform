@@ -9,6 +9,14 @@ var event_id = -1;
 var schedule = false;
 var periodic_sel = -1;
 
+function pad(number, length){
+    var str = "" + number
+    while (str.length < length) {
+        str = '0'+str
+    }
+    return str
+}
+
 $(function () {
     $('#datetimepicker1').datetimepicker({
         defaultDate: Date(),
@@ -166,15 +174,22 @@ $(".full_url").click(function() {
             $('#cron').val(cron);
 
             $('#time').removeAttr('name');
+            $('#timezone').removeAttr('name');
             $('#type').removeAttr('name');
         } else if(chosen_tab == 3){
             exec_basis = 3;
             $('#time').attr('name', 'time');
+            $('#timezone').attr('name', 'timezone');
             
             var date = new Date(time * 1000);
-            var date_utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()));
+
+            var offset = new Date().getTimezoneOffset();
+            offset = ((offset<0? '+':'-') + pad(parseInt(Math.abs(offset/60)), 2) + pad(Math.abs(offset%60), 2));
+
+            //var date_utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()));
             
-            $("#time").val(date_utc.getTime());
+            $("#time").val(date.getTime());
+            $('#timezone').val(offset);
 
             $('#cron').removeAttr('name');
             $('#type').removeAttr('name');
@@ -188,12 +203,14 @@ $(".full_url").click(function() {
             $("#type").val(event_id);
 
             $('#time').removeAttr('name');
+            $('#timezone').removeAttr('name');
             $('#cron').removeAttr('name');
         }
     } else {
         exec_basis = 4;
         $('#name').removeAttr('name');
         $('#time').removeAttr('name');
+        $('#timezone').removeAttr('name');
         $('#type').removeAttr('name');
         $('#cron').removeAttr('name');
     }
