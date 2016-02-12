@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -674,14 +675,12 @@ func handleRoot(w http.ResponseWriter, r *http.Request,
 	if token, ok := session.Values["token"]; ok {
 		user_stats, err := db.GetUserStatistics(token.(string))
 		if err != nil {
-			// TODO error handling
 			fmt.Println(err)
 			return
 		}
 
 		tasks, err := db.GetLatestTasks(token.(string), 10)
 		if err != nil {
-			// TODO error handling
 			fmt.Println(err)
 			return
 		}
@@ -828,8 +827,6 @@ func handleJavaScripts(w http.ResponseWriter, r *http.Request,
 // https://github.com/login/oauth/authorize?client_id=<id>&scope="user, repo"&state=<st>
 //
 // - client_id: The client_id from the application settings page on GitHub.
-// TODO document scopes
-// TODO verify scopes
 // - scope: The scope determines which parts of the user's data the application
 // is allowed to access. In this case "user" grants read and write access to the
 // user's profile info and "repo" read and write access to code, commit
@@ -1342,7 +1339,7 @@ func handleTasksNewEventDriven(w http.ResponseWriter, r *http.Request,
 		http.StatusCreated)
 	if err != nil {
 		handleError(w, r, err)
-		// TODO proper error handling
+		// NOTE proper error handling
 		db.UpdateEventTaskStatus(task.Id, db.Complete)
 		return
 	}
@@ -1449,6 +1446,10 @@ func handleTasksNewInstant(w http.ResponseWriter, r *http.Request,
 // the event task.
 func handleWebhook(w http.ResponseWriter, r *http.Request) {
 
+	if r.Header.Get("X-GitHub-Event") == "ping" {
+		return
+	}
+
 	vars := mux.Vars(r)
 	taskId := vars["tid"]
 
@@ -1460,15 +1461,16 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	mac := hmac.New(sha1.New, key)
 	body, _ := ioutil.ReadAll(r.Body)
 	mac.Write(body)
-	expectedMAC := mac.Sum(nil)
-	if !hmac.Equal([]byte(r.Header.Get("X-Hub-Signature")), expectedMAC) {
+	expectedMAC := []byte(hex.EncodeToString(mac.Sum(nil)))
+	messageMAC := []byte(strings.TrimPrefix(r.Header.Get("X-Hub-Signature"),
+		"sha1="))
+	if !hmac.Equal(messageMAC, expectedMAC) {
 		fmt.Fprintf(os.Stderr, "Unknown secret!")
 		return
 	}
 
 	tid, iErr := strconv.ParseInt(taskId, 10, 64)
 	if iErr != nil {
-		// TODO error handling
 		return
 	}
 
