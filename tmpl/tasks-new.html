@@ -42,7 +42,9 @@
                                                 <td>{{.Task.StatusString}}</td>
                                                 <td>
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
+                                                    {{ if .Task.IsActive }}
                                                     <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>
+                                                    {{ end }}
                                                 </td>
                                             </tr>
                                             <tr>
@@ -55,7 +57,7 @@
                                                                     <td>{{.Id}}</td>
                                                                     <td>{{.StatusString}}</td>
                                                                     <td>
-                                                                        <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button>
+                                                                        <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
                                                                     </td>
                                                                 </tr>
                                                                 {{ end }}
@@ -75,7 +77,9 @@
                                                 <td>{{.Task.StatusString}}</td>
                                                 <td>
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
+                                                    {{ if .Task.IsActive }}
                                                     <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>
+                                                    {{ end }}
                                                 </td>
                                             </tr>
                                             <tr>
@@ -88,7 +92,7 @@
                                                                     <td>{{.Id}}</td>
                                                                     <td>{{.StatusString}}</td>
                                                                     <td>
-                                                                        <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button>
+                                                                        <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
                                                                     </td>
                                                                 </tr>
                                                                 {{ end }}
@@ -121,7 +125,8 @@
                                                                     <td>{{.Id}}</td>
                                                                     <td>{{.StatusString}}</td>
                                                                     <td>
-                                                                        <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button>
+                                                                        <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
+                                                                        <a href="{{$Subdir}}bots/{{.Bot.Id}}/{{.Project.Id}}"><button type="button" class="btn btn-success">Rerun</button></a>
                                                                     </td>
                                                                 </tr>
                                                                 {{ end }}
@@ -140,7 +145,9 @@
                                                 <td>{{.Task.StatusString}}</td>
                                                 <td>
                                                     <a href="#"><button type="button" value="0" class="btn btn-success expand">Expand</button></a>
+                                                    {{ if .Task.IsActive }}
                                                     <a href="{{$Subdir}}tasks/{{.Task.Id}}/cancel_group"><button type="button" class="btn btn-danger">Delete</button></a>
+                                                    {{ end }}
                                                 </td>
                                             </tr>
                                             <tr>
@@ -153,7 +160,7 @@
                                                                     <td>{{.Id}}</td>
                                                                     <td>{{.StatusString}}</td>
                                                                     <td>
-                                                                        <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button>
+                                                                        <a href="{{$Subdir}}tasks/{{.Id}}"><button type="button" class="btn btn-success">Details</button></a>
                                                                     </td>
                                                                 </tr>
                                                                 {{ end }}

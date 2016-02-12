@@ -268,12 +268,36 @@ func (t *ScheduledTask) StatusString() string {
 	return task_group_status_string(t.Status)
 }
 
+func (t *ScheduledTask) IsActive() bool {
+	return t.Status == Active
+}
+
+func (t *ScheduledTask) IsComplete() bool {
+	return t.Status == Complete
+}
+
 func (t *EventTask) StatusString() string {
 	return task_group_status_string(t.Status)
 }
 
+func (t *EventTask) IsActive() bool {
+	return t.Status == Active
+}
+
+func (t *EventTask) IsComplete() bool {
+	return t.Status == Complete
+}
+
 func (t *OneTimeTask) StatusString() string {
 	return task_group_status_string(t.Status)
+}
+
+func (t *OneTimeTask) IsActive() bool {
+	return t.Status == Active
+}
+
+func (t *OneTimeTask) IsComplete() bool {
+	return t.Status == Complete
 }
 
 func (t *EventTask) EventString() string {
